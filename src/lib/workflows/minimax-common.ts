@@ -433,12 +433,19 @@ export function h3Turbo(
   return {
     node: {
       class_type: "MiniMaxH3TurboLoRA",
-      // Both values as the ComfyUI export carries them; the strength and Low
-      // VRAM controls below overwrite them.
+      // The strength control below overwrites `strength`. `low_vram` is not
+      // the export's false, and it is not offered as a switch: off, the pack
+      // applies the LoRA at run time ("bypass"), and on this 3090 that grows
+      // VRAM by about 0.65 GB/s from the first step until the card fills and
+      // takes Windows down with it — the whole machine, not just ComfyUI. It did
+      // at strength 1 and 0.9 alike. On, it merges the LoRA into the weights
+      // once and VRAM holds level for the whole run, at the same s/it. The pack
+      // says merging is a little softer on a quantized base; a softer take
+      // beats a machine that has to be power-cycled.
       inputs: {
         lora_name: "minimax_h3_turbo_v4_step600_ema.safetensors",
         strength: 1,
-        low_vram: false,
+        low_vram: true,
       },
       _meta: { title: "MiniMax-H3 Turbo LoRA" },
     },
@@ -451,21 +458,9 @@ export function h3Turbo(
       max: 8,
       help: "The turbo LoRA converges here. 4 is fastest, 8 is safest.",
     },
-    /**
-     * The node pack's own low-memory path for applying the LoRA, passed
-     * straight through — what it trades is the pack's business, not this app's,
-     * so the help says what it is for rather than what it does inside.
-     *
-     * Off by default because it is the slower way to get the same frames: it
-     * earns its place only on a card where the fast way runs out of memory,
-     * which is a fact about the machine rather than about the shot. That is
-     * also why it is remembered once for every workflow instead of per graph.
-     */
-    lowVram: {
-      input: "low_vram",
-      label: "Low VRAM",
-      help: "Applies the LoRA the memory-sparing way the node pack offers. Slower, and only worth it if a turbo run dies out of memory on this card.",
-    },
+    // No `lowVram`: the merge path is not optional here — see `low_vram` on the
+    // node above. Leaving the switch out is what keeps a stored "off" from a
+    // browser that used it before from reaching the node.
     /**
      * 1 is what the LoRA was trained at. The pack's README gives the two
      * directions: 0.8–0.95 for over-sharp grain, 1.05–1.2 for smear and

@@ -570,15 +570,14 @@ app before gets 4 by dragging the control to it once, not by upgrading —
 `DEFAULTS_VERSION` moves the *switch* keys and deliberately does not touch this
 one.
 
-**Low VRAM** is the node pack's own memory-sparing way of applying the LoRA,
-passed straight through as the `low_vram` input on the node that gets spliced
-in. It is off by default and slower; turn it on if a turbo run dies out of
-memory on your card. Unlike everything in the settings form it is remembered
-once for the whole app rather than per workflow, because what it answers is a
-question about the GPU, not about the shot. It is not a param either, for the
-plainer reason that the node it writes to does not exist until the splice
-happens. It lives under **Model** with the patches below, and only appears in
-turbo — off, there is no LoRA node for it to say anything about.
+**The LoRA is always merged, never applied at run time.** The node pack's
+`low_vram` input picks between the two, and the app sets it on and offers no
+switch. Off — the pack's default, "bypass" — VRAM climbs by about 0.65 GB/s
+from the first step until a 24 GB 3090 is full, and the whole Windows machine
+goes down with it, not just ComfyUI: no traceback, no bugcheck, the remote
+session simply drops. It did at strength 1 and 0.9 alike. Merged, VRAM holds
+level for the whole run at the same s/it. The pack says merging is slightly
+softer on a quantized base; that is the price of a machine that stays up.
 
 **On the two graphs that run `ref2va` — reference to video and Remix — check a
 turbo take against a standard one before you trust it for a likeness.** The LoRA is distilled against `fl2va` and its author
@@ -689,8 +688,7 @@ half — starting at Light would stack three things pulling the same way and sho
 almost nothing, which reads as "the LoRA is broken" rather than as a setting.
 
 **It has a strength.** For VHS tape the two LoRAs perturb the same weights andNeither the strength nor the base choice is a param — the inputs they write
-belong to a node that is not in the stored graph, the same reason Low VRAM is not
-one — so both ride in the run's modes. Both are keyed by the *entry's* id rather
+belong to a node that is not in the stored graph — so both ride in the run's modes. Both are keyed by the *entry's* id rather
 than the switch's, so each LoRA remembers its own settings and switching between
 them does not carry a number into a range that may not contain it. Which LoRA is
 selected is keyed by the switch, and all three are remembered once for the whole
@@ -718,7 +716,7 @@ three are described in `src/lib/workflows/patches.ts` as a list rather than as
 named fields, since they differ only in which node they carry and in the two
 things `PatchDef` grew for the LoRA: `base` and `strength`.
 
-They live behind a collapsed **Model** heading with Low VRAM, closed by default,
+They live behind a collapsed **Model** heading, closed by default,
 because none of them is a per-shot decision — they answer questions about the
 machine and the install, and once answered they are in the way. The heading
 carries a summary of what is on, so shutting the section does not hide the fact
