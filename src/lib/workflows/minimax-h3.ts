@@ -237,11 +237,17 @@ const params: ParamDef[] = [
     label: "Frame size",
     type: "slider",
     default: 0.5,
+    // 1, not 2: H3's native canvas is about 1 MP (1344×768 at 16:9), and
+    // frames past it are slower without holding more detail. Cost grows
+    // faster than the area — measured on a 3090 with turbo, 1 MP samples
+    // about 3.3× as long per step as 0.5 MP, and 13 s about 1.7× as long as
+    // 10 s — which is what the help says, in relative terms because the
+    // seconds belong to whoever's card it is.
     min: 0.1,
-    max: 2,
+    max: 1,
     step: 0.05,
     unit: "MP",
-    help: "Higher is sharper, and slower.",
+    help: "Higher is sharper, and slower — 1 MP takes about three times as long as 0.5 MP, and a 13 s clip nearly twice as long as a 10 s one. H3 is native at about 1 MP, so there is no more detail past it.",
     group: "Output",
     targets: [{ node: "115", input: "megapixels" }],
   },

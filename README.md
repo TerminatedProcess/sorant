@@ -572,12 +572,15 @@ one.
 
 **The LoRA is always merged, never applied at run time.** The node pack's
 `low_vram` input picks between the two, and the app sets it on and offers no
-switch. Off — the pack's default, "bypass" — VRAM climbs by about 0.65 GB/s
-from the first step until a 24 GB 3090 is full, and the whole Windows machine
-goes down with it, not just ComfyUI: no traceback, no bugcheck, the remote
-session simply drops. It did at strength 1 and 0.9 alike. Merged, VRAM holds
-level for the whole run at the same s/it. The pack says merging is slightly
-softer on a quantized base; that is the price of a machine that stays up.
+switch. Off — the pack's default, "bypass" — the video model was still being
+paged onto a 24 GB 3090 through the first step, and on Windows that is what
+takes the whole machine down when the card fills: no traceback, no bugcheck,
+the remote session simply drops (Comfy-Org/ComfyUI#15360). The real fix is on
+the ComfyUI side, `--vram-headroom 3` at launch — see
+[`docs/agent-setup.md`](docs/agent-setup.md). Merged, the model is resident
+before sampling starts, at the same s/it. The pack says merging is slightly
+softer on a quantized base; whether bypass is safe once the headroom flag is in
+place has not been tested.
 
 **On the two graphs that run `ref2va` — reference to video and Remix — check a
 turbo take against a standard one before you trust it for a likeness.** The LoRA is distilled against `fl2va` and its author

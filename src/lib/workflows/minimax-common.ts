@@ -435,13 +435,15 @@ export function h3Turbo(
       class_type: "MiniMaxH3TurboLoRA",
       // The strength control below overwrites `strength`. `low_vram` is not
       // the export's false, and it is not offered as a switch: off, the pack
-      // applies the LoRA at run time ("bypass"), and on this 3090 that grows
-      // VRAM by about 0.65 GB/s from the first step until the card fills and
-      // takes Windows down with it — the whole machine, not just ComfyUI. It did
-      // at strength 1 and 0.9 alike. On, it merges the LoRA into the weights
-      // once and VRAM holds level for the whole run, at the same s/it. The pack
-      // says merging is a little softer on a quantized base; a softer take
-      // beats a machine that has to be power-cycled.
+      // applies the LoRA at run time ("bypass"), which on a 24 GB 3090 left
+      // dynamic VRAM still paging the model onto the card through step 1 —
+      // the condition that takes a Windows machine down whole when the card
+      // fills (Comfy-Org/ComfyUI#15360; see docs/agent-setup.md for the
+      // `--vram-headroom` launch flag that is the actual fix). It did at
+      // strength 1 and 0.9 alike. On, it merges the LoRA into the weights once,
+      // the model is resident before sampling starts, and s/it is unchanged.
+      // The pack says merging is a little softer on a quantized base. Whether
+      // bypass is safe with the headroom flag is untested; until it is, merge.
       inputs: {
         lora_name: "minimax_h3_turbo_v4_step600_ema.safetensors",
         strength: 1,
