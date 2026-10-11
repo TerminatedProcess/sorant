@@ -212,16 +212,24 @@ choices in the UI. If theirs are named differently, the better fix is editing
 the `unet_name` / `clip_name` / `vae_name` in the relevant workflow file — one
 line, and it survives re-downloading models.
 
-**On Windows, add `--vram-headroom 3` to the ComfyUI launch line.** Without it
-an H3 run can take the whole machine down: no traceback, no bugcheck, the
-remote session simply drops. Dynamic VRAM pages the video model onto the card
-while step 1 is already computing, and when the card is full WDDM refuses the
-mapping and the GPU falls off the bus (Comfy-Org/ComfyUI#15360). It reproduced
-within a minute every time on a 24 GB 3090 when the local director or turbo's
-run-time LoRA left the model only partly resident. Three gigabytes of headroom
-stopped it at no measurable cost in speed. `--disable-dynamic-vram` is the
-upstream workaround, but it is many times slower and aborts alongside
-SageAttention, so headroom is the one to use.
+**On Windows, raise the GPU timeout before the first H3 run.** H3 issues
+single GPU operations long enough to cross Windows' two-second TDR limit, most
+often as step 1 begins. When the driver reset that follows succeeds, Windows
+logs Display event 4101 and ComfyUI dies; when it fails, the machine
+blue-screens and restarts in about 25 seconds with nothing in the log — which
+reads as "the whole PC crashes" or "the remote session logs out". On a 3090 it
+happened on roughly a third of runs, at any size and with turbo merged or not.
+In an Administrator prompt, then reboot:
+
+```
+reg add "HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" /v TdrDelay /t REG_DWORD /d 60 /f
+reg add "HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" /v TdrDdiDelay /t REG_DWORD /d 60 /f
+```
+
+Eight runs in a row then passed that had been crashing. Also add
+`--vram-headroom 3` to the launch line: it keeps dynamic VRAM from paging into
+a full card, a separate Windows failure (Comfy-Org/ComfyUI#15360), at no
+measurable cost in speed.
 
 Have them restart ComfyUI after installing nodes.
 
@@ -443,7 +451,7 @@ to tell them:
 | Generation fails at the rewrite, no reason | Usually a refusal. Change **Rewrite model** and try again |
 | Refused: "the local director is chosen but … is not in" | The int8 Gemma file is not in `models/text_encoders/` — or switch the rewrite back to the gateway from the key button |
 | A generation just stops | ComfyUI restarting drops its history; the job shows as **Lost** |
-| The whole Windows machine dies during step 1 | ComfyUI launched without `--vram-headroom 3` — see the end of Phase 1 |
+| The whole Windows machine dies or restarts during step 1 | `TdrDelay` / `TdrDdiDelay` not raised — see the end of Phase 1. Display event 4101 in the System log confirms it |
 
 `/api/health` is the fastest single source of truth — it reports `reachable`,
 `authorized` and `secure` separately, so it distinguishes "cannot connect" from
