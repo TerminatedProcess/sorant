@@ -27,7 +27,7 @@ import { WorkflowPicker } from "@/components/workflow-picker";
 import { GenerationsPanel } from "@/components/generations-panel";
 import { SorantMark } from "@/components/sorant-logo";
 import { useJobs } from "@/hooks/use-jobs";
-import { isActive, isRetryable, type Job } from "@/lib/jobs";
+import { isActive, isRerunnable, isRetryable, type Job } from "@/lib/jobs";
 import { restoreFrom } from "@/lib/restore";
 import { api, ApiError, getToken } from "@/lib/client";
 import {
@@ -719,14 +719,15 @@ function Workbench({
    * — everything it was run with, checked against the workflow as it is today.
    *
    * Nothing is submitted. As with the clip hand-offs, this only fills the form
-   * in and leaves the run to the user.
+   * in and leaves the run to the user — `rerun` is the one that goes on to
+   * press Generate, and it reads back what this filled in.
    */
   const reuseSettings = useCallback(
     (job: Job) => {
       const target = workflows.find(
         (workflow) => workflow.id === job.workflowId,
       );
-      if (!target) return;
+      if (!target) return null;
 
       const restored = restoreFrom(job, target);
 
@@ -771,6 +772,7 @@ function Workbench({
           }),
         );
       }
+      return { target, restored, values };
     },
     [workflows],
   );
@@ -918,6 +920,61 @@ function Workbench({
       }
     },
     [jobs, workflows, lowVram, runDirector],
+  );
+
+  /**
+   * Run a finished generation again: its settings loaded into its workflow's
+   * form, then submitted, with a fresh seed.
+   *
+   * `Reuse settings` and Generate in one press, and deliberately the form's
+   * route rather than `retry`'s. A take that worked is one worth another take
+   * of — the noise rolled, everything else as it was — and the form is left
+   * showing what was run, so the next tweak starts from there rather than from
+   * whatever the form happened to hold. That a rerun takes the form over is the
+   * point of it here, where for a failure it would be in the way.
+   *
+   * Submitted from the values `reuseSettings` worked out rather than from the
+   * form: the state it just set has not rendered yet, so `submit` would send
+   * the workflow and values that were on screen before the press.
+   */
+  const rerun = useCallback(
+    (job: Job) => {
+      if (jobs.submitting) return;
+      const loaded = reuseSettings(job);
+      if (!loaded) return;
+      const { target, restored, values } = loaded;
+
+      setSubmittedFor(target.id);
+      void jobs.submit(target, values, {
+        turbo: restored.turbo,
+        patches: restored.patches,
+        lora: restored.lora,
+        strengths: restored.strengths,
+        tier: restored.tier,
+        alternateBase: restored.alternateBase,
+        lowVram,
+        localDirector: runDirector,
+        derivedFrom: job.derivedFrom,
+      });
+      setClipNotice(null);
+
+      // `reuseSettings` scrolled to the form on mobile; the run is what there
+      // is to see now, and it is on the stage.
+      if (window.matchMedia("(max-width: 1023px)").matches) {
+        requestAnimationFrame(() =>
+          stageRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+        );
+      }
+    },
+    [jobs, reuseSettings, lowVram, runDirector],
+  );
+
+  /** Withheld where the workflow that made the run is no longer registered. */
+  const rerunnable = useCallback(
+    (job: Job) =>
+      isRerunnable(job) &&
+      workflows.some((workflow) => workflow.id === job.workflowId),
+    [workflows],
   );
 
   /** Withheld where the workflow that made the run is no longer registered. */
@@ -1278,6 +1335,7 @@ function Workbench({
                 }
                 onToggleFavorite={jobs.toggleFavorite}
                 onRetry={viewedJob && retryable(viewedJob) ? retry : undefined}
+                onRerun={viewedJob && rerunnable(viewedJob) ? rerun : undefined}
                 retrying={jobs.submitting}
                 busyAction={sending}
               />
@@ -1303,6 +1361,8 @@ function Workbench({
                   onClearFinished={jobs.clearFinished}
                   onRetry={retry}
                   canRetry={retryable}
+                  onRerun={rerun}
+                  canRerun={rerunnable}
                   retrying={jobs.submitting}
                 />
               </Panel>

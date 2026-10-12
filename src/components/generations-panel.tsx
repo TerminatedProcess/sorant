@@ -17,6 +17,7 @@ import {
   partitionFavorites,
   type Job,
 } from "@/lib/jobs";
+import { RerunIcon } from "@/components/ui/rerun-icon";
 import { StarIcon } from "@/components/ui/star-icon";
 
 const PHASE_LABEL: Record<Job["phase"], string> = {
@@ -72,6 +73,8 @@ export function GenerationsPanel({
   onClearFinished,
   onRetry,
   canRetry,
+  onRerun,
+  canRerun,
   retrying,
 }: {
   jobs: Job[];
@@ -91,6 +94,10 @@ export function GenerationsPanel({
    * the owner rather than worked out here, which has no list of workflows.
    */
   canRetry?: (job: Job) => boolean;
+  /** Another take of a finished generation: its settings, a new seed. */
+  onRerun?: (job: Job) => void;
+  /** As `canRetry`, for `onRerun`. */
+  canRerun?: (job: Job) => boolean;
   /** A submission is in flight, so every retry button waits its turn. */
   retrying?: boolean;
 }) {
@@ -337,6 +344,9 @@ export function GenerationsPanel({
                         onRetry={
                           onRetry && canRetry?.(job) ? onRetry : undefined
                         }
+                        onRerun={
+                          onRerun && canRerun?.(job) ? onRerun : undefined
+                        }
                         retrying={retrying}
                         onToggleFavorite={onToggleFavorite}
                         onToggleTrack={toggleTrack}
@@ -429,6 +439,7 @@ function Row({
   onToggleFavorite,
   onToggleTrack,
   onRetry,
+  onRerun,
   retrying,
 }: {
   job: Job;
@@ -443,6 +454,8 @@ function Row({
   onToggleTrack: (job: Job) => void;
   /** Present only on a row worth offering one. See `isRetryable`. */
   onRetry?: (job: Job) => void;
+  /** Present only on a finished row. See `isRerunnable`. */
+  onRerun?: (job: Job) => void;
   retrying?: boolean;
 }) {
   const active = isActive(job);
@@ -590,6 +603,25 @@ function Row({
               strokeLinejoin="round"
             />
           </svg>
+        </button>
+      ) : null}
+
+      {/* Beside a finished run, where the retry sits beside a failed one —
+          the two never share a row. Its own icon, since this one rolls a new
+          seed and loads the form, which the retry does neither of. */}
+      {onRerun ? (
+        <button
+          type="button"
+          onClick={() => onRerun(job)}
+          disabled={retrying}
+          title="Run again with these settings and a new seed"
+          aria-label="Run again with these settings and a new seed"
+          className="grid size-7 shrink-0 place-items-center rounded-md
+            text-fg-muted transition-colors hover:bg-surface hover:text-accent
+            disabled:cursor-not-allowed disabled:opacity-40
+            disabled:hover:bg-transparent disabled:hover:text-fg-muted"
+        >
+          <RerunIcon className="size-3.5" />
         </button>
       ) : null}
 

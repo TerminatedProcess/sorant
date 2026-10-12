@@ -185,6 +185,15 @@ export function isRetryable(job: Job): boolean {
 }
 
 /**
+ * Whether this run is one to offer another take of — the same settings, new
+ * noise. Only a finished one: it is the phase with a result worth repeating,
+ * where a failure gets `isRetryable`'s exact repeat instead.
+ */
+export function isRerunnable(job: Job): boolean {
+  return job.phase === "done";
+}
+
+/**
  * The favourited entries and everything else, each in the order they arrived.
  *
  * Lifted out rather than merely sorted to the top: an entry appears in the

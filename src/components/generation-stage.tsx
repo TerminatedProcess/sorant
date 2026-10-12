@@ -10,6 +10,7 @@ import {
   isFavorite,
   type Job,
 } from "@/lib/jobs";
+import { RerunIcon } from "@/components/ui/rerun-icon";
 import { StarIcon } from "@/components/ui/star-icon";
 import type { ClipAction, ClipHandoff } from "@/lib/workflows/types";
 
@@ -28,6 +29,7 @@ export function GenerationStage({
   onShowSettings,
   onToggleFavorite,
   onRetry,
+  onRerun,
   retrying,
   busyAction = null,
 }: {
@@ -52,6 +54,11 @@ export function GenerationStage({
    * button off rather than leaving one that cannot work.
    */
   onRetry?: (job: Job) => void;
+  /**
+   * Run a finished generation again: its settings back in the form, a new
+   * seed, submitted. Absent on the same grounds as `onRetry`.
+   */
+  onRerun?: (job: Job) => void;
   /** A submission is in flight, so the retry waits rather than doubling it. */
   retrying?: boolean;
   /**
@@ -75,6 +82,8 @@ export function GenerationStage({
           onClipAction={onClipAction}
           onShowSettings={onShowSettings}
           onToggleFavorite={onToggleFavorite}
+          onRerun={onRerun ? () => onRerun(job) : undefined}
+          rerunning={retrying}
           busyAction={busyAction}
         />
       ) : job.phase === "error" ? (
@@ -462,6 +471,8 @@ function Result({
   onClipAction,
   onShowSettings,
   onToggleFavorite,
+  onRerun,
+  rerunning,
   busyAction,
 }: {
   job: Job;
@@ -470,6 +481,8 @@ function Result({
   onClipAction?: (job: Job, action: ClipAction) => void;
   onShowSettings?: () => void;
   onToggleFavorite?: (promptId: string) => void;
+  onRerun?: () => void;
+  rerunning?: boolean;
   busyAction?: ClipAction | null;
 }) {
   const [primary, ...rest] = job.outputs;
@@ -539,7 +552,9 @@ function Result({
         {took ? <Badge mono>{took}</Badge> : null}
         {typeof seed === "number" ? <Badge mono>seed {seed}</Badge> : null}
 
-        <div className="ml-auto flex items-center gap-2">
+        {/* Wraps rather than running off the side: on a phone this row is
+            wider than the screen, and unwrapped it scrolled the whole page. */}
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
           {onToggleFavorite ? (
             <Button
               size="sm"
@@ -573,6 +588,18 @@ function Result({
           {typeof seed === "number" && onReuseSeed ? (
             <Button size="sm" variant="quiet" onClick={() => onReuseSeed(seed)}>
               Reuse seed
+            </Button>
+          ) : null}
+          {onRerun ? (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={onRerun}
+              disabled={rerunning}
+              title="Load these settings and run them again with a new seed"
+              icon={<RerunIcon className="size-3.5" />}
+            >
+              Rerun
             </Button>
           ) : null}
           {offered.map(({ action }) => {
