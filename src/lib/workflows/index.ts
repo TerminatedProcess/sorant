@@ -1,3 +1,4 @@
+import { imageEdit } from "./image-edit";
 import { minimaxH3 } from "./minimax-h3";
 import { minimaxH3Extend } from "./minimax-h3-extend";
 import { minimaxH3ImageToVideo } from "./minimax-h3-i2v";
@@ -26,6 +27,8 @@ export const WORKFLOWS: WorkflowDef[] = [
   // Last, and the only one that is not H3 and not video: a different model
   // family that happens to fit the same shape of definition.
   minimaxMusic3,
+  // Not in the picker: the Edit button on a picture runs it. See `tool`.
+  imageEdit,
 ];
 
 export function getWorkflow(id: string): WorkflowDef | undefined {

@@ -157,11 +157,17 @@ async function comfyJson<T>(
 export async function queuePrompt(
   graph: ComfyGraph,
   clientId: string,
+  /** Ahead of everything pending — never ahead of what is already running. */
+  { front = false }: { front?: boolean } = {},
 ): Promise<QueuePromptResult> {
   const result = await comfyJson<QueuePromptResult>("/prompt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt: graph, client_id: clientId }),
+    body: JSON.stringify({
+      prompt: graph,
+      client_id: clientId,
+      ...(front ? { front: true } : {}),
+    }),
     timeoutMs: 30_000,
   });
 

@@ -9,7 +9,8 @@ export const maxDuration = 300;
 /**
  * Copies a finished generation into ComfyUI's input directory so it can be fed
  * back in as a source. Serves every hand-off — Remix, Extend and Create video
- * differ in what they do with the file, not in how it gets there.
+ * differ in what they do with the file, not in how it gets there — and the
+ * image edit, whose result replaces the picture it was made from.
  *
  * The two directories are separate: a LoadVideo or LoadAudio node only sees
  * what is in `input`, and everything a workflow produces lands in `output`. So
@@ -36,10 +37,12 @@ const MAX_BYTES = 256 * 1024 * 1024;
  * Checked again here rather than trusted from the caller. The stage decides
  * which buttons to offer from the same two questions (`REUSABLE_VIDEO` and
  * `isAudioOnly` in generation-stage.tsx), but those are affordances, not
- * guards. Here the two kinds are one list, because what this route does with
- * either is the same copy.
+ * guards. Here the kinds are one list, because what this route does with any
+ * of them is the same copy. Stills are for the image edit, whose result goes
+ * back into the picture slot it was made from.
  */
-const REUSABLE_EXTENSIONS = /\.(mp4|webm|mkv|mov|m4v|mp3|flac|wav|m4a|ogg|opus)$/i;
+const REUSABLE_EXTENSIONS =
+  /\.(mp4|webm|mkv|mov|m4v|mp3|flac|wav|m4a|ogg|opus|png|jpe?g|webp)$/i;
 
 export async function POST(request: Request) {
   const denied = unauthorized(request);
@@ -68,7 +71,7 @@ export async function POST(request: Request) {
     }
     if (!REUSABLE_EXTENSIONS.test(filename)) {
       throw new ParamError(
-        "Only a video or a track can be used as a reference — a still cannot.",
+        "Only a video, a track or a picture can be used as a reference.",
         "filename",
       );
     }

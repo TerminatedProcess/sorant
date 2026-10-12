@@ -24,8 +24,9 @@ export async function GET(request: Request) {
     // Fill select options from the live ComfyUI schema so the dropdowns match
     // what this install actually supports. Degrades to the static lists if
     // ComfyUI is unreachable rather than failing the request.
+    // Tools are run by a control, not picked — see `WorkflowDef.tool`.
     const workflows = await Promise.all(
-      WORKFLOWS.map(async (workflow) =>
+      WORKFLOWS.filter((workflow) => !workflow.tool).map(async (workflow) =>
         toSummary({
           ...workflow,
           params: await resolveDynamicOptions(workflow),

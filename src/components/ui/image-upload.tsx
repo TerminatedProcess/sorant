@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Spinner } from "@/components/ui/button";
 import {
   CameraCapture,
   CameraIcon,
   cameraAvailable,
 } from "@/components/ui/camera-capture";
+import { ImageEditBar } from "@/components/ui/image-edit";
 import { api, ApiError, withToken } from "@/lib/client";
 
 interface UploadResponse {
@@ -86,6 +87,30 @@ async function prepareForUpload(file: File): Promise<Prepared> {
   );
 }
 
+function WandIcon() {
+  return (
+    <svg viewBox="0 0 16 16" className="size-3.5" fill="none" aria-hidden="true">
+      <path
+        d="M2.5 13.5l7-7M9.5 3v2M8.5 4h2M12.5 6.5v1.5M11.75 7.25h1.5M12 1.5v1M11.5 2h1"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/** A reference in ComfyUI's input directory, as a URL an <img> can load. */
+function inputMediaUrl(ref: string): string {
+  return withToken(
+    `/api/media?${new URLSearchParams({
+      filename: ref.split("/").pop() ?? ref,
+      subfolder: ref.includes("/") ? ref.slice(0, ref.lastIndexOf("/")) : "",
+      type: "input",
+    })}`,
+  );
+}
+
 /**
  * Uploads to ComfyUI's input directory as soon as a file is chosen, then holds
  * the returned reference as the param value. Uploading on selection rather
@@ -130,6 +155,35 @@ export function ImageUpload({
     height: number;
   } | null>(null);
 
+  /**
+   * The pictures this slot has held through editing: the one that was
+   * uploaded, then each edit in the order it was made. Clicking one puts it
+   * back, which is the whole of undo and redo. Anything that changes the slot
+   * from outside — a new upload, Remove, a remembered value — starts it over.
+   */
+  const [versions, setVersions] = useState<string[]>(value ? [value] : []);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editBusy, setEditBusy] = useState(false);
+  /** Held down on Compare: the original is showing in place of the edit. */
+  const [comparing, setComparing] = useState(false);
+
+  useEffect(() => {
+    setVersions((current) =>
+      !value ? [] : current.includes(value) ? current : [value],
+    );
+    if (!value) setEditOpen(false);
+  }, [value]);
+
+  // Appended whichever version it was made from: the strip is everything made,
+  // in order, and going back to an earlier one never throws a later one away.
+  const edited = useCallback(
+    (ref: string) => {
+      setVersions((current) => [...current.filter((v) => v !== ref), ref]);
+      onChange(ref);
+    },
+    [onChange],
+  );
+
   const upload = async (file: File) => {
     setUploading(true);
     setError(null);
@@ -169,16 +223,10 @@ export function ImageUpload({
 
   // ComfyUI can serve the file straight back from its input directory, so the
   // preview is the actual uploaded image rather than a local object URL.
+  const original = versions[0];
+  const showingOriginal = comparing && !!original && original !== value;
   const previewUrl = value
-    ? withToken(
-        `/api/media?${new URLSearchParams({
-          filename: value.split("/").pop() ?? value,
-          subfolder: value.includes("/")
-            ? value.slice(0, value.lastIndexOf("/"))
-            : "",
-          type: "input",
-        })}`,
-      )
+    ? inputMediaUrl(showingOriginal ? original : value)
     : null;
 
   // `relative` for the same reason as the audio picker: it contains the
@@ -191,7 +239,7 @@ export function ImageUpload({
         type="file"
         accept="image/*"
         className="sr-only"
-        disabled={disabled || uploading}
+        disabled={disabled || uploading || editBusy}
         aria-describedby={describedBy}
         onChange={(event) => pick(event.target.files)}
       />
@@ -199,13 +247,13 @@ export function ImageUpload({
       <div
         onDragOver={(event) => {
           event.preventDefault();
-          if (!disabled && !uploading) setDragging(true);
+          if (!disabled && !uploading && !editBusy) setDragging(true);
         }}
         onDragLeave={() => setDragging(false)}
         onDrop={(event) => {
           event.preventDefault();
           setDragging(false);
-          if (!disabled && !uploading) pick(event.dataTransfer.files);
+          if (!disabled && !uploading && !editBusy) pick(event.dataTransfer.files);
         }}
         className={`relative overflow-hidden rounded-lg border transition-colors
           ${previewUrl ? "border-solid" : "border-dashed"}
@@ -225,16 +273,18 @@ export function ImageUpload({
                 Sized by its own aspect ratio rather than w-full: forcing full
                 width caps a portrait image at max-height and pads the rest with
                 background, which reads as the image not fitting its container. */}
+            <div className="relative">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={previewUrl}
-              alt="Selected first frame"
-              onLoad={(event) =>
+              alt={showingOriginal ? "The original picture" : "Selected first frame"}
+              onLoad={(event) => {
+                if (showingOriginal) return;
                 setDimensions({
                   width: event.currentTarget.naturalWidth,
                   height: event.currentTarget.naturalHeight,
-                })
-              }
+                });
+              }}
               /*
                 A remembered reference can outlive the file — ComfyUI's input
                 directory gets cleared, or the box is rebuilt. Catching it here
@@ -242,14 +292,99 @@ export function ImageUpload({
                 obvious prompt to re-upload.
               */
               onError={() => {
+                // The original gone while comparing is not the slot's picture
+                // gone: let go of Compare and leave the slot as it is.
+                if (showingOriginal) {
+                  setComparing(false);
+                  return;
+                }
                 onChange("");
                 setDimensions(null);
                 setError(
                   "That image is no longer on the ComfyUI server. Upload it again.",
                 );
               }}
-              className="mx-auto block h-auto max-h-64 w-auto max-w-full object-contain"
+              className={`mx-auto block h-auto max-h-64 w-auto max-w-full object-contain
+                transition-opacity ${editBusy ? "opacity-60" : ""}`}
             />
+            {!editOpen && !disabled && !uploading ? (
+              <Button
+                variant="secondary"
+                size="xs"
+                icon={<WandIcon />}
+                className="absolute right-2 top-2 shadow-sm"
+                title="Change something in this picture"
+                onClick={() => setEditOpen(true)}
+              >
+                Edit
+              </Button>
+            ) : null}
+            {original && original !== value ? (
+              // Held rather than toggled: letting go is the way back, so the
+              // edit can never be left looking like the original by accident.
+              <Button
+                variant="secondary"
+                size="xs"
+                className="absolute bottom-2 left-2 touch-none shadow-sm"
+                title="Hold to see the original"
+                onPointerDown={() => setComparing(true)}
+                onPointerUp={() => setComparing(false)}
+                onPointerLeave={() => setComparing(false)}
+                onPointerCancel={() => setComparing(false)}
+                onContextMenu={(event) => event.preventDefault()}
+              >
+                {showingOriginal ? "Original" : "Hold to compare"}
+              </Button>
+            ) : null}
+            </div>
+
+            {editOpen && value ? (
+              <ImageEditBar
+                id={`${id}-edit`}
+                source={value}
+                onEdited={edited}
+                onBusyChange={setEditBusy}
+                onClose={() => setEditOpen(false)}
+              />
+            ) : null}
+
+            {versions.length > 1 ? (
+              <div
+                className="flex gap-1.5 overflow-x-auto border-t border-border-default px-3 py-2"
+                role="group"
+                aria-label="Versions of this picture"
+              >
+                {versions.map((ref, index) => (
+                  <button
+                    key={ref}
+                    type="button"
+                    disabled={editBusy}
+                    aria-pressed={ref === value}
+                    aria-label={index === 0 ? "Original" : `Edit ${index}`}
+                    title={index === 0 ? "Original" : `Edit ${index}`}
+                    onClick={() => onChange(ref)}
+                    className={`relative size-12 shrink-0 overflow-hidden rounded border
+                      transition-colors disabled:opacity-50 ${
+                        ref === value
+                          ? "border-accent ring-2 ring-accent/30"
+                          : "border-border-default hover:border-border-strong"
+                      }`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={inputMediaUrl(ref)}
+                      alt=""
+                      className="size-full object-cover"
+                    />
+                    {index === 0 ? (
+                      <span className="absolute inset-x-0 bottom-0 bg-black/55 text-center text-[9px] leading-3 text-white">
+                        orig
+                      </span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+            ) : null}
             <div className="flex items-center gap-2 border-t border-border-default px-3 py-2">
               {/* min-w-0 is what actually lets `truncate` work: a flex item
                   defaults to min-width:auto and would otherwise refuse to
@@ -274,14 +409,14 @@ export function ImageUpload({
                     icon={<CameraIcon />}
                     aria-label="Replace with a photo"
                     title="Replace with a photo"
-                    disabled={disabled || uploading}
+                    disabled={disabled || uploading || editBusy}
                     onClick={() => setCameraOpen(true)}
                   />
                 ) : null}
                 <Button
                   variant="quiet"
                   size="xs"
-                  disabled={disabled || uploading}
+                  disabled={disabled || uploading || editBusy}
                   onClick={() => inputRef.current?.click()}
                 >
                   Replace
@@ -289,7 +424,7 @@ export function ImageUpload({
                 <Button
                   variant="quiet-danger"
                   size="xs"
-                  disabled={disabled || uploading}
+                  disabled={disabled || uploading || editBusy}
                   onClick={() => {
                     onChange("");
                     setError(null);
@@ -306,7 +441,7 @@ export function ImageUpload({
           <>
             <button
               type="button"
-              disabled={disabled || uploading}
+              disabled={disabled || uploading || editBusy}
               onClick={() => inputRef.current?.click()}
               className="flex w-full flex-col items-center justify-center gap-2 px-4 py-8
                 text-center transition-colors hover:bg-surface-hover disabled:pointer-events-none"
@@ -361,7 +496,7 @@ export function ImageUpload({
                   variant="quiet"
                   size="xs"
                   icon={<CameraIcon />}
-                  disabled={disabled || uploading}
+                  disabled={disabled || uploading || editBusy}
                   onClick={() => setCameraOpen(true)}
                 >
                   Take a photo

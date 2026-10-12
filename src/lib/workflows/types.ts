@@ -538,6 +538,14 @@ export interface WorkflowDef {
   /** Which clip hand-off, if any, lands on this workflow. */
   clipTarget?: ClipTarget;
   /**
+   * Set when this graph is a step inside another control rather than something
+   * to pick — the image edit, which the Edit button on a picture runs and
+   * writes back into that picture's slot. Kept out of the picker, and queued
+   * ahead of anything pending: it is seconds of work someone is waiting on
+   * before they can start the run that takes minutes.
+   */
+  tool?: boolean;
+  /**
    * Set when a run needs the ComfyUI machine's RAM more than it needs the
    * models and results earlier runs left cached there. The generate route
    * asks ComfyUI to drop both before queueing it.
