@@ -1,5 +1,6 @@
 "use client";
 
+import { useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { Badge, Dot } from "@/components/ui/panel";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { withToken } from "@/lib/client";
@@ -511,6 +512,134 @@ function Result({
       ? formatDuration(job.completedAt - job.submittedAt)
       : null;
 
+  const rowRef = useRef<HTMLDivElement>(null);
+  const measureRef = useRef<HTMLDivElement>(null);
+  const compact = useCompactRow(rowRef, measureRef);
+
+  /**
+   * The result's buttons, labelled or as icons alone. Icons alone keep their
+   * label for screen readers and as a tooltip, so nothing is lost but width.
+   */
+  const actions = (iconsOnly: boolean) => {
+    const size = iconsOnly ? "icon-sm" : "sm";
+    const label = (text: string) => (
+      <span className={iconsOnly ? "sr-only" : undefined}>{text}</span>
+    );
+    return (
+      <>
+        {onToggleFavorite ? (
+          <Button
+            size={size}
+            // The colour rides on the icon rather than on the button, because
+            // an accent utility in `className` and the variant's own text
+            // colour are the same specificity — which one won would come down
+            // to the order Tailwind happened to emit them in.
+            variant={favorite ? "secondary" : "quiet"}
+            onClick={() => onToggleFavorite(job.promptId)}
+            aria-pressed={favorite}
+            title={
+              favorite
+                ? "Remove from favorites"
+                : "Keep this at the top of the history"
+            }
+            className="shrink-0"
+            icon={
+              <StarIcon
+                filled={favorite}
+                className={`size-3.5 ${favorite ? "text-accent" : ""}`}
+              />
+            }
+          >
+            {label(favorite ? "Favorited" : "Favorite")}
+          </Button>
+        ) : null}
+        {onShowSettings ? (
+          <Button
+            size={size}
+            variant="quiet"
+            onClick={onShowSettings}
+            title="What this was run with"
+            className="shrink-0"
+            icon={<SettingsIcon />}
+          >
+            {label("Settings")}
+          </Button>
+        ) : null}
+        {typeof seed === "number" && onReuseSeed ? (
+          <Button
+            size={size}
+            variant="quiet"
+            onClick={() => onReuseSeed(seed)}
+            title="Put this seed in the form, to get this take again"
+            className="shrink-0"
+            icon={<SeedIcon />}
+          >
+            {label("Reuse seed")}
+          </Button>
+        ) : null}
+        {onRerun ? (
+          <Button
+            size={size}
+            variant="secondary"
+            onClick={onRerun}
+            disabled={rerunning}
+            title="Load these settings and run them again with a new seed"
+            className="shrink-0"
+            icon={<RerunIcon className="size-3.5" />}
+          >
+            {label("Rerun")}
+          </Button>
+        ) : null}
+        {offered.map(({ action }) => {
+          const button = CLIP_BUTTONS[action];
+          return (
+            <Button
+              key={action}
+              size={size}
+              variant="secondary"
+              loading={busyAction === action}
+              // One copy at a time: both buttons move the same bytes out of
+              // ComfyUI's output directory, and the second would land on a
+              // form the first is still filling in.
+              disabled={busyAction !== null && busyAction !== action}
+              onClick={() => onClipAction?.(job, action)}
+              title={button.title}
+              className="shrink-0"
+              icon={button.icon}
+            >
+              {label(button.label)}
+            </Button>
+          );
+        })}
+        {/* An anchor, not a button: `download` is what saves the file, and
+            there is no way to keep that on a <button>. Borrowing the button
+            recipe keeps it from drifting out of step with the row. */}
+        <a
+          href={src}
+          download={primary.filename}
+          title="Download"
+          className={buttonClasses({
+            variant: "secondary",
+            size,
+            className: "shrink-0",
+          })}
+        >
+          <svg viewBox="0 0 16 16" className="size-3.5" aria-hidden="true">
+            <path
+              d="M8 2v8m0 0L5 7m3 3l3-3M3 13h10"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              fill="none"
+            />
+          </svg>
+          {label("Download")}
+        </a>
+      </>
+    );
+  };
+
   return (
     <div className="flex flex-1 flex-col gap-3">
       {isAudioOnly(job) ? (
@@ -545,103 +674,37 @@ function Result({
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
+      {/* The badges and the buttons share a line while they fit, and the
+          buttons drop beneath as a whole when they do not — never one button
+          at a time. See `useCompactRow` for how the buttons themselves stay on
+          one line. */}
+      <div ref={rowRef} className="relative flex flex-wrap items-center gap-2">
         <Badge tone="success">
           <Dot tone="success" /> Done
         </Badge>
         {took ? <Badge mono>{took}</Badge> : null}
         {typeof seed === "number" ? <Badge mono>seed {seed}</Badge> : null}
 
-        {/* Wraps rather than running off the side: on a phone this row is
-            wider than the screen, and unwrapped it scrolled the whole page. */}
-        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-          {onToggleFavorite ? (
-            <Button
-              size="sm"
-              // The colour rides on the icon rather than on the button, because
-              // an accent utility in `className` and the variant's own text
-              // colour are the same specificity — which one won would come down
-              // to the order Tailwind happened to emit them in.
-              variant={favorite ? "secondary" : "quiet"}
-              onClick={() => onToggleFavorite(job.promptId)}
-              aria-pressed={favorite}
-              title={
-                favorite
-                  ? "Remove from favorites"
-                  : "Keep this at the top of the history"
-              }
-              icon={
-                <StarIcon
-                  filled={favorite}
-                  className={`size-3.5 ${favorite ? "text-accent" : ""}`}
-                />
-              }
-            >
-              {favorite ? "Favorited" : "Favorite"}
-            </Button>
-          ) : null}
-          {onShowSettings ? (
-            <Button size="sm" variant="quiet" onClick={onShowSettings}>
-              Settings
-            </Button>
-          ) : null}
-          {typeof seed === "number" && onReuseSeed ? (
-            <Button size="sm" variant="quiet" onClick={() => onReuseSeed(seed)}>
-              Reuse seed
-            </Button>
-          ) : null}
-          {onRerun ? (
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={onRerun}
-              disabled={rerunning}
-              title="Load these settings and run them again with a new seed"
-              icon={<RerunIcon className="size-3.5" />}
-            >
-              Rerun
-            </Button>
-          ) : null}
-          {offered.map(({ action }) => {
-            const button = CLIP_BUTTONS[action];
-            return (
-              <Button
-                key={action}
-                size="sm"
-                variant="secondary"
-                loading={busyAction === action}
-                // One copy at a time: both buttons move the same bytes out of
-                // ComfyUI's output directory, and the second would land on a
-                // form the first is still filling in.
-                disabled={busyAction !== null && busyAction !== action}
-                onClick={() => onClipAction?.(job, action)}
-                title={button.title}
-                icon={button.icon}
-              >
-                {button.label}
-              </Button>
-            );
-          })}
-          {/* An anchor, not a button: `download` is what saves the file, and
-              there is no way to keep that on a <button>. Borrowing the button
-              recipe keeps it from drifting out of step with the row. */}
-          <a
-            href={src}
-            download={primary.filename}
-            className={buttonClasses({ variant: "secondary", size: "sm" })}
-          >
-            <svg viewBox="0 0 16 16" className="size-3.5" aria-hidden="true">
-              <path
-                d="M8 2v8m0 0L5 7m3 3l3-3M3 13h10"
-                stroke="currentColor"
-                strokeWidth="1.4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-              />
-            </svg>
-            Download
-          </a>
+        <div
+          className={`ml-auto flex max-w-full items-center overflow-x-auto
+            ${compact ? "gap-1.5" : "gap-2"}`}
+        >
+          {actions(compact)}
+        </div>
+
+        {/* The same buttons with their labels, laid out but never seen or
+            reached, so there is always a width to compare against — the row
+            on screen cannot say how wide its labels would be while it is
+            showing icons. */}
+        <div
+          inert
+          aria-hidden="true"
+          // Clipped to nothing, so its width can never widen the page.
+          className="pointer-events-none invisible absolute inset-x-0 top-0 h-0 overflow-hidden"
+        >
+          <div ref={measureRef} className="flex w-max items-center gap-2">
+            {actions(false)}
+          </div>
         </div>
       </div>
 
@@ -663,5 +726,68 @@ function Result({
         </p>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Whether the result's buttons have to drop their labels to stay on one line.
+ *
+ * Measured rather than set at a breakpoint: how many buttons there are depends
+ * on the result (a track has no Remix, a video has three hand-offs), and the
+ * stage's width depends on the window and the column beside it, so no single
+ * width is right. The labelled set is laid out off-screen for the comparison;
+ * it fits if it is no wider than the row it would sit in, on a line of its own.
+ *
+ * A layout effect and a ResizeObserver both settle before paint, so the row is
+ * never seen wrapped and then corrected.
+ */
+function useCompactRow(
+  rowRef: RefObject<HTMLDivElement | null>,
+  measureRef: RefObject<HTMLDivElement | null>,
+): boolean {
+  const [compact, setCompact] = useState(false);
+  useLayoutEffect(() => {
+    const row = rowRef.current;
+    const measure = measureRef.current;
+    if (!row || !measure) return;
+    const check = () => setCompact(measure.scrollWidth > row.clientWidth);
+    check();
+    const observer = new ResizeObserver(check);
+    observer.observe(row);
+    // The labelled set changes width on its own too — "Favorite" becomes
+    // "Favorited", a hand-off gains a spinner.
+    observer.observe(measure);
+    return () => observer.disconnect();
+  }, [rowRef, measureRef]);
+  return compact;
+}
+
+function SettingsIcon() {
+  return (
+    <svg viewBox="0 0 16 16" className="size-3.5 shrink-0" fill="none" aria-hidden="true">
+      <path
+        d="M2.5 4.5h6M11.5 4.5h2M2.5 11.5h2M7.5 11.5h6"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+      <circle cx="10" cy="4.5" r="1.5" stroke="currentColor" strokeWidth="1.4" />
+      <circle cx="6" cy="11.5" r="1.5" stroke="currentColor" strokeWidth="1.4" />
+    </svg>
+  );
+}
+
+/** A sprout — the seed, grown into the take it made. */
+function SeedIcon() {
+  return (
+    <svg viewBox="0 0 16 16" className="size-3.5 shrink-0" fill="none" aria-hidden="true">
+      <path
+        d="M8 14V8M8 8C8 5 6 3.5 3 3.5c0 3 2 4.5 5 4.5ZM8 9.5c0-2.5 1.8-4 4.5-4 0 2.5-1.8 4-4.5 4Z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
