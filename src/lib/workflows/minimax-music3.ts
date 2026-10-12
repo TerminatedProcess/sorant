@@ -336,7 +336,7 @@ const params: ParamDef[] = [
     default:
       "A slow lo-fi bedroom pop song about staying up late, soft female vocal, rain outside.",
     placeholder: "Genre, mood, the voice, what it should sound like.",
-    maxLength: 2000,
+    maxLength: 8000,
     help: "One line is enough. A director expands it into the model's caption format.",
     group: "Song",
     targets: [{ node: PROMPT_NODE, input: "value" }],
