@@ -10,6 +10,7 @@ runbook it can execute and check.
 ## Contents
 
 - [1. Get ComfyUI ready](#1-get-comfyui-ready)
+  - [How much VRAM](#how-much-vram)
   - [Custom node packs](#custom-node-packs)
   - [The rewrite key](#the-rewrite-key)
   - [Model files](#model-files)
@@ -39,6 +40,41 @@ video nodes are all built in, but only on a new enough build — 0.38 is what
 this was tested on. If the checker later reports a built-in class such as
 `MiniMaxH3ImageToVideo` or `CreateVideo` as missing, update ComfyUI rather than
 hunting for a pack.
+
+### How much VRAM
+
+The models are bigger than most cards — the H3 video model alone is 21 GB, its
+text encoder another 16 GB — and that is fine. ComfyUI's **Dynamic VRAM**
+(NVIDIA, Windows and Linux, on by default in recent builds) keeps the weights in
+system RAM and moves each layer onto the card as it runs. So VRAM does not
+decide *whether* a model loads. It decides how fast a run goes, and how large a
+frame and how long a clip fit before a run fails out of memory — the working
+memory for the video itself has to be on the card.
+
+| VRAM | What to expect |
+| --- | --- |
+| **24 GB** | Everything, up to the app's limits — 1 MP frames, 20-second clips. Tested here on an RTX 3090. |
+| **16 GB** | Should run every workflow at the default **Frame size** (0.5 MP). Slower than 24 GB, since more of each model streams from RAM. Untested here. If a run fails out of memory, lower **Frame size** or **Duration** first. |
+| **12 GB** | Someone else ran H3 Text to Video on an RTX 3060 at 864×480 for 5 seconds with Turbo, in about 4.5 minutes. Keep to the default frame size or below, and short clips. |
+| **Under 12 GB** | Not recommended. |
+
+What helps on a smaller card:
+
+- **64 GB of system RAM.** With less VRAM, more of every model lives in RAM.
+  32 GB will push weights out to disk, which is far slower.
+- **Keep Turbo on.** Four to eight steps instead of twenty is the biggest time
+  saving there is, and it changes nothing about memory.
+- **Mind the bf16 pair.** A Reference to Video run with a song, voice or clip
+  attached, or Remix at 4 steps, loads 118 GB of weights. That cannot sit in
+  64 GB of RAM, so part of it streams from disk on any card. A fast NVMe drive
+  matters there.
+- **Upscale's 3B model** needs less VRAM than the default 7B.
+- **Music, Upscale and the Edit button are much smaller** than the H3
+  workflows, and should be comfortable on 16 GB.
+
+Dynamic VRAM is NVIDIA-only and not available under WSL. AMD and Apple cards
+fall back to ComfyUI's older loading, which is much less forgiving of models
+larger than the card, and are untested with this app.
 
 ### Custom node packs
 

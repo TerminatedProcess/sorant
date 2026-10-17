@@ -50,9 +50,14 @@ phase 2–3 problem, never as "nothing is installed". Optional files reported as
 absent do not fail it and do not block the person.
 
 **Check the machine can carry it before anything else.** Tested on Windows,
-ComfyUI 0.38, an RTX 3090 (24 GB) and 64 GB of RAM; nothing smaller has been
-tried, so say that rather than promising it works on a 16 GB card. Disk, by what
-they want to run:
+ComfyUI 0.38, an RTX 3090 (24 GB) and 64 GB of RAM. Smaller cards are expected
+to work rather than shown to: ComfyUI's Dynamic VRAM (NVIDIA, Windows/Linux, not
+WSL) streams weights from RAM, so VRAM limits speed and frame size rather than
+whether a model loads. 16 GB should run the default 0.5 MP frame size; 12 GB has
+a community report of 864×480, 5 s with Turbo on a 3060. Below 12 GB, or on AMD
+or Apple, say it is unsupported. With less VRAM, 64 GB of RAM matters more —
+ask what they have. The full table is in [`setup.md`](setup.md#how-much-vram);
+point them there rather than restating it. Disk, by what they want to run:
 
 | Wants | Adds |
 | --- | --- |

@@ -54,8 +54,8 @@ It is only a front end: no model weights, no database, nothing expensive.
 
 | | |
 | --- | --- |
-| **GPU** | NVIDIA, **24 GB of VRAM**. Built and tested on an RTX 3090. Smaller cards are untested. |
-| **System RAM** | **64 GB** on the tested machine. Upscale and the larger reference runs lean on it. |
+| **GPU** | NVIDIA. **24 GB** runs everything at full size (tested, RTX 3090). **16 GB** should work at the default frame size; **12 GB** has been shown to work at small sizes by others. [Details](docs/setup.md#how-much-vram). |
+| **System RAM** | **64 GB.** Model weights that do not fit on the card wait in RAM, so the less VRAM you have, the more this matters. |
 | **Disk** | **43 GB** for Text to Video alone; about **234 GB** for every workflow. See below. |
 | **ComfyUI** | A recent build — tested on 0.38 — plus five custom node packs. |
 | **OS** | Windows, Linux or macOS for ComfyUI; tested on Windows, which needs [one registry fix](docs/setup.md#on-windows-raise-the-gpu-timeout-first). |
