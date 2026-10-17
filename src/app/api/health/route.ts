@@ -1,12 +1,18 @@
 import { unauthorized } from "@/lib/auth";
 import { ComfyAuthError, ComfyError, getQueue, systemStats } from "@/lib/comfy";
-import { comfyUrl } from "@/lib/env";
+import { comfyConfigured, comfyUrl } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 interface HealthPayload {
   reachable: boolean;
+  /**
+   * False when COMFY_URL is not set at all. A fresh clone run before its
+   * .env.local exists would otherwise read as Offline, which sends a new user
+   * looking for a machine that is down rather than a setting that is missing.
+   */
+  configured?: boolean;
   /** False when ComfyUI answered but rejected our token. */
   authorized?: boolean;
   /**
@@ -29,6 +35,15 @@ interface HealthPayload {
 export async function GET(request: Request) {
   const denied = unauthorized(request);
   if (denied) return denied;
+
+  if (!comfyConfigured()) {
+    return Response.json({
+      reachable: false,
+      configured: false,
+      secure: false,
+      error: "COMFY_URL is not set.",
+    } satisfies HealthPayload);
+  }
 
   const secure = comfyUrl().startsWith("https:");
 

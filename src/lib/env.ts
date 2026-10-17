@@ -12,6 +12,11 @@ function required(name: string, value: string | undefined): string {
   return value;
 }
 
+/** Whether COMFY_URL is set at all — for reporting, where throwing is wrong. */
+export function comfyConfigured(): boolean {
+  return Boolean(process.env.COMFY_URL?.trim());
+}
+
 /** Base URL of the ComfyUI instance, normalised without a trailing slash. */
 export function comfyUrl(): string {
   return required("COMFY_URL", process.env.COMFY_URL).replace(/\/+$/, "");

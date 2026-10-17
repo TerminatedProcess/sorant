@@ -326,7 +326,9 @@ Only if your ISP guarantees one. Same port forward; `COMFY_URL` is
 
 ## 3. Run it locally
 
-You need Node 20+ and pnpm (`npm i -g pnpm`).
+You need Node 20.9+ and pnpm (`npm i -g pnpm`). Running the app on the ComfyUI
+machine itself is simplest — it is also where `pnpm models:download` and
+`pnpm check:nodes` are most useful.
 
 ```bash
 pnpm install
@@ -339,9 +341,9 @@ Fill in `.env.local`:
 
 | Variable | |
 | --- | --- |
-| `COMFY_URL` | **Required.** ComfyUI's address, no trailing slash. Default port `8188`. |
+| `COMFY_URL` | **Required.** ComfyUI's address, no trailing slash. `http://127.0.0.1:8188` when the app runs on the ComfyUI machine; the public address from step 2 on Vercel. |
 | `COMFY_API_TOKEN` | The ComfyUI-Login token — see below, and mind the `$` escaping. |
-| `APP_ACCESS_TOKEN` | **The app's password** — what you type at the deployed app's gate. There is no default: make one with `openssl rand -hex 32` and keep it in a password manager. Optional locally, **required before deploying**. |
+| `APP_ACCESS_TOKEN` | **The app's password** — what you type at the deployed app's gate. There is no default: make one with `openssl rand -hex 32` (or, on Windows, `node -e "console.log(crypto.randomBytes(32).toString('hex'))"`) and keep it in a password manager. Optional locally, **required before deploying**. |
 | `GENERATION_TIMEOUT_SECONDS` | How long the UI waits on a run before giving up. Default 1800. |
 | `COMFY_BASIC_AUTH` | Optional `user:password`, if ComfyUI sits behind basic auth instead. |
 | `COMFY_AUTH_HEADER_NAME` / `_VALUE` | Optional custom auth header, for other proxies. |

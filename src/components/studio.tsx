@@ -8,7 +8,11 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { ConnectionPill } from "@/components/connection-pill";
+import {
+  ConnectionNotice,
+  ConnectionPill,
+  useHealth,
+} from "@/components/connection-pill";
 import { NotifyToggle } from "@/components/notify-toggle";
 import { RewriteKeyButton } from "@/components/rewrite-key";
 import { GenerationStage } from "@/components/generation-stage";
@@ -202,6 +206,7 @@ function Workbench({
 }) {
   const [selectedId, setSelectedId] = useState(offered[0]?.id ?? "");
   const jobs = useJobs();
+  const health = useHealth();
 
   /**
    * Which kind of gateway key this browser says it holds, and the workflows as
@@ -1036,7 +1041,7 @@ function Workbench({
           </span>
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
-            <ConnectionPill />
+            <ConnectionPill health={health} />
             <RewriteKeyButton
               tier={gatewayTier}
               onTierChange={onGatewayTierChange}
@@ -1063,6 +1068,7 @@ function Workbench({
         className="mx-auto max-w-[1400px] px-4 pb-24 pt-5 sm:px-5 lg:flex
           lg:h-[calc(100dvh_-_3.5rem)] lg:flex-col lg:overflow-hidden lg:pb-6 lg:pt-6"
       >
+        <ConnectionNotice health={health} />
         {problems?.length ? (
           <div
             className="mb-5 shrink-0 rounded-lg border border-warning/40 bg-warning/5
