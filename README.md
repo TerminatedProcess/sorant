@@ -14,6 +14,8 @@ right](docs/screenshot.jpg)
 - [What it does](#what-it-does)
 - [What you need](#what-you-need)
 - [Quick start](#quick-start)
+  - [Set it up with a coding agent (recommended)](#set-it-up-with-a-coding-agent-recommended)
+  - [Set it up by hand](#set-it-up-by-hand)
 - [When something goes wrong](#when-something-goes-wrong)
 - [Documentation](#documentation)
 - [Scripts](#scripts)
@@ -80,25 +82,47 @@ Each file and where it comes from is listed in the
 
 ## Quick start
 
-**With a coding agent.** Clone the repo **onto your ComfyUI machine**, open it
-in your agent there, and ask it to set the project up. It follows
-[`docs/agent-setup.md`](docs/agent-setup.md), a runbook written for agents: it
-installs the node packs, downloads the models you choose, applies the Windows
-GPU fixes, has you set a ComfyUI password, verifies a generation, then makes
-ComfyUI reachable and deploys. You type the passwords and keys; it does the
-rest.
+There are two ways in. **Use a coding agent if you can**: most of the setup is
+installing node packs and downloading models on the ComfyUI machine, and an
+agent does that for you and checks each step as it goes.
+
+### Set it up with a coding agent (recommended)
+
+1. **On your ComfyUI machine** — the computer with the GPU, not your laptop —
+   clone the repo:
+
+   ```bash
+   git clone https://github.com/pwillia7/ai_video_fe.git
+   cd ai_video_fe
+   ```
+
+2. **Open your coding agent in that folder** and ask it to set the project up.
+   In Claude Code, type `/setup`.
+3. **Answer its questions.** It asks which workflows you want and whether you
+   are deploying, then installs the node packs, downloads the models, applies
+   the Windows GPU fixes, verifies a generation, makes ComfyUI reachable and
+   deploys. You only step in for what has to be yours: choosing the ComfyUI
+   password, signing in to Vercel (and Hugging Face, for the Edit button), and
+   pasting your AI Gateway key into the app.
+
+It works from [`docs/agent-setup.md`](docs/agent-setup.md), a runbook written
+for agents, and most agents find it on their own:
 
 | Agent | How it finds the runbook |
 | --- | --- |
 | [Claude Code](https://claude.com/claude-code) | `/setup`, or through `CLAUDE.md` |
 | Cursor, VS Code / Copilot | the `setup` skill, or `AGENTS.md` |
 | Codex, Jules, Zed, Amp… | `AGENTS.md` |
-| Anything else | point it at `docs/agent-setup.md` |
+| Anything else | tell it to follow `docs/agent-setup.md` |
 
-**By hand.** Follow the [setup guide](docs/setup.md). In short:
+### Set it up by hand
+
+Prefer to do it yourself? Follow the [setup guide](docs/setup.md), in order —
+most failed setups skipped a step. In short:
 
 1. **[Get ComfyUI ready](docs/setup.md#1-get-comfyui-ready)** — five node packs,
-   the model files you want, and a rewrite key on the ComfyUI machine.
+   the model files you want (`pnpm install`, then `pnpm models:download`), a password,
+   and a rewrite key on the ComfyUI machine.
 2. **[Make ComfyUI reachable](docs/setup.md#2-make-comfyui-reachable)** — only
    if you are deploying. Tailscale Funnel is the easy way.
 3. **[Run it locally](docs/setup.md#3-run-it-locally)**:
@@ -111,8 +135,7 @@ rest.
    ```
 
 4. **[Deploy to Vercel](docs/setup.md#4-deploy-to-vercel)**, once one local
-   generation has worked. The setup agent does this step too — environment
-   variables, the private Blob store large uploads need, and the deploy.
+   generation has worked.
 
 ## When something goes wrong
 
