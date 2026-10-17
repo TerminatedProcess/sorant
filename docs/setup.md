@@ -1,0 +1,446 @@
+# Setting up Soran’t
+
+[← Back to the README](../README.md)
+
+Four steps, in order. Most failed setups skipped ahead, so finish each one
+before starting the next. Using a coding agent? Point it at
+[`agent-setup.md`](agent-setup.md) instead — it covers the same ground as a
+runbook it can execute and check.
+
+## Contents
+
+- [1. Get ComfyUI ready](#1-get-comfyui-ready)
+  - [Custom node packs](#custom-node-packs)
+  - [The rewrite key](#the-rewrite-key)
+  - [Model files](#model-files)
+  - [On Windows, raise the GPU timeout first](#on-windows-raise-the-gpu-timeout-first)
+- [2. Make ComfyUI reachable](#2-make-comfyui-reachable)
+  - [Tailscale Funnel (recommended)](#tailscale-funnel-recommended)
+  - [Dynamic DNS and a port forward](#dynamic-dns-and-a-port-forward)
+  - [A static public IP](#a-static-public-ip)
+- [3. Run it locally](#3-run-it-locally)
+  - [Environment variables](#environment-variables)
+  - [Lock ComfyUI with ComfyUI-Login](#lock-comfyui-with-comfyui-login)
+  - [Check it before you generate](#check-it-before-you-generate)
+- [4. Deploy to Vercel](#4-deploy-to-vercel)
+  - [Deploying from GitHub instead](#deploying-from-github-instead)
+- [Troubleshooting](#troubleshooting)
+- [Security, in short](#security-in-short)
+- [How auth failures surface](#how-auth-failures-surface)
+
+---
+
+## 1. Get ComfyUI ready
+
+This is the part that takes effort; the app itself is a few minutes.
+
+You need a **recent ComfyUI**. MiniMax H3, SeedVR2, FLUX Kontext and the newer
+video nodes are all built in, but only on a new enough build — 0.38 is what
+this was tested on. If the checker later reports a built-in class such as
+`MiniMaxH3ImageToVideo` or `CreateVideo` as missing, update ComfyUI rather than
+hunting for a pack.
+
+### Custom node packs
+
+Five packs. All but the first install from ComfyUI Manager by name.
+
+| Pack | Needed by |
+| --- | --- |
+| [comfyui-vercel-ai-gateway](https://github.com/pwillia7/comfyui-vercel-ai-gateway) — Manager → **Install via Git URL** | every workflow that generates: all five video ones and Music |
+| [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes) | Remix, Extend, and the SageAttention switch |
+| [ComfyUI-VideoHelperSuite](https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite) | anything that reads a clip: Remix, Extend, a reference clip, Upscale |
+| [ComfyUI-MiniMax-H3-Turbo](https://github.com/Larryvrh/ComfyUI-MiniMax-H3-Turbo) — Manager: "MiniMax-H3 Turbo" | the Turbo switch, and any run at 4 steps |
+| `ComfyUI-Spectrum-MiniMax-H3` — search the Manager by name | the Spectrum switch |
+
+Restart ComfyUI after installing. Three things in that table are easy to miss:
+
+- **Turbo, SageAttention and Spectrum all start switched on.** That is how the
+  graphs are meant to run, but it means a first video run needs all five packs.
+  If one is genuinely unavailable, turn its switch off in the settings panel.
+- **SageAttention also needs a Python package.** The node patches in a kernel
+  rather than shipping one, so install `sageattention` into ComfyUI's own Python
+  environment. This is the one requirement the checker cannot see: it will call
+  the node present and the run will still fail with the switch on.
+- **The turbo pack is needed at 4 steps even with Turbo off**, because the
+  graphs swap its sampler in at that step count.
+
+Music needs only the gateway pack. Upscale needs only VideoHelperSuite. Edit
+needs none.
+
+### The rewrite key
+
+Every workflow that generates runs your prompt through a language model first,
+on the [Vercel AI Gateway](https://vercel.com/docs/ai-gateway). That call is
+made by the gateway pack on the ComfyUI machine, so **the key lives there, not
+in this app**.
+
+Create one at [vercel.com/dashboard](https://vercel.com/dashboard) → **AI
+Gateway** → **API Keys**. Every Vercel team gets $5 of credit a month; the model
+picker marks which models are free.
+
+Then give it to the ComfyUI machine, one of two ways:
+
+- **From the app** — the key button in the header, which shows a warning colour
+  until a key is set. The key goes through to
+  `custom_nodes/comfyui-vercel-ai-gateway/config.json` on the ComfyUI machine.
+  This app never stores it and cannot read it back. Easiest when ComfyUI is on a
+  machine you are not sitting at.
+- **From the environment**, which wins over the file. Set it in the same shell
+  that launches ComfyUI — a different terminal does nothing:
+
+  ```bash
+  export AI_GATEWAY_API_KEY=vck_...     # macOS / Linux
+  python main.py
+  ```
+
+  ```powershell
+  $env:AI_GATEWAY_API_KEY = "vck_..."   # Windows PowerShell
+  python main.py
+  ```
+
+  Under systemd or another service manager, use its own mechanism
+  (`Environment=` in the unit file).
+
+The key is deliberately never written into a workflow: ComfyUI stamps the queued
+workflow into the metadata of every file it saves, so it would travel inside
+every video you share.
+
+**No key at all?** Each workflow has a **Send my prompt as written** switch that
+skips the rewrite. It works, but the rewrite is most of what turns a one-line
+prompt into a usable video — see [the prompt rewrite](prompt-rewrite.md).
+
+**Or no gateway at all.** The key button can move the rewrite onto the ComfyUI
+machine itself, running an uncensored Gemma through ComfyUI's built-in
+`TextGenerate` node: no key, nothing refused, about 20 seconds slower a run. It
+needs one more 12 GB file (in the table below). Worth it if refusals are what is
+failing your runs.
+
+### Model files
+
+Download only what you will use. **Text to Video alone needs the five files in
+the first block**, about 43 GB. The filenames must match exactly, because they
+are values inside the graphs rather than choices in the UI.
+
+| File | Folder under `models/` | Size | Needed by |
+| --- | --- | ---: | --- |
+| `minimax_h3_fl2va_pruned_int8_convrot.safetensors` | `diffusion_models/` | 21.0 GB | Text to Video, Image to Video, Extend |
+| `qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors` | `text_encoders/` | 15.7 GB | all five video workflows |
+| `minimax_h3_video_vae_fp16.safetensors` | `vae/` | 5.2 GB | all five video workflows |
+| `minimax_h3_audio_vae_fp32.safetensors` | `vae/` | 0.6 GB | all five video workflows |
+| `minimax_h3_turbo_v4_step600_ema.safetensors` | `loras/` | 0.8 GB | the Turbo switch (on by default) |
+| | | | |
+| `minimax_h3_ref2va_pruned_int8_convrot.safetensors` | `diffusion_models/` | 21.0 GB | Reference to Video, Remix |
+| `minimax_h3_ref2va_bf16.safetensors` | `diffusion_models/` | 66.3 GB | Reference to Video with a soundtrack, voice or clip attached; Remix at 4 steps |
+| `qwen3vl_32b_minimax_h3_bf16.safetensors` | `text_encoders/` | 51.5 GB | the same runs as the file above |
+| | | | |
+| `minimax_music3_dit_fp16.safetensors` | `diffusion_models/` | 4.9 GB | Music |
+| `minimax_music3_text_encoder_pruned_int8_convrot.safetensors` | `text_encoders/` | 9.2 GB | Music |
+| `minimax_music3_dav.safetensors` | `vae/` | 0.2 GB | Music |
+| | | | |
+| `seedvr2_7b_sharp_int8_convrot.safetensors` | `diffusion_models/` | 8.3 GB | Upscale |
+| `seedvr2_ema_vae_fp16.safetensors` | `vae/` | 0.5 GB | Upscale |
+| `rife_v4.26.safetensors` | `frame_interpolation/` | <0.1 GB | Upscale's **Frame rate: Double it** |
+| | | | |
+| `flux1-kontext-dev.safetensors` | `diffusion_models/` | 23.8 GB | the Edit button |
+| `clip_l.safetensors` | `text_encoders/` | 0.2 GB | the Edit button |
+| `t5xxl_fp8_e4m3fn.safetensors` | `text_encoders/` | 4.9 GB | the Edit button |
+| `ae.safetensors` | `vae/` | 0.3 GB | the Edit button |
+
+Optional — nothing fails without these until you choose them:
+
+| File | Folder under `models/` | Size | For |
+| --- | --- | ---: | --- |
+| `gemma4_12b_uncensored_heretic_int8_convrot.safetensors` | `text_encoders/` | 12.1 GB | rewriting prompts on the ComfyUI machine |
+| `seedvr2_3b_int8_convrot.safetensors` | `diffusion_models/` | 3.5 GB | Upscale's lighter 3B model |
+| `film_net_fp16.safetensors` | `frame_interpolation/` | 0.1 GB | Upscale's FILM interpolation |
+| `vh5tape-comfyui.safetensors` | `loras/` | small | the **VHS tape** look |
+| `minimax_h3_fl2va_bf16.safetensors` | `diffusion_models/` | 66.3 GB | what VHS tape runs on (a LoRA cannot use the int8 base) |
+| `minimax_h3_fl2va_pruned_fp8_scaled.safetensors` | `diffusion_models/` | 21.0 GB | VHS tape on **Lighter base**, instead of the bf16 |
+
+Where to get them:
+
+| Files | From |
+| --- | --- |
+| MiniMax H3 | [Comfy-Org/MiniMax-H3](https://huggingface.co/Comfy-Org/MiniMax-H3), and ComfyUI's [H3 tutorial](https://docs.comfy.org/tutorials/video/minimax/minimax-h3) |
+| Turbo LoRA | [larryvrh/MiniMax-H3-Turbo-Lora](https://huggingface.co/larryvrh/MiniMax-H3-Turbo-Lora) |
+| Music 3 | [Comfy-Org/MiniMax-Music-3](https://huggingface.co/Comfy-Org/MiniMax-Music-3) |
+| SeedVR2 | [Comfy-Org/SeedVR2](https://huggingface.co/Comfy-Org/SeedVR2) |
+| RIFE / FILM | [Comfy-Org/frame_interpolation](https://huggingface.co/Comfy-Org/frame_interpolation) |
+| FLUX Kontext | ComfyUI's [Kontext tutorial](https://docs.comfy.org/tutorials/flux/flux-1-kontext-dev). The diffusion model is gated: accept its licence on Hugging Face first |
+| Local rewrite model | [radiatingreverberations/Gemma-4-12B-It-Uncensored-Heretic-INT8-ConvRot-ComfyUI](https://huggingface.co/radiatingreverberations/Gemma-4-12B-It-Uncensored-Heretic-INT8-ConvRot-ComfyUI) |
+
+**Is your copy named differently?** Change the `unet_name`, `clip_name` or
+`vae_name` in the matching `src/lib/workflows/*.ts` file instead of renaming —
+one line, and it survives re-downloading. The same goes for the low-VRAM int8
+build of the Music 3 DiT.
+
+**Why two `ref2va` checkpoints?** Reference to Video normally runs on the int8
+model, but the int8 build fails on a soundtrack, voice or clip reference, so
+attaching one switches to the bf16 model and text encoder — 118 GB more.
+Remix makes the same switch at 4 steps. If disk is tight, skip those two files,
+use pictures only as references, and keep Remix above 4 steps.
+
+### On Windows, raise the GPU timeout first
+
+MiniMax H3 runs single GPU operations long enough to cross Windows' two-second
+GPU timeout (TDR). When the driver reset works, ComfyUI dies. When it does not,
+the whole machine blue-screens and restarts with nothing in the log. On a 3090
+that was about a third of runs.
+
+In an Administrator prompt, then reboot:
+
+```
+reg add "HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" /v TdrDelay /t REG_DWORD /d 60 /f
+reg add "HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" /v TdrDdiDelay /t REG_DWORD /d 60 /f
+```
+
+Also add `--vram-headroom 3` to ComfyUI's launch line. It stops dynamic VRAM
+paging into a full card, a separate Windows failure, at no cost in speed.
+
+---
+
+## 2. Make ComfyUI reachable
+
+**Running the app on the same machine or network as ComfyUI?** Use
+`http://localhost:8188` (or its LAN address) and skip to
+[step 3](#3-run-it-locally).
+
+**Deploying to Vercel?** Then ComfyUI must be reachable *from Vercel's
+servers*, which are not on your network — `localhost` and `192.168.x.x` cannot
+work. This is the most common deployment failure. Three ways, best first.
+
+### Tailscale Funnel (recommended)
+
+Real HTTPS, no open ports on your router, and it survives your home IP
+changing. Funnel terminates TLS on your own machine, so Tailscale relays traffic
+without being able to read it. On the ComfyUI machine:
+
+1. Note the port ComfyUI listens on **locally** — `8188` unless you changed it.
+   A port you reach it on from outside is a forward, not the one Funnel needs.
+2. Install [Tailscale](https://tailscale.com) and sign in.
+3. In the admin console → **DNS**, enable **MagicDNS** and **HTTPS
+   Certificates**. Funnel issues no certificate without both.
+4. In the admin console → **Access Controls**, allow Funnel:
+
+   ```json
+   "nodeAttrs": [
+     { "target": ["autogroup:member"], "attr": ["funnel"] }
+   ]
+   ```
+
+5. Start it. `--bg` keeps it running across reboots, and Funnel allows only
+   public ports `443`, `8443` and `10000`:
+
+   ```shell
+   tailscale funnel --bg --https=443 localhost:8188
+   ```
+
+6. `tailscale funnel status` prints the public address, something like
+   `https://your-box.your-tailnet.ts.net`. That is your `COMFY_URL`. Already
+   deployed? Swap it in with `vercel env rm COMFY_URL production` then
+   `vercel env add COMFY_URL production`, and redeploy.
+7. Check it took: `/api/health` should report `"secure": true`, and the pill no
+   longer shows an open padlock.
+8. Close any port forward you had pointing at ComfyUI. Nothing needs to be open
+   inbound any more.
+
+To undo: `tailscale funnel --https=443 localhost:8188 off`.
+
+> **Funnel is public.** That is the point — Vercel is not on your tailnet — so
+> ComfyUI-Login (step 3) is what keeps strangers off your GPU. Tailscale
+> *Serve* is the private version, and Vercel cannot reach it.
+
+### Dynamic DNS and a port forward
+
+Use this if you would rather not use Tailscale. Home IP addresses change, so a
+DDNS hostname keeps pointing at whatever yours is today.
+
+1. Pick a provider — [DuckDNS](https://www.duckdns.org) (free, simple),
+   [No-IP](https://www.noip.com) or [Afraid.org](https://freedns.afraid.org).
+   Many routers have DDNS built in under their WAN settings.
+2. Register a hostname and set up its updater, on the router or on the ComfyUI
+   machine.
+3. Forward a port on your router to the ComfyUI machine's port `8188`.
+4. `COMFY_URL` is `http://your-host.duckdns.org:<forwarded-port>`.
+
+Two cautions. **A forwarded port is not encryption** — your ComfyUI token and
+prompts cross the internet in plain text, so rotate the token if it ever has.
+And **ComfyUI is now on the open internet**, so ComfyUI-Login is mandatory.
+
+### A static public IP
+
+Only if your ISP guarantees one. Same port forward; `COMFY_URL` is
+`http://<your-ip>:<port>`. It breaks the day the address changes.
+
+---
+
+## 3. Run it locally
+
+You need Node 20+ and pnpm (`npm i -g pnpm`).
+
+```bash
+pnpm install
+cp .env.example .env.local
+```
+
+### Environment variables
+
+Fill in `.env.local`:
+
+| Variable | |
+| --- | --- |
+| `COMFY_URL` | **Required.** ComfyUI's address, no trailing slash. Default port `8188`. |
+| `COMFY_API_TOKEN` | The ComfyUI-Login token — see below, and mind the `$` escaping. |
+| `APP_ACCESS_TOKEN` | A password for this app. Optional locally, **required before deploying**. Make one with `openssl rand -hex 32`. |
+| `GENERATION_TIMEOUT_SECONDS` | How long the UI waits on a run before giving up. Default 1800. |
+| `COMFY_BASIC_AUTH` | Optional `user:password`, if ComfyUI sits behind basic auth instead. |
+| `COMFY_AUTH_HEADER_NAME` / `_VALUE` | Optional custom auth header, for other proxies. |
+
+### Lock ComfyUI with ComfyUI-Login
+
+If ComfyUI can be reached from the internet, install
+[ComfyUI-Login](https://github.com/liusida/ComfyUI-Login), or anyone who finds
+the address can queue jobs on your GPU. Set a password; the long hash it prints
+to the ComfyUI console is your `COMFY_API_TOKEN` — the hash, not the password.
+
+**The trap:** that hash starts with `$2b$`, and `.env` files treat `$2b` as a
+variable, silently blanking it. In `.env.local`, put a backslash before every
+`$`:
+
+```bash
+# console shows: $2b$12$AbCdEf...
+COMFY_API_TOKEN=\$2b\$12\$AbCdEf...
+```
+
+**In the Vercel dashboard or `vercel env add`, do not escape it** — those
+values are taken literally. Getting this backwards is the usual cause of "works
+locally, fails in production", or the reverse.
+
+### Check it before you generate
+
+```bash
+pnpm check:nodes       # asks your ComfyUI for every pack, model file and key the app needs
+pnpm check:workflows   # checks the app's own workflow definitions; needs no ComfyUI
+pnpm dev
+```
+
+`check:nodes` names the pack behind every missing class and the workflows behind
+every missing file, so read its output before downloading anything else. It
+also reports whether the gateway key is visible to ComfyUI.
+
+Open <http://localhost:3000>. The status pill in the header should read
+**Ready**. Then run one **Text to Video** generation. It needs no upload, and it
+proves the models load and the key works, which no check can.
+
+---
+
+## 4. Deploy to Vercel
+
+Only once a local generation has succeeded — deploying something that has
+never worked just moves the debugging somewhere harder.
+
+```bash
+pnpm i -g vercel
+vercel login
+vercel link
+```
+
+Add the environment variables. **No `$` escaping here:**
+
+```bash
+vercel env add COMFY_URL production          # the public address from step 2
+vercel env add COMFY_API_TOKEN production
+vercel env add APP_ACCESS_TOKEN production
+```
+
+Then create a private **Blob store**. Vercel refuses request bodies over
+4.5 MB, so uploads larger than 4 MB go from the browser to Blob, are copied to
+ComfyUI, and are deleted. Without a store, small uploads work and large ones
+fail.
+
+```bash
+vercel blob create-store sorant-uploads --access private --yes
+vercel deploy --prod
+```
+
+`create-store` also rewrites `.env.local` with the project's development
+variables — check it afterwards. The upload ceiling is 100 MB, matching
+ComfyUI's `--max-upload-size 100`. To raise it, change both that flag and
+`LARGE_UPLOAD_MAX_BYTES` in `src/lib/upload-limits.ts`.
+
+Load the deployment, enter your `APP_ACCESS_TOKEN` at the prompt, confirm the
+pill reads **Ready**, and generate once.
+
+> **Always set `APP_ACCESS_TOKEN`.** On Vercel's Hobby and Pro plans,
+> production deployments are publicly reachable, and this token is the only
+> thing between the internet and your GPU.
+
+### Deploying from GitHub instead
+
+Connect the repo to a Vercel project and every push to `main` deploys
+production; other branches get preview deployments behind a Vercel login. That
+makes a push to `main` a public release. `vercel deploy --prod` still works for
+deploying your working copy directly.
+
+If your fork is public, leave **Git Fork Protection** on (Project Settings →
+Security). It stops a stranger's pull request from building with your
+environment variables — including your ComfyUI token.
+
+---
+
+## Troubleshooting
+
+`/api/health` is the quickest answer to "is it connected": it reports
+`reachable`, `authorized` and `secure` separately.
+
+| Symptom | Look at |
+| --- | --- |
+| Pill reads **Offline** | `COMFY_URL`; is ComfyUI running; is the port reachable from where the app runs |
+| Pill reads **Auth failed** | `COMFY_API_TOKEN`; the `$` escaping; is ComfyUI-Login enabled |
+| Works locally, fails deployed | `COMFY_URL` still `localhost`, or the token escaped in Vercel where it should not be |
+| A correct token is still rejected | ComfyUI launched with `--enable-cors-header <some-origin>` — drop the flag or set it to `*`. ComfyUI-Login only checks the token when that header matches, and server-side requests send none |
+| A run fails naming a node class | `pnpm check:nodes` — a pack is missing |
+| Fails at the rewrite: no key | Set the key from the header button, or `AI_GATEWAY_API_KEY` on the ComfyUI machine |
+| Fails at the rewrite, no clear reason | Usually the model refused. Pick a different **Rewrite model** and retry |
+| Rewrite says the model is not in the list | The gateway retired it. Run `pnpm sync:models` and commit the result |
+| "The local director is chosen but … is not in" | The Gemma file is not in `models/text_encoders/`, or switch the rewrite back to the gateway |
+| Only the **Edit** button fails | One of the four FLUX Kontext files — `pnpm check:nodes` names it |
+| Large uploads fail when deployed | No Blob store — see [step 4](#4-deploy-to-vercel) |
+| The Windows machine restarts during step 1 | [The GPU timeout](#on-windows-raise-the-gpu-timeout-first). Display event 4101 in the System log confirms it |
+| A job shows as **Lost** | ComfyUI restarted and forgot its history |
+| "Contact was lost" | The connection dropped, not the workflow. Check the pill and resubmit — the run may have finished anyway |
+
+---
+
+## Security, in short
+
+- **`APP_ACCESS_TOKEN` protects this app; `COMFY_API_TOKEN` protects ComfyUI.**
+  They are independent, and ComfyUI stays reachable directly whatever the app's
+  token is.
+- **Plain HTTP exposes the ComfyUI token in transit.** Funnel fixes that. If the
+  token has ever crossed plain HTTP, rotate it.
+- **The ComfyUI-Login token never expires.** Treat it as a long-lived secret.
+
+## How auth failures surface
+
+Worth knowing when the pill says **Auth failed** and you are sure the token is
+right.
+
+Every call to ComfyUI carries `Authorization: Bearer <COMFY_API_TOKEN>` — a
+header rather than ComfyUI-Login's `?token=` form, because the hash contains
+characters that need URL escaping and query strings end up in logs.
+
+A refusal from ComfyUI comes back from this app as **502, never 401**. A 401
+from this app means *your* `APP_ACCESS_TOKEN` is wrong, and the UI responds by
+asking for it again — the wrong reaction to a misconfigured ComfyUI token. Three
+refusals are recognised, and all read as **Auth failed** rather than
+**Offline**:
+
+| ComfyUI responds | Meaning |
+| --- | --- |
+| `401` / `403` | token rejected or missing |
+| `302 → /login` | redirects are not followed, so this cannot pass for success |
+| `200` with HTML | the login page, served instead of JSON |
+
+Some builds of ComfyUI-Login redirect every request to `/login`, even ones
+asking for JSON, which is why the redirect case exists.

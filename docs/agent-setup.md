@@ -3,8 +3,8 @@
 Plain markdown, no tool-specific syntax. Any coding agent can read and follow
 this; nothing here depends on a particular assistant.
 
-**If you are a human:** the [README](../README.md) covers the same ground in a
-form meant for reading rather than executing. This file is the version an agent
+**If you are a human:** [`setup.md`](setup.md) covers the same ground in a form
+meant for reading rather than executing. This file is the version an agent
 works from.
 
 You are walking someone through connecting this app to *their* ComfyUI and
@@ -48,6 +48,22 @@ something is missing (it prints what, and which pack), and **2** when it could
 not ask at all — no `COMFY_URL`, unreachable, or token rejected. Treat 2 as a
 phase 2–3 problem, never as "nothing is installed". Optional files reported as
 absent do not fail it and do not block the person.
+
+**Check the machine can carry it before anything else.** Tested on Windows,
+ComfyUI 0.38, an RTX 3090 (24 GB) and 64 GB of RAM; nothing smaller has been
+tried, so say that rather than promising it works on a 16 GB card. Disk, by what
+they want to run:
+
+| Wants | Adds |
+| --- | --- |
+| Text to Video, Image to Video, Extend | 43 GB — the floor |
+| Reference to Video and Remix | +21 GB |
+| …with a soundtrack, voice or clip as a reference, or Remix at 4 steps | +118 GB (the bf16 pair) |
+| Music | +14 GB |
+| Upscale | +9 GB |
+| The Edit button | +29 GB |
+| Everything required | about 234 GB |
+| Local director, VHS tape, the lighter Upscale / FILM models | optional, up to +100 GB more |
 
 Ask which workflows they actually want before sending them off to download.
 Twenty-one model files is the whole app; Text to Video alone is five (see the
@@ -147,8 +163,9 @@ There are two ways to land it on the machine, and either is enough:
 
 1. **`AI_GATEWAY_API_KEY` in the environment ComfyUI actually launches in.** Not
    a different terminal, not their shell profile if ComfyUI runs as a service.
-   Same shell as `python main.py`, or `Environment=` in the systemd unit. This
-   wins over the file below.
+   Same shell as `python main.py` (`export` on macOS/Linux, `$env:AI_GATEWAY_API_KEY = "..."`
+   in PowerShell), or `Environment=` in the systemd unit. This wins over the
+   file below.
 
 2. **From the app**, once it is running: the key button in the header, which
    wears a warning colour until a key is set. It posts to the pack's own config
@@ -200,9 +217,9 @@ Nobody needs all of them on day one: Text to Video alone runs on five — the
 | --- | --- | --- |
 | `minimax_h3_fl2va_pruned_int8_convrot.safetensors` | `models/diffusion_models/` | all but the reference and music workflows |
 | `minimax_h3_ref2va_pruned_int8_convrot.safetensors` | `models/diffusion_models/` | the reference workflows |
-| `minimax_h3_ref2va_bf16.safetensors` | `models/diffusion_models/` | Reference to Video at 4 steps, which is where a reference track runs |
+| `minimax_h3_ref2va_bf16.safetensors` | `models/diffusion_models/` | Reference to Video with a soundtrack, voice or clip reference attached (any step count); Remix at 4 steps. 66 GB |
 | `qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors` | `models/text_encoders/` | the five video workflows |
-| `qwen3vl_32b_minimax_h3_bf16.safetensors` | `models/text_encoders/` | Reference to Video at 4 steps, alongside the bf16 diffusion model |
+| `qwen3vl_32b_minimax_h3_bf16.safetensors` | `models/text_encoders/` | the same runs, alongside the bf16 diffusion model. 52 GB |
 | `minimax_h3_video_vae_fp16.safetensors` | `models/vae/` | the five video workflows |
 | `minimax_h3_audio_vae_fp32.safetensors` | `models/vae/` | the five video workflows |
 | `minimax_h3_turbo_v4_step600_ema.safetensors` | `models/loras/` | the Turbo switch only (every video workflow) |
@@ -274,6 +291,9 @@ frame-interpolation nodes are built into a recent ComfyUI.
 **Music needs no node pack but the gateway one.** Every other class in that graph
 is a ComfyUI built-in, so if they only want music, the three files above plus a
 recent ComfyUI is the whole of Phase 1 for them.
+
+For a card short on VRAM, Music 3 also comes as an `int8_convrot` DiT; using it
+means changing `unet_name` in `minimax-music3.ts`.
 
 The filenames must match, because they are values inside the graph rather than
 choices in the UI. If theirs are named differently, the better fix is editing
@@ -527,6 +547,8 @@ to tell them:
 | Generation fails at the rewrite, no reason | Usually a refusal. Change **Rewrite model** and try again |
 | Refused: "the local director is chosen but … is not in" | The int8 Gemma file is not in `models/text_encoders/` — or switch the rewrite back to the gateway from the key button |
 | A generation just stops | ComfyUI restarting drops its history; the job shows as **Lost** |
+| "Contact was lost" | The connection dropped, not the workflow. Check the pill and resubmit — the run may have finished on the box |
+| Rewrite refused: model not in the list | The gateway retired it. `pnpm sync:models`, then commit the regenerated file |
 | The whole Windows machine dies or restarts during step 1 | `TdrDelay` / `TdrDdiDelay` not raised — see the end of Phase 1. Display event 4101 in the System log confirms it |
 
 `/api/health` is the fastest single source of truth — it reports `reachable`,
