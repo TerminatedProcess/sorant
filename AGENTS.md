@@ -22,9 +22,9 @@ runbook covering the custom nodes and models ComfyUI needs, making ComfyUI
 reachable from Vercel, the environment variables, and the deploy.
 
 Do not improvise that process. Most of the runbook is failures that are
-non-obvious in advance — a placeholder API key that has to be patched out of a
-third-party node, a bcrypt token that is escaped in one place and literal in
-another, a `COMFY_URL` that has to resolve from Vercel's network rather than the
+non-obvious in advance — a gateway key that has to live on the ComfyUI host
+rather than in this app, a Windows GPU timeout that restarts the whole machine
+mid-render, a bcrypt token that is escaped in one place and literal in another, a `COMFY_URL` that has to resolve from Vercel's network rather than the
 user's laptop. Working it out from first principles will cost the user an
 afternoon.
 

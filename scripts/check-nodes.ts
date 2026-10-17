@@ -69,11 +69,13 @@ function loadEnvFiles(): void {
   }
 }
 
-/** Loader class -> the input naming the file, for checking models are present. */
-const MODEL_INPUTS: Record<string, string> = {
+/** Loader class -> the inputs naming files, for checking models are present. */
+const MODEL_INPUTS: Record<string, string | string[]> = {
   VAELoader: "vae_name",
   UNETLoader: "unet_name",
   CLIPLoader: "clip_name",
+  // Edit image's FLUX encoders: two files in one loader.
+  DualCLIPLoader: ["clip_name1", "clip_name2"],
   // Upscale's frame interpolation. In the stored graph, so reported as needed,
   // though a run with the frame rate kept removes it.
   FrameInterpolationModelLoader: "model_name",
@@ -180,22 +182,22 @@ function collect() {
           });
         }
 
-        const input = MODEL_INPUTS[node.class_type];
-        if (!input) continue;
-        const filename = node.inputs[input];
-        if (typeof filename !== "string" || !filename) continue;
+        for (const input of [MODEL_INPUTS[node.class_type] ?? []].flat()) {
+          const filename = node.inputs[input];
+          if (typeof filename !== "string" || !filename) continue;
 
-        const model = models.get(filename);
-        if (model) {
-          model.workflows.add(used);
-          if (!optional) model.optional = false;
-        } else {
-          models.set(filename, {
-            loader: node.class_type,
-            input,
-            workflows: new Set([used]),
-            optional,
-          });
+          const model = models.get(filename);
+          if (model) {
+            model.workflows.add(used);
+            if (!optional) model.optional = false;
+          } else {
+            models.set(filename, {
+              loader: node.class_type,
+              input,
+              workflows: new Set([used]),
+              optional,
+            });
+          }
         }
       }
     }

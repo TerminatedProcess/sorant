@@ -36,7 +36,7 @@ The app is the easy half. Almost every failed setup is here.
 
 Tell them plainly what has to be true, then let them go do it:
 
-**Custom nodes** — four packs. Three install from ComfyUI Manager by name; the
+**Custom nodes** — five packs. Four install from ComfyUI Manager by name; the
 first one installs by Git URL:
 
 - **Vercel AI Gateway** (`pwillia7/comfyui-vercel-ai-gateway`) — provides
@@ -44,15 +44,16 @@ first one installs by Git URL:
   Manager's registry by name: **Install via Git URL**, with
   `https://github.com/pwillia7/comfyui-vercel-ai-gateway`, then
   `pip install -r requirements.txt` in ComfyUI's own environment if the Manager
-  does not. **Every workflow needs this.** Each one rewrites the user's prompt
-  through a language model before the video model sees it, so without these
-  nodes nothing generates at all. The log line to look for after a restart is
-  `[VercelAIGateway] v1.0.0 loaded 5 nodes`.
+  does not. **Every generating workflow needs this** — all five video ones and
+  Music. Each rewrites the user's prompt through a language model before the
+  model sees it, so without these nodes nothing generates at all. (Upscale and
+  Edit image have no prompt to rewrite and do not use it.) The log line to look
+  for after a restart is `[VercelAIGateway] v1.0.0 loaded 5 nodes`.
 - **ComfyUI-KJNodes** (`kijai/ComfyUI-KJNodes`) — provides
   `GetImageSizeAndCount`, `RandomImageFromBatch`, `AudioConcatenate` and
-  `PathchSageAttentionKJ` (the misspelling is the pack's). Remix and Extend need
-  the first three; every workflow needs the last one, but only with the
-  **SageAttention** switch on. That switch also needs the `sageattention` Python
+  `PathchSageAttentionKJ` (the misspelling is the pack's). Remix needs the
+  first, Extend the next two; every video workflow needs the last one, but only
+  with the **SageAttention** switch on. That switch also needs the `sageattention` Python
   package installed in ComfyUI's own environment, because the node patches in a
   kernel rather than shipping one — this is the one requirement here that
   `check:nodes` cannot see, so a run failing with the switch on against a node
@@ -64,16 +65,21 @@ first one installs by Git URL:
   4, switch or no switch — that step count is what the sampler is for, so the
   graph swaps it in rather than asking. So this pack is needed with the switch
   off too, if anyone sets steps to 4.
-- **Spectrum** — provides `SpectrumApplyMiniMaxH3`. Only the **Spectrum** switch
-  needs it, and unlike turbo it needs no model file and every workflow offers
-  it. This repo has the node from a ComfyUI export rather than from a named
-  pack, so search the Manager by class name; `pnpm check:nodes` will report the
+- **ComfyUI-VideoHelperSuite** (`Kosinkadink/ComfyUI-VideoHelperSuite`) —
+  provides `VHS_LoadVideo`, `VHS_SelectEveryNthImage`, `VHS_BatchManager`,
+  `VHS_VideoInfoLoaded` and `VHS_VideoCombine`. Everything that reads a clip:
+  Remix, Extend, a reference clip on Reference to Video, and Upscale.
+- **Spectrum** (`ComfyUI-Spectrum-MiniMax-H3`) — provides
+  `SpectrumApplyMiniMaxH3`. Only the **Spectrum** switch needs it, and unlike
+  turbo it needs no model file; every video workflow offers it. This repo took
+  the node from a ComfyUI export rather than pinning a repo, so search the
+  Manager by that name or by the class name; `pnpm check:nodes` reports the
   owning package once it is installed.
 
-**Treat all four as required.** Turbo, SageAttention and Spectrum all start
-switched on, so a fresh install needs every pack here before the first
-generation succeeds — a user who has not installed one will see every run fail
-rather than only the runs that opted in. They can be turned off per workflow in
+**Treat all five as required.** Turbo, SageAttention and Spectrum all start
+switched on, so a fresh install needs the gateway, KJNodes, turbo and Spectrum
+packs before the first video generation succeeds — a user who has not
+installed one will see every run fail rather than only the runs that opted in. They can be turned off per workflow in
 the settings panel if a pack is genuinely unavailable.
 
 The remaining node classes are ComfyUI built-ins — including the four
@@ -97,8 +103,8 @@ because ComfyUI copies the queued prompt into the metadata of every file a
 workflow saves.
 
 The key comes from [vercel.com/dashboard](https://vercel.com/dashboard) → **AI
-Gateway** → **API Keys**. Every team gets $5 of credit a month, and two of the
-models the app offers cost nothing against it.
+Gateway** → **API Keys**. Every team gets $5 of credit a month, and the picker
+marks the models that cost nothing against it — one, as of this writing.
 
 There are two ways to land it on the machine, and either is enough:
 
@@ -124,8 +130,9 @@ one-line prompt produce a usable video, and the switch is for someone writing
 MiniMax's own format by hand.
 
 **Which model does the rewriting is a control, not a constant.** **Rewrite
-model** under the prompt box offers ten, labelled with what they cost and which
-are free, built from the gateway's live catalog by `pnpm sync:models`. If a job
+model** under the prompt box offers a couple of dozen — roughly the newest
+seeing and newest text-only model per provider family — labelled with what they
+cost and which are free, built from the gateway's live catalog by `pnpm sync:models`. If a job
 dies at the rewrite step with an error that says nothing useful, that is usually
 a refusal — have them pick a different model rather than debug the prompt. The
 curation is in `src/lib/workflows/rewrite-catalog.ts`.
@@ -146,9 +153,11 @@ download saved it as is fine; the app finds it by what it is. Offer this when
 refusals are what is failing their runs, not as part of the default setup.
 `pnpm check:nodes` reports it under **Local director (optional)**.
 
-**Seventeen model files.** Fourteen are named literally in the graphs. The other
-three belong to the content-LoRA switch, which is off by default — all three are
-optional, and none is needed unless they want that look.
+**Twenty-one model files.** Eighteen are needed by something a fresh install
+runs. The other three belong to the content-LoRA switch, which is off by
+default — all three are optional, and none is needed unless they want that look.
+Nobody needs all of them on day one: Text to Video alone runs on five — the
+`fl2va` int8 base, the nvfp4 Qwen encoder, the two H3 VAEs and the turbo LoRA.
 
 | File | Directory | Needed by |
 | --- | --- | --- |
@@ -169,6 +178,10 @@ optional, and none is needed unless they want that look.
 | `seedvr2_7b_sharp_int8_convrot.safetensors` | `models/diffusion_models/` | Upscale |
 | `seedvr2_ema_vae_fp16.safetensors` | `models/vae/` | Upscale |
 | `rife_v4.26.safetensors` | `models/frame_interpolation/` | Upscale's **Frame rate: Double it** |
+| `flux1-kontext-dev.safetensors` | `models/diffusion_models/` | Edit image (the **Edit** button on a picture) |
+| `clip_l.safetensors` | `models/text_encoders/` | Edit image |
+| `t5xxl_fp8_e4m3fn.safetensors` | `models/text_encoders/` | Edit image |
+| `ae.safetensors` | `models/vae/` | Edit image |
 
 Sources: <https://docs.comfy.org/tutorials/video/minimax/minimax-h3> for the H3
 files and <https://huggingface.co/Comfy-Org/MiniMax-Music-3> for the Music 3
@@ -179,8 +192,23 @@ VideoHelperSuite for the video either side of it — its loader, Meta Batch
 Manager and Video Combine, which run a clip through in batches so a long one
 does not run the machine out of RAM. Its frame interpolation loads from
 <https://huggingface.co/Comfy-Org/frame_interpolation>: `rife_v4.26` as above,
-and optionally `film_net_fp16` for the FILM choice under Advanced. The turbo LoRA is not from any of these — see the third node pack above. Neither
-the SageAttention nor the Spectrum switch adds a model file of its own.
+and optionally `film_net_fp16` for the FILM choice under Advanced. The turbo
+LoRA is not from any of these: it is
+<https://huggingface.co/larryvrh/MiniMax-H3-Turbo-Lora>. Neither the
+SageAttention nor the Spectrum switch adds a model file of its own.
+
+**Edit image is FLUX.1 Kontext dev, on core nodes only** — ComfyUI's
+[Kontext tutorial](https://docs.comfy.org/tutorials/flux/flux-1-kontext-dev)
+lists the same four files. It is not in the
+workflow picker — it is what the **Edit** button on any image control runs, so
+it is easy to forget until someone presses it. The diffusion model is
+`black-forest-labs/FLUX.1-Kontext-dev` on Hugging Face, which is gated: they
+accept the licence there before the download works. The two text encoders are
+in `comfyanonymous/flux_text_encoders`, and `ae.safetensors` is the FLUX VAE
+(in `Comfy-Org/Lumina_Image_2.0_Repackaged` under `split_files/vae/`, ungated,
+or the gated BFL repo). The file is bf16 and the graph casts it to fp8 on load,
+which is what fits it beside T5 on a 24 GB card. It is optional in the sense
+that nothing else needs it — skip it and only the Edit button fails.
 
 **The content-LoRA switch brings its own files, and the checkpoint is the one to
 explain.** MiniMax-H3 LoRAs are made for fp16/fp8 bases. The `fl2va` graphs ship
@@ -202,6 +230,9 @@ download**, each LoRA can offer a **Lighter base** toggle. For VHS tape that run
 `minimax_h3_fl2va_pruned_fp8_scaled` instead — smaller and much easier on VRAM,
 for some quality. Both are non-rotated, so either is safe for the LoRA; they need
 one of the two, not both.
+
+**Upscale needs VideoHelperSuite and nothing else custom**; its SeedVR2 and
+frame-interpolation nodes are built into a recent ComfyUI.
 
 **Music needs no node pack but the gateway one.** Every other class in that graph
 is a ComfyUI built-in, so if they only want music, the three files above plus a
@@ -447,6 +478,8 @@ to tell them:
 | Works locally, fails deployed | `COMFY_URL` is probably still `localhost`; or `$` was escaped in Vercel when it should not be |
 | Valid token still rejected | ComfyUI started with `--enable-cors-header <specific-origin>` makes the bearer check unreachable. Drop the flag or set it to `*` |
 | Generation fails on a node class | `pnpm check:nodes` — a pack is missing |
+| Only the **Edit** button fails | The four FLUX Kontext files — `pnpm check:nodes` names whichever is missing |
+| Upload over 4 MB fails on the deployment, works locally | No Blob store — see Phase 5 |
 | Generation fails at the rewrite, no key | The gateway key on the ComfyUI host, not this app — header key button, or `AI_GATEWAY_API_KEY` |
 | Generation fails at the rewrite, no reason | Usually a refusal. Change **Rewrite model** and try again |
 | Refused: "the local director is chosen but … is not in" | The int8 Gemma file is not in `models/text_encoders/` — or switch the rewrite back to the gateway from the key button |

@@ -24,7 +24,10 @@ straight back in — a finished clip with **Remix** or **Extend**, a finished
 song with **Create video**, which loads it into reference to video as a
 reference track alongside whatever pictures you attach. That workflow also takes
 a clip as a reference — uploaded or recorded on the spot — for the thing a still
-cannot show, which is how something moves.
+cannot show, which is how something moves. Two tools sit beside them:
+**Upscale**, which runs a finished clip through SeedVR2 (and can double its frame
+rate), and **Edit**, a button on every picture you attach that changes it by a
+sentence with FLUX.1 Kontext before it goes into a run.
 
 Every workflow rewrites your prompt through an LLM into the format the model
 was trained on, and every workflow has a switch to skip that and send what you
@@ -59,7 +62,7 @@ format but not on where to look for it. Cursor reads both, VS Code reads both,
 Claude Code reads only the first.
 
 It walks the whole thing: checks your ComfyUI has the right custom nodes and
-model files, applies the node patch the LLM stage needs, works out how to make
+model files, gets the rewrite key onto the ComfyUI host, works out how to make
 ComfyUI reachable from Vercel, handles the `.env.local` escaping trap that
 catches nearly everyone, verifies a generation locally, then deploys. It reads
 the actual errors — a missing node comes back as the pack you need to install
@@ -73,7 +76,7 @@ a checklist if you would rather do it yourself.
 Four steps, in this order. Doing them out of order is the usual reason a setup
 fails confusingly.
 
-1. [Get ComfyUI ready](#1-get-comfyui-ready) — three node packs, nine model files
+1. [Get ComfyUI ready](#1-get-comfyui-ready) — five node packs, up to twenty-one model files
 2. [Make ComfyUI reachable](#2-make-comfyui-reachable) — only if deploying
 3. [Run it locally](#3-run-it-locally)
 4. [Deploy to Vercel](#4-deploy-to-vercel)
@@ -92,21 +95,21 @@ reports those missing, update ComfyUI rather than hunting for node packs.
 
 ### Custom nodes
 
-Most of the node classes these graphs use are ComfyUI built-ins. Eleven are not,
-and they come from five packs. All but the first install from ComfyUI Manager by
+Most of the node classes these graphs use are ComfyUI built-ins. Fourteen are
+not, and they come from five packs. All but the first install from ComfyUI Manager by
 name; that one goes in by Git URL:
 
 | Pack | Provides | Needed by |
 | --- | --- | --- |
-| [comfyui-vercel-ai-gateway](https://github.com/pwillia7/comfyui-vercel-ai-gateway) (Manager: Install via Git URL) | `VercelAIGatewayGenerateText`, `VercelAIGatewayDescribeImage` | **every** workflow |
-| [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes) | `GetImageSizeAndCount`, `RandomImageFromBatch`, `AudioConcatenate`, `PathchSageAttentionKJ` | Remix, Extend, reference clips, and the SageAttention switch everywhere |
-| [ComfyUI-VideoHelperSuite](https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite) | `VHS_LoadVideo`, `VHS_SelectEveryNthImage` | every workflow that reads a video — Remix, Extend, and a reference clip |
+| [comfyui-vercel-ai-gateway](https://github.com/pwillia7/comfyui-vercel-ai-gateway) (Manager: Install via Git URL) | `VercelAIGatewayGenerateText`, `VercelAIGatewayDescribeImage` | **every** generating workflow — all but Upscale and Edit |
+| [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes) | `GetImageSizeAndCount`, `RandomImageFromBatch`, `AudioConcatenate`, `PathchSageAttentionKJ` | Remix, Extend, and the SageAttention switch everywhere |
+| [ComfyUI-VideoHelperSuite](https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite) | `VHS_LoadVideo`, `VHS_SelectEveryNthImage`, `VHS_BatchManager`, `VHS_VideoInfoLoaded`, `VHS_VideoCombine` | every workflow that reads a video — Remix, Extend, a reference clip, and Upscale |
 | [ComfyUI-MiniMax-H3-Turbo](https://github.com/Larryvrh/ComfyUI-MiniMax-H3-Turbo) (Manager: "MiniMax-H3 Turbo") | `MiniMaxH3TurboLoRA`, `MiniMaxH3TurboSampler` | the Turbo switch and 4 steps — every video workflow |
-| whichever pack you got `SpectrumApplyMiniMaxH3` from | `SpectrumApplyMiniMaxH3` | the Spectrum switch — every workflow |
+| `ComfyUI-Spectrum-MiniMax-H3` | `SpectrumApplyMiniMaxH3` | the Spectrum switch — every video workflow |
 
 The Spectrum row is deliberately not a link: this repo takes the node from a
-ComfyUI export rather than shipping a pack, and search by class name in the
-Manager is the reliable way to find it. Once it is installed, `pnpm check:nodes`
+ComfyUI export rather than pinning a repo, and searching the Manager by that
+name or the class name is the reliable way to find it. Once it is installed, `pnpm check:nodes`
 reads the owning package off your install and prints it, so you never have to
 take this table's word for where a class came from.
 
@@ -130,7 +133,11 @@ nodes nothing generates at all. It is one API key for 250-odd models across
 every major provider, which is the point: the rewrite is where a run gets
 refused, and refusals are a property of the model rather than of the prompt.
 
-**Music needs no pack but that one.** Every other class in that graph —
+**Upscale needs no pack but VideoHelperSuite, and Edit needs none at all.**
+SeedVR2, frame interpolation and the FLUX Kontext nodes are all built into a
+recent ComfyUI.
+
+**Music needs no pack but the gateway one.** Every other class in that graph —
 `MiniMaxMusic3TextEncode`, `EmptyMiniMaxMusic3LatentAudio`, `SaveAudioAdvanced`,
 `VAEDecodeAudioTiled`, `SeedNode`, `ComfySwitchNode` — is a ComfyUI built-in, so
 a recent ComfyUI plus the three Music 3 model files below is the whole
@@ -145,8 +152,8 @@ and **this app never holds the key**. It lives on the ComfyUI host, where the
 call is actually made.
 
 Create one at [vercel.com/dashboard](https://vercel.com/dashboard) → **AI
-Gateway** → **API Keys**. Every team gets $5 of credit a month, and two of the
-models in the picker cost nothing against it at all.
+Gateway** → **API Keys**. Every team gets $5 of credit a month, and the picker
+marks the models that cost nothing against it at all — one, as of this writing.
 
 Then give it to the machine, either way round:
 
@@ -223,9 +230,9 @@ setting is a preference in this browser and is offered on its own.
 
 Narrowing is abandoned rather than applied whenever it would empty the picker —
 a dropdown with nothing in it is worse than one offering more than was asked
-for. That is the state today: every model in the catalog costs something, so
-saying **free** changes nothing for now. The answer is still kept, and takes
-effect the day a free model appears.
+for. That has been the state at times, when every model in the catalog cost
+something; at the last `sync:models` one was free, so **free** narrows the
+picker to that one.
 
 **Every model is offered on every workflow, and half of them cannot see.** On
 the four graphs that show their director a picture — the upload, the last frame
@@ -270,11 +277,17 @@ verifies every offered id against the live dropdown on your own install.
 
 ### Models
 
-Eleven files, named literally in the graphs. Get the seven H3 ones from ComfyUI's
-[MiniMax H3 tutorial](https://docs.comfy.org/tutorials/video/minimax/minimax-h3),
-which is also the current word on what the model needs from your GPU. The turbo
-LoRA comes from its own pack, and the three Music 3 files from
-[Comfy-Org/MiniMax-Music-3](https://huggingface.co/Comfy-Org/MiniMax-Music-3).
+Twenty-one files, named literally in the graphs — but you need only the ones
+for what you will run. Text to Video alone runs on five: the `fl2va` int8 base,
+the nvfp4 Qwen encoder, the two H3 VAEs and the turbo LoRA.
+
+| Files | From |
+| --- | --- |
+| The H3 ones | ComfyUI's [MiniMax H3 tutorial](https://docs.comfy.org/tutorials/video/minimax/minimax-h3), which is also the current word on what the model needs from your GPU |
+| The turbo LoRA | [larryvrh/MiniMax-H3-Turbo-Lora](https://huggingface.co/larryvrh/MiniMax-H3-Turbo-Lora) |
+| Music 3 | [Comfy-Org/MiniMax-Music-3](https://huggingface.co/Comfy-Org/MiniMax-Music-3) |
+| Upscale | [Comfy-Org/SeedVR2](https://huggingface.co/Comfy-Org/SeedVR2) and [Comfy-Org/frame_interpolation](https://huggingface.co/Comfy-Org/frame_interpolation) |
+| Edit | ComfyUI's [FLUX.1 Kontext tutorial](https://docs.comfy.org/tutorials/flux/flux-1-kontext-dev). The diffusion model is gated on Hugging Face: accept the licence first |
 
 | File | Goes in | Used by |
 | --- | --- | --- |
@@ -285,13 +298,30 @@ LoRA comes from its own pack, and the three Music 3 files from
 | `qwen3vl_32b_minimax_h3_bf16.safetensors` | `models/text_encoders/` | reference to video and Remix, at 4 steps |
 | `minimax_h3_video_vae_fp16.safetensors` | `models/vae/` | the five video graphs |
 | `minimax_h3_audio_vae_fp32.safetensors` | `models/vae/` | the five video graphs |
-| [`minimax_h3_turbo_v4_step600_ema.safetensors`](https://huggingface.co/larryvrh/MiniMax-H3-Turbo-Lora) | `models/loras/` | the Turbo switch — every video workflow |
+| `minimax_h3_turbo_v4_step600_ema.safetensors` | `models/loras/` | the Turbo switch — every video workflow |
 | `vh5tape-comfyui.safetensors` | `models/loras/` | optional — the **VHS tape** content LoRA (text/image to video, Extend) |
 | `minimax_h3_fl2va_bf16.safetensors` | `models/diffusion_models/` | optional — what **VHS tape** runs on, since it cannot use the rotated `fl2va` base |
 | `minimax_h3_fl2va_pruned_fp8_scaled.safetensors` | `models/diffusion_models/` | optional — **VHS tape** on **Lighter base**, instead of bf16 |
 | `minimax_music3_dit_fp16.safetensors` | `models/diffusion_models/` | Music |
 | `minimax_music3_text_encoder_pruned_int8_convrot.safetensors` | `models/text_encoders/` | Music |
 | `minimax_music3_dav.safetensors` | `models/vae/` | Music |
+| `seedvr2_7b_sharp_int8_convrot.safetensors` | `models/diffusion_models/` | Upscale (`seedvr2_3b_int8_convrot` is an optional lighter pick in its Model control) |
+| `seedvr2_ema_vae_fp16.safetensors` | `models/vae/` | Upscale |
+| `rife_v4.26.safetensors` | `models/frame_interpolation/` | Upscale's **Frame rate: Double it** (`film_net_fp16` optional, for FILM) |
+| `flux1-kontext-dev.safetensors` | `models/diffusion_models/` | Edit — bf16, cast to fp8 on load so it fits beside T5 on 24 GB |
+| `clip_l.safetensors` | `models/text_encoders/` | Edit |
+| `t5xxl_fp8_e4m3fn.safetensors` | `models/text_encoders/` | Edit |
+| `ae.safetensors` | `models/vae/` | Edit |
+
+**Optional, for prompts the gateway models refuse:** the key button in the
+header can move the rewrite onto the ComfyUI machine itself, running an
+uncensored Gemma through ComfyUI's built-in `TextGenerate` — no key, no content
+policy, about twenty seconds slower a run. It needs a ComfyUI recent enough that
+`TextGenerate` takes a `system_prompt` (0.38 does) and one more 12 GB file in
+`models/text_encoders/`:
+`gemma4_12b_uncensored_heretic_int8_convrot.safetensors` from
+[radiatingreverberations/Gemma-4-12B-It-Uncensored-Heretic-INT8-ConvRot-ComfyUI](https://huggingface.co/radiatingreverberations/Gemma-4-12B-It-Uncensored-Heretic-INT8-ConvRot-ComfyUI).
+`check:nodes` reports it under **Local director (optional)**.
 
 There is an `int8_convrot` build of the Music 3 DiT for low-VRAM cards. If you
 use it, change `unet_name` in `minimax-music3.ts` to match — the filename is a
@@ -301,6 +331,21 @@ value in the graph, not a choice in the UI.
 than choices in the UI. If your build is named or quantised differently, edit
 the `unet_name` / `clip_name` / `vae_name` in the relevant
 `src/lib/workflows/*.ts` — one line, and it survives re-downloading models.
+
+### On Windows, raise the GPU timeout first
+
+MiniMax H3 issues single GPU operations long enough to cross Windows' two-second
+TDR limit. When the driver reset succeeds ComfyUI dies; when it does not, the
+whole machine blue-screens and restarts with nothing in the log. On a 3090 that
+was about a third of runs. In an Administrator prompt, then reboot:
+
+```
+reg add "HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" /v TdrDelay /t REG_DWORD /d 60 /f
+reg add "HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" /v TdrDdiDelay /t REG_DWORD /d 60 /f
+```
+
+And add `--vram-headroom 3` to ComfyUI's launch line, which stops dynamic VRAM
+paging into a full card — a separate Windows failure — at no cost in speed.
 
 ---
 
@@ -441,8 +486,23 @@ Environment — **no `$` escaping here**, these are literal:
 vercel env add COMFY_URL production          # the PUBLIC url from step 2
 vercel env add COMFY_API_TOKEN production
 vercel env add APP_ACCESS_TOKEN production
+```
+
+Then a private **Blob store**, which uploads over 4 MB need. Vercel refuses a
+function request body over 4.5 MB, so a larger clip or track goes from the
+browser straight to Blob, is copied to ComfyUI from there, and is deleted.
+Without a store small uploads still work and large ones fail.
+
+```bash
+vercel blob create-store sorant-uploads --access private --yes
 vercel deploy --prod
 ```
+
+`create-store` adds `BLOB_READ_WRITE_TOKEN` to every environment — and also
+rewrites `.env.local` with the project's Development variables, so check that
+file afterwards. The ceiling is 100 MB, matching ComfyUI's `--max-upload-size
+100`; raise `LARGE_UPLOAD_MAX_BYTES` in `src/lib/upload-limits.ts` together with
+that flag.
 
 Then load it, enter the `APP_ACCESS_TOKEN` at the gate, confirm the pill reads
 **Ready**, and generate once.
@@ -469,6 +529,10 @@ public forks.
 | Job dies at the rewrite step saying there is no key | [The rewrite key](#the-rewrite-key) — set it from the header button, or `AI_GATEWAY_API_KEY` on the ComfyUI host |
 | Job dies at the rewrite step, no clear reason | Usually a refusal. Change **[Rewrite model](#choosing-the-rewrite-model)** and try again |
 | Rewrite fails saying the model is not in the list | The gateway retired it. `pnpm sync:models`, then commit the change |
+| Refused: "the local director is chosen but … is not in" | The Gemma file is not in `models/text_encoders/` — or switch the rewrite back to the gateway from the key button |
+| Only the **Edit** button fails | One of the four FLUX Kontext files — `pnpm check:nodes` names it |
+| A large upload fails deployed, works locally | No Blob store — see [Deploy](#4-deploy-to-vercel) |
+| The whole Windows machine restarts during step 1 | [The GPU timeout](#on-windows-raise-the-gpu-timeout-first). Display event 4101 in the System log confirms it |
 | A job shows as **Lost** | ComfyUI restarted and dropped its history |
 | A job failed saying contact was lost | The connection dropped mid-render, not the workflow. Check the pill, then resubmit — the run may still have finished on the box |
 
@@ -2356,7 +2420,8 @@ and then to localhost — which is what `next dev` wants anyway.
 | `pnpm build` | Production build |
 | `pnpm typecheck` | `tsc --noEmit` |
 | `pnpm check:workflows` | Validate param→graph mappings. Needs nothing but this repo. |
-| `pnpm check:nodes` | Ask your ComfyUI whether it has the classes and models the graphs name. Needs `COMFY_URL`. |
+| `pnpm check:nodes` | Ask your ComfyUI whether it has the classes and models the graphs name, whether it holds a gateway key, and whether every offered rewrite model is still in the catalog. Needs `COMFY_URL`. |
+| `pnpm sync:models` | Rebuild the rewrite-model list from the gateway's live catalog. Also runs before every `pnpm build`. |
 
 ## Known limits
 
