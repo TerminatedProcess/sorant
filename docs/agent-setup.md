@@ -17,6 +17,43 @@ runbook is that they find out early instead of six minutes into a generation.
 Ask before doing anything outward-facing: creating Vercel projects, adding
 environment variables, deploying. Run local checks freely.
 
+## Before you start: who can do what
+
+You are almost certainly running beside the repo, and ComfyUI is almost
+certainly on a different machine — often a Windows box with the GPU. You cannot
+install node packs, download models, edit its registry or restart it. So for
+those phases your job is to hand the person an exact list for *their* machine,
+wait, and then verify from here: `pnpm check:nodes` asks the box itself, which
+is better evidence than anything they report back. If ComfyUI *is* on this
+machine, ask before installing into it — it is their environment, not the
+repo's.
+
+Copy this into your reply and keep it current as you go. Do not tick a gate
+from what the person tells you; tick it from the command's output.
+
+```
+Setup progress:
+- [ ] 0 Toolchain       gate: `pnpm install` succeeds
+- [ ] 1 ComfyUI         (person, on the box) packs, models, gateway key, Windows TDR
+- [ ] 2 Reachability    decided: local only / Funnel / DDNS
+- [ ] 3 Auth            ComfyUI-Login on if reachable from the internet
+- [ ] 4 Local verify    gate: `pnpm check:nodes` exits 0, pill reads Ready,
+                        one Text to Video run finished
+- [ ] 5 Deploy          (ask first) env vars, Blob store, deploy
+                        gate: deployed pill Ready, one run finished
+```
+
+`pnpm check:nodes` exits **0** when everything required is there, **1** when
+something is missing (it prints what, and which pack), and **2** when it could
+not ask at all — no `COMFY_URL`, unreachable, or token rejected. Treat 2 as a
+phase 2–3 problem, never as "nothing is installed". Optional files reported as
+absent do not fail it and do not block the person.
+
+Ask which workflows they actually want before sending them off to download.
+Twenty-one model files is the whole app; Text to Video alone is five (see the
+table in Phase 1). A narrower first pass that works beats a complete one that
+takes a day.
+
 ## Phase 0 — Is the toolchain there
 
 ```bash
@@ -398,7 +435,13 @@ pnpm dev
 ```
 
 Open <http://localhost:3000>. The header pill should read **Ready**. If it says
-**Offline** or **Auth failed**, `/api/health` returns which in plain JSON.
+**Offline** or **Auth failed**, `/api/health` returns which in plain JSON — and
+you can read it yourself rather than asking for a screenshot:
+
+```bash
+curl -s localhost:3000/api/health -H "x-app-token: $APP_ACCESS_TOKEN"
+# want: "reachable":true,"authorized":true
+```
 
 Have them run one generation before deploying — **Text to Video** is the
 cheapest test since it needs no upload. A first run proves the models load and
@@ -489,3 +532,16 @@ to tell them:
 `/api/health` is the fastest single source of truth — it reports `reachable`,
 `authorized` and `secure` separately, so it distinguishes "cannot connect" from
 "connected but refused".
+
+## Done when
+
+Setup is finished when all of these are true, and not before:
+
+- `pnpm check:nodes` exits 0 against the `COMFY_URL` the deployment uses.
+- One generation has finished locally, and one on the deployment.
+- The deployment asks for `APP_ACCESS_TOKEN` before anything else.
+- If ComfyUI is reachable from the internet, ComfyUI-Login is on and the token
+  has never crossed plain HTTP — or the person knows to rotate it.
+
+Then tell the person what they skipped: optional files left out, switches they
+will need to turn off because a pack is missing, and a Blob store not created.

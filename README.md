@@ -56,7 +56,7 @@ whatever agent you use, and ask it to set the project up.
 | Codex, Jules, Zed, Amp… | `AGENTS.md` |
 | Anything else | Point it at `docs/agent-setup.md` |
 
-The `setup` skill is the same twenty-line pointer at two paths,
+The `setup` skill is the same thirty-line pointer at two paths,
 `.claude/skills/` and `.agents/skills/`, because agents agree on the `SKILL.md`
 format but not on where to look for it. Cursor reads both, VS Code reads both,
 Claude Code reads only the first.
