@@ -96,8 +96,18 @@ agent does that for you and checks each step as it goes.
    cd ai_video_fe
    ```
 
-2. **Open your coding agent in that folder** and ask it to set the project up.
-   In Claude Code, type `/setup`.
+2. **Open your coding agent in that folder** and paste this (in Claude Code,
+   `/setup` does the same):
+
+   ```text
+   Set up this project on this machine by following docs/agent-setup.md from
+   start to finish. This is my ComfyUI machine: install the custom node packs,
+   download the models for the workflows I choose, apply any fixes this OS
+   needs, lock ComfyUI with a password, verify a generation, and then help me
+   deploy the app to Vercel. Keep the runbook's progress checklist updated as
+   you go, and ask me before anything outward-facing or system-wide.
+   ```
+
 3. **Answer its questions.** It asks which workflows you want and whether you
    are deploying, then installs the node packs, downloads the models, applies
    the Windows GPU fixes, verifies a generation, makes ComfyUI reachable and
