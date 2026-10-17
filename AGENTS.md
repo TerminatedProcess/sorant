@@ -18,14 +18,18 @@ ComfyUI, which lives on their machine, not here.
 
 **If the user wants to get this running against their ComfyUI, or deploy it,
 follow [`docs/agent-setup.md`](docs/agent-setup.md).** It is a phase-by-phase
-runbook covering the custom nodes and models ComfyUI needs, making ComfyUI
-reachable from Vercel, the environment variables, and the deploy.
+runbook, run on the ComfyUI machine itself: installing the custom nodes,
+downloading the models (`pnpm models:download`), locking ComfyUI with a
+password, making it reachable from Vercel, the environment variables, and the
+deploy.
 
 Do not improvise that process. Most of the runbook is failures that are
 non-obvious in advance — a gateway key that has to live on the ComfyUI host
 rather than in this app, a Windows GPU timeout that restarts the whole machine
-mid-render, a bcrypt token that is escaped in one place and literal in another, a `COMFY_URL` that has to resolve from Vercel's network rather than the
-user's laptop. Working it out from first principles will cost the user an
+mid-render, a bcrypt token that is escaped in one place and literal in another,
+a ComfyUI-Login with no password that is open to whoever reaches it first, a
+`COMFY_URL` that has to resolve from Vercel's network rather than the user's
+laptop. Working it out from first principles will cost the user an
 afternoon.
 
 ## Working on the code
@@ -49,6 +53,11 @@ afternoon.
   every declaration above against it too, and every `finalizeCases` entry by
   queueing it. Needs nothing but this repo. Run it after touching anything under
   `src/lib/workflows/`.
+- **A model file a graph names needs a download source** in
+  `scripts/lib/model-sources.ts` — repo, path, folder and size from Hugging
+  Face. `check:workflows` fails without one, because `pnpm models:download`
+  could not fetch it. Which files a workflow needs is read off the graphs in
+  `scripts/lib/needs.ts`, shared with `check:nodes`.
 - **`pnpm check:nodes`** asks a real ComfyUI whether the classes and model files
   the graphs name are installed, whether every model the rewrite picker offers is
   still in the gateway's catalog, whether that machine has a gateway key at all,

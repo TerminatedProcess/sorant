@@ -20,19 +20,14 @@ import {
   gatewayStatus,
   getNodeSchema,
   systemStats,
-  type ComfyGraph,
 } from "../src/lib/comfy";
 import { WORKFLOWS } from "../src/lib/workflows";
-import { patchVariants } from "../src/lib/workflows/patches";
-import { promptConsumer } from "../src/lib/workflows/director";
+import { collect } from "./lib/needs";
 import {
   REWRITE_MODELS,
   TEXT_CLASS,
   VISION_CLASS,
 } from "../src/lib/workflows/rewrite-model";
-import { stepSamplerGraph } from "../src/lib/workflows/step-sampler";
-import { modelSwapGraph } from "../src/lib/workflows/model-swap";
-import { turboGraph } from "../src/lib/workflows/turbo";
 import {
   findLocalDirectorFile,
   LOCAL_CLASS,
@@ -69,142 +64,6 @@ function loadEnvFiles(): void {
   }
 }
 
-/** Loader class -> the inputs naming files, for checking models are present. */
-const MODEL_INPUTS: Record<string, string | string[]> = {
-  VAELoader: "vae_name",
-  UNETLoader: "unet_name",
-  CLIPLoader: "clip_name",
-  // Edit image's FLUX encoders: two files in one loader.
-  DualCLIPLoader: ["clip_name1", "clip_name2"],
-  // Upscale's frame interpolation. In the stored graph, so reported as needed,
-  // though a run with the frame rate kept removes it.
-  FrameInterpolationModelLoader: "model_name",
-  // Neither of these is in any stored graph — both are spliced in by a switch.
-  // See below.
-  MiniMaxH3TurboLoRA: "lora_name",
-  LoraLoaderModelOnly: "lora_name",
-};
-
-interface Need {
-  workflows: Set<string>;
-  /**
-   * True while nothing that *has* to run has named this file.
-   *
-   * For a switch that offers a choice of checkpoint: you download one of the
-   * two, so reporting both as required would leave this check permanently red
-   * on a correctly set-up machine and train everyone to ignore it. An optional
-   * file that is absent is a line of information, not a failure.
-   *
-   * Cleared rather than set, so a file named by both a required graph and an
-   * optional one stays required — being offered as somebody's fallback is not a
-   * reason to stop needing it.
-   */
-  optional: boolean;
-}
-
-function collect() {
-  const classes = new Map<string, Need>();
-  /** filename -> which loader input it has to appear in. */
-  const models = new Map<string, { loader: string; input: string } & Need>();
-
-  /** A graph to check, and whether the run can do without the files it names. */
-  interface Candidate {
-    label: string;
-    graph: ComfyGraph;
-    optional?: boolean;
-  }
-
-  for (const workflow of WORKFLOWS) {
-    // Each mode's graph as well as the stored one. Both are modes rather than
-    // second workflows, so the nodes they splice in — and the LoRA files turbo
-    // and the style switch name — appear in no graph on disk, and they are
-    // exactly the pieces most likely to be missing, since they are the ones
-    // that need a custom pack or a separate download.
-    //
-    // A patch that swaps the base carries its checkpoint the same way: the
-    // patched graph loads the bf16 weights the LoRA needs, so this asks whether
-    // that file is there rather than only about the quantised one the stored
-    // graph names. See `base` on PatchDef.
-    //
-    // The two are checked separately rather than stacked: what is being asked
-    // is whether each class and file exists, and neither node's presence
-    // affects the answer for the other.
-    const graphs: Candidate[] = [{ label: workflow.id, graph: workflow.graph }];
-    if (workflow.turbo) {
-      graphs.push({
-        label: `${workflow.id} (turbo)`,
-        graph: turboGraph(workflow.graph, workflow.turbo),
-      });
-    }
-    for (const patch of workflow.patches ?? []) {
-      // Every form the switch can take: one per LoRA it offers, and one more
-      // per LoRA that offers a second checkpoint. A switch carrying a list
-      // reports each of them optional — see `optional` on Need.
-      const promptInput = workflow.directorBypass
-        ? (promptConsumer(workflow.graph, workflow.directorBypass) ?? undefined)
-        : undefined;
-      for (const variant of patchVariants(workflow.graph, patch, promptInput)) {
-        graphs.push({
-          label: `${workflow.id} (${patch.id}${variant.suffix})`,
-          graph: variant.graph,
-          optional: variant.optional,
-        });
-      }
-    }
-    // And the form the graph takes at the step count that swaps its sampler,
-    // which needs no switch at all — so its class would otherwise go unasked
-    // about until someone dragged the slider to the end.
-    if (workflow.stepSampler) {
-      graphs.push({
-        label: `${workflow.id} (${workflow.stepSampler.atValue}-step)`,
-        graph: stepSamplerGraph(workflow.graph, workflow.stepSampler),
-      });
-    }
-    // And the form it takes with a reference attached, which names model files
-    // no stored graph does — so without this the bf16 pair would go unasked
-    // about until a run needed it.
-    if (workflow.modelSwap) {
-      graphs.push({
-        label: `${workflow.id} (reference weights)`,
-        graph: modelSwapGraph(workflow.graph, workflow.modelSwap),
-      });
-    }
-    for (const { label: used, graph, optional = false } of graphs) {
-      for (const node of Object.values(graph)) {
-        const existing = classes.get(node.class_type);
-        if (existing) {
-          existing.workflows.add(used);
-          if (!optional) existing.optional = false;
-        } else {
-          classes.set(node.class_type, {
-            workflows: new Set([used]),
-            optional,
-          });
-        }
-
-        for (const input of [MODEL_INPUTS[node.class_type] ?? []].flat()) {
-          const filename = node.inputs[input];
-          if (typeof filename !== "string" || !filename) continue;
-
-          const model = models.get(filename);
-          if (model) {
-            model.workflows.add(used);
-            if (!optional) model.optional = false;
-          } else {
-            models.set(filename, {
-              loader: node.class_type,
-              input,
-              workflows: new Set([used]),
-              optional,
-            });
-          }
-        }
-      }
-    }
-  }
-
-  return { classes, models };
-}
 
 /** "custom_nodes.ComfyUI-KJNodes.nodes.image_nodes" -> "ComfyUI-KJNodes". */
 function packageOf(pythonModule: string | undefined): string {

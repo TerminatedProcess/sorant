@@ -78,11 +78,13 @@ Each file and where it comes from is listed in the
 
 ## Quick start
 
-**With a coding agent.** Clone the repo, open it in your agent, and ask it to
-set the project up. It follows [`docs/agent-setup.md`](docs/agent-setup.md),
-a runbook written for agents: it checks your ComfyUI for missing packs and
-models, works out how to make ComfyUI reachable, handles the environment
-variables, verifies a generation, then deploys.
+**With a coding agent.** Clone the repo **onto your ComfyUI machine**, open it
+in your agent there, and ask it to set the project up. It follows
+[`docs/agent-setup.md`](docs/agent-setup.md), a runbook written for agents: it
+installs the node packs, downloads the models you choose, applies the Windows
+GPU fixes, has you set a ComfyUI password, verifies a generation, then makes
+ComfyUI reachable and deploys. You type the passwords and keys; it does the
+rest.
 
 | Agent | How it finds the runbook |
 | --- | --- |
@@ -142,6 +144,7 @@ The [full troubleshooting table](docs/setup.md#troubleshooting) has the rest.
 | `pnpm dev` | Dev server |
 | `pnpm build` | Production build (runs `sync:models` first) |
 | `pnpm typecheck` | `tsc --noEmit` |
+| `pnpm models:download` | Download the model files for the workflows you choose into a ComfyUI install. Run with `--comfy <folder>` to see sizes first. |
 | `pnpm check:nodes` | Ask your ComfyUI for every pack, model and key the app needs. Needs `COMFY_URL`. |
 | `pnpm check:workflows` | Check every workflow definition against its own graph. Needs nothing but this repo. |
 | `pnpm sync:models` | Rebuild the rewrite-model list from the AI Gateway's live catalog. |

@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "check:workflows": "tsx scripts/check-workflows.ts",
     "check:nodes": "tsx scripts/check-nodes.ts",
-    "sync:models": "tsx scripts/sync-gateway-models.ts"
+    "sync:models": "tsx scripts/sync-gateway-models.ts",
+    "models:download": "tsx scripts/download-models.ts"
   },
   "dependencies": {
     "@vercel/blob": "^2.8.1",

@@ -3,9 +3,9 @@
 [← Back to the README](../README.md)
 
 Four steps, in order. Most failed setups skipped ahead, so finish each one
-before starting the next. Using a coding agent? Point it at
-[`agent-setup.md`](agent-setup.md) instead — it covers the same ground as a
-runbook it can execute and check.
+before starting the next. Using a coding agent? Run it **on the ComfyUI
+machine** and point it at [`agent-setup.md`](agent-setup.md) — it does the
+installing and downloading itself, and asks you only for passwords and keys.
 
 ## Contents
 
@@ -86,7 +86,7 @@ Five packs. All but the first install from ComfyUI Manager by name.
 | [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes) | Remix, Extend, and the SageAttention switch |
 | [ComfyUI-VideoHelperSuite](https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite) | anything that reads a clip: Remix, Extend, a reference clip, Upscale |
 | [ComfyUI-MiniMax-H3-Turbo](https://github.com/Larryvrh/ComfyUI-MiniMax-H3-Turbo) — Manager: "MiniMax-H3 Turbo" | the Turbo switch, and any run at 4 steps |
-| `ComfyUI-Spectrum-MiniMax-H3` — search the Manager by name | the Spectrum switch |
+| [ComfyUI-Spectrum-MiniMax-H3](https://github.com/xmarre/ComfyUI-Spectrum-MiniMax-H3) | the Spectrum switch |
 
 Restart ComfyUI after installing. Three things in that table are easy to miss:
 
@@ -153,6 +153,20 @@ failing your runs.
 
 ### Model files
 
+The easy way is the download script, run on the ComfyUI machine from this repo
+(after `pnpm install`):
+
+```bash
+pnpm models:download --comfy <your ComfyUI folder>                         # what each workflow needs, and what you have
+pnpm models:download --comfy <your ComfyUI folder> --workflows minimax-h3  # Text to Video's five files
+pnpm models:download --comfy <your ComfyUI folder> --workflows all
+```
+
+It checks free space first, skips files you already have, resumes interrupted
+downloads, and checks every file's size. The FLUX Kontext model for the Edit
+button is gated: accept its licence on Hugging Face, then set `HF_TOKEN` to a
+read token from that account. The tables below say what each file is for.
+
 Download only what you will use. **Text to Video alone needs the five files in
 the first block**, about 43 GB. The filenames must match exactly, because they
 are values inside the graphs rather than choices in the UI.
@@ -189,7 +203,7 @@ Optional — nothing fails without these until you choose them:
 | `gemma4_12b_uncensored_heretic_int8_convrot.safetensors` | `text_encoders/` | 12.1 GB | rewriting prompts on the ComfyUI machine |
 | `seedvr2_3b_int8_convrot.safetensors` | `diffusion_models/` | 3.5 GB | Upscale's lighter 3B model |
 | `film_net_fp16.safetensors` | `frame_interpolation/` | 0.1 GB | Upscale's FILM interpolation |
-| `vh5tape-comfyui.safetensors` | `loras/` | small | the **VHS tape** look |
+| `vh5tape-comfyui.safetensors` | `loras/` | 0.1 GB | the **VHS tape** look ([source](https://huggingface.co/KennethFal/vh5tape-vhs-lora-minimax-h3)) |
 | `minimax_h3_fl2va_bf16.safetensors` | `diffusion_models/` | 66.3 GB | what VHS tape runs on (a LoRA cannot use the int8 base) |
 | `minimax_h3_fl2va_pruned_fp8_scaled.safetensors` | `diffusion_models/` | 21.0 GB | VHS tape on **Lighter base**, instead of the bf16 |
 
@@ -327,7 +341,7 @@ Fill in `.env.local`:
 | --- | --- |
 | `COMFY_URL` | **Required.** ComfyUI's address, no trailing slash. Default port `8188`. |
 | `COMFY_API_TOKEN` | The ComfyUI-Login token — see below, and mind the `$` escaping. |
-| `APP_ACCESS_TOKEN` | A password for this app. Optional locally, **required before deploying**. Make one with `openssl rand -hex 32`. |
+| `APP_ACCESS_TOKEN` | **The app's password** — what you type at the deployed app's gate. There is no default: make one with `openssl rand -hex 32` and keep it in a password manager. Optional locally, **required before deploying**. |
 | `GENERATION_TIMEOUT_SECONDS` | How long the UI waits on a run before giving up. Default 1800. |
 | `COMFY_BASIC_AUTH` | Optional `user:password`, if ComfyUI sits behind basic auth instead. |
 | `COMFY_AUTH_HEADER_NAME` / `_VALUE` | Optional custom auth header, for other proxies. |
@@ -336,8 +350,22 @@ Fill in `.env.local`:
 
 If ComfyUI can be reached from the internet, install
 [ComfyUI-Login](https://github.com/liusida/ComfyUI-Login), or anyone who finds
-the address can queue jobs on your GPU. Set a password; the long hash it prints
-to the ComfyUI console is your `COMFY_API_TOKEN` — the hash, not the password.
+the address can queue jobs on your GPU.
+
+**There is no default password — you choose it.** After installing the pack and
+restarting ComfyUI, open <http://127.0.0.1:8188> on that machine. The first
+visit asks you to pick a username and password; that is what you will use to
+open ComfyUI's own web page from then on. Do this straight away, and before
+making ComfyUI reachable: until a password is set the lock is not on, and
+whoever reaches the page first gets to choose it.
+
+The app does not use the password itself but a token made from it: the first
+line of `login/PASSWORD` in your ComfyUI folder, also printed in the ComfyUI
+console as `For direct API calls, use token=$2b$...`. That is your
+`COMFY_API_TOKEN`.
+
+Forgot the password? Stop ComfyUI, delete `login/PASSWORD`, restart, and choose
+a new one. The token changes too, so update it wherever you set it.
 
 **The trap:** that hash starts with `$2b$`, and `.env` files treat `$2b` as a
 variable, silently blanking it. In `.env.local`, put a backslash before every

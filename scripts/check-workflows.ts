@@ -6,6 +6,8 @@
  */
 import { validateWorkflow } from "../src/lib/params";
 import { WORKFLOWS } from "../src/lib/workflows";
+import { collect } from "./lib/needs";
+import { MODEL_SOURCES } from "./lib/model-sources";
 
 let failed = false;
 
@@ -38,6 +40,22 @@ for (const workflow of WORKFLOWS) {
   failed = true;
   console.error(`  FAIL ${workflow.id}`);
   for (const problem of problems) console.error(`       ${problem}`);
+}
+
+// Every file a graph can name has to say where it comes from, or
+// `models:download` cannot fetch it and a new workflow ships with a download
+// nobody can find.
+const unsourced = [...collect().models.keys()].filter(
+  (file) => !(file in MODEL_SOURCES),
+);
+if (unsourced.length > 0) {
+  failed = true;
+  console.error("  FAIL model sources");
+  for (const file of unsourced) {
+    console.error(
+      `       ${file} is named by a graph but has no entry in scripts/lib/model-sources.ts`,
+    );
+  }
 }
 
 if (failed) {
