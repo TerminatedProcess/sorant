@@ -111,14 +111,8 @@ rest.
    ```
 
 4. **[Deploy to Vercel](docs/setup.md#4-deploy-to-vercel)**, once one local
-   generation has worked — with the CLI, or with this button, which copies the
-   repo to your GitHub and asks for the three environment variables:
-
-   [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fpwillia7%2Fai_video_fe&project-name=sorant&repository-name=sorant&env=COMFY_URL%2CCOMFY_API_TOKEN%2CAPP_ACCESS_TOKEN&envDescription=COMFY_URL%20is%20your%20ComfyUI%27s%20public%20address%2C%20COMFY_API_TOKEN%20its%20ComfyUI-Login%20token%20%28paste%20it%20as-is%2C%20no%20escaping%29%2C%20and%20APP_ACCESS_TOKEN%20a%20password%20you%20make%20up%20for%20this%20app.&envLink=https%3A%2F%2Fgithub.com%2Fpwillia7%2Fai_video_fe%2Fblob%2Fmain%2Fdocs%2Fsetup.md%234-deploy-to-vercel)
-
-   Then add a **private** Blob store to the project (Storage → Create → Blob →
-   Private) so uploads over 4 MB work, and redeploy. Deploying before ComfyUI
-   is set up and reachable gets you an app that says it is not connected.
+   generation has worked. The setup agent does this step too — environment
+   variables, the private Blob store large uploads need, and the deploy.
 
 ## When something goes wrong
 

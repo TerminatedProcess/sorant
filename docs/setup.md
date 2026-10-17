@@ -441,16 +441,6 @@ pill reads **Ready**, and generate once.
 > production deployments are publicly reachable, and this token is the only
 > thing between the internet and your GPU.
 
-### Deploying with the button instead
-
-The **Deploy with Vercel** button in the [README](../README.md#quick-start)
-does the same through the browser: it copies the repo to your GitHub, creates
-the project, and asks for `COMFY_URL`, `COMFY_API_TOKEN` and `APP_ACCESS_TOKEN`
-(paste the token as-is — no escaping there). It cannot create a *private* Blob
-store, so add one afterwards: the project's **Storage** tab → **Create** →
-**Blob** → **Private**, then redeploy. From then on, every push to your copy's
-`main` deploys.
-
 ### Deploying from GitHub instead
 
 Connect the repo to a Vercel project and every push to `main` deploys
