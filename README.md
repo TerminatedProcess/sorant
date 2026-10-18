@@ -8,10 +8,6 @@ machine.
 [![Watch the Soran’t trailer on YouTube: a 90-second tour of every
 workflow](docs/sizzle-reel.jpg)](https://www.youtube.com/watch?v=ncpg6Nl_Q0g)
 
-![Reference to Video: the workflow picker and a reference photo on the left, the
-finished clip with its result actions and the generation history on the
-right](docs/screenshot.jpg)
-
 ## Contents
 
 - [What it does](#what-it-does)
@@ -41,6 +37,10 @@ soundtrack:
 Plus **Music** (MiniMax Music 3, a song from a description), **Upscale**
 (SeedVR2, a sharper and larger copy of a finished clip) and an **Edit** button on
 every picture you attach, which changes it by a sentence with FLUX Kontext.
+
+![Reference to Video: the workflow picker and a reference photo on the left, the
+finished clip with its result actions and the generation history on the
+right](docs/screenshot.jpg)
 
 A few things make it more than a form over a graph:
 
