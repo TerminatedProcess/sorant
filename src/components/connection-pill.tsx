@@ -133,7 +133,7 @@ export function ConnectionPill({ health }: { health: Health | null }) {
 }
 
 const TROUBLESHOOTING =
-  "https://github.com/pwillia7/ai_video_fe/blob/main/docs/setup.md#troubleshooting";
+  "https://github.com/pwillia7/sorant/blob/main/docs/setup.md#troubleshooting";
 
 /**
  * What is wrong with the connection, and the likely fix, in the page rather

@@ -92,8 +92,8 @@ agent does that for you and checks each step as it goes.
    clone the repo:
 
    ```bash
-   git clone https://github.com/pwillia7/ai_video_fe.git
-   cd ai_video_fe
+   git clone https://github.com/pwillia7/sorant.git
+   cd sorant
    ```
 
 2. **Open your coding agent in that folder** and paste this (in Claude Code,
