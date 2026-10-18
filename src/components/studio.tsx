@@ -28,7 +28,8 @@ import { patchSuppressed } from "@/lib/workflows/patches";
 import { Button } from "@/components/ui/button";
 import { Panel, PanelHeader } from "@/components/ui/panel";
 import { WorkflowPicker } from "@/components/workflow-picker";
-import { UpdateBadge } from "@/components/update-badge";
+import { UpdateBadge, useUpdates } from "@/components/update-badge";
+import { StatusPanel } from "@/components/status-panel";
 import { GenerationsPanel } from "@/components/generations-panel";
 import { SorantMark } from "@/components/sorant-logo";
 import { useJobs } from "@/hooks/use-jobs";
@@ -212,6 +213,8 @@ function Workbench({
   const compat = useCompat(
     health?.reachable === true && health.authorized !== false,
   );
+  const updates = useUpdates();
+  const [statusOpen, setStatusOpen] = useState(false);
 
   /**
    * Which kind of gateway key this browser says it holds, and the workflows as
@@ -1046,8 +1049,8 @@ function Workbench({
           </span>
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
-            <UpdateBadge />
-            <ConnectionPill health={health} />
+            <UpdateBadge info={updates.info} />
+            <ConnectionPill health={health} onOpen={() => setStatusOpen(true)} />
             <RewriteKeyButton
               tier={gatewayTier}
               onTierChange={onGatewayTierChange}
@@ -1415,6 +1418,15 @@ function Workbench({
           tips={tips}
         />
       ) : null}
+
+      <StatusPanel
+        open={statusOpen}
+        onClose={() => setStatusOpen(false)}
+        health={health}
+        compat={compat}
+        updates={updates}
+        workflows={offered}
+      />
 
       {settingsJob ? (
         <SettingsModal

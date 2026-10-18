@@ -11,6 +11,14 @@ export const dynamic = "force-dynamic";
 /** Six hours: a release is not urgent, and GitHub allows 60 unauthenticated calls an hour. */
 const RELEASE_TTL_S = 6 * 60 * 60;
 
+/**
+ * "Check for updates" skips the six hours — at most once a minute per server,
+ * so a button pressed repeatedly cannot spend the hour's allowance. Inside the
+ * minute it gets the cached answer, which is at most a minute old anyway.
+ */
+const LIVE_CHECK_GAP_MS = 60_000;
+let lastLiveCheck = 0;
+
 export interface UpdateInfo {
   current: string;
   /** What this build needs from the ComfyUI machine — see machine-requirements.json. */
@@ -35,7 +43,7 @@ export interface UpdateInfo {
  * deployment asks a few times a day however many people use it. Every failure
  * reads as "nothing newer": a notice that is sometimes missing costs nothing,
  * one that is sometimes wrong teaches people to ignore it. Off with
- * SORANT_UPDATE_CHECK=off.
+ * SORANT_UPDATE_CHECK=off. `?refresh=1` asks GitHub now — see below.
  *
  * Also how an updating agent learns what is deployed, when the clone it is
  * working in is not the one the deployment was built from.
@@ -51,12 +59,17 @@ export async function GET(request: Request) {
   };
   if (process.env.SORANT_UPDATE_CHECK === "off") return Response.json(info);
 
+  const live =
+    new URL(request.url).searchParams.get("refresh") === "1" &&
+    Date.now() - lastLiveCheck > LIVE_CHECK_GAP_MS;
+  if (live) lastLiveCheck = Date.now();
+
   try {
     const response = await fetch(
       `https://api.github.com/repos/${RELEASE_REPO}/releases/latest`,
       {
         headers: { Accept: "application/vnd.github+json", "User-Agent": "sorant" },
-        next: { revalidate: RELEASE_TTL_S },
+        ...(live ? { cache: "no-store" as const } : { next: { revalidate: RELEASE_TTL_S } }),
         signal: AbortSignal.timeout(5_000),
       },
     );

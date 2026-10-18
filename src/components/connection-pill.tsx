@@ -48,8 +48,17 @@ export function useHealth(): Health | null {
   return health;
 }
 
-/** The header's one-word summary of the GPU box. */
-export function ConnectionPill({ health }: { health: Health | null }) {
+/**
+ * The header's one-word summary of the GPU box. A button: it opens the status
+ * panel, which says the rest — the tooltip is kept for a quick look on desktop.
+ */
+export function ConnectionPill({
+  health,
+  onOpen,
+}: {
+  health: Health | null;
+  onOpen: () => void;
+}) {
   const busy = (health?.queueRunning ?? 0) > 0;
   const unauthorized = health?.reachable === true && health.authorized === false;
 
@@ -81,10 +90,14 @@ export function ConnectionPill({ health }: { health: Health | null }) {
     : (health?.error ?? "Waiting for the first health check");
 
   return (
-    <div
+    <button
+      type="button"
+      onClick={onOpen}
       title={title}
+      aria-label={`ComfyUI: ${label}. Open status`}
       className="inline-flex items-center gap-2 rounded-full border border-border-default
-        bg-surface px-2.5 py-1 text-[12px] text-fg-muted"
+        bg-surface px-2.5 py-1 text-[12px] text-fg-muted transition-colors duration-150
+        hover:border-border-strong hover:bg-surface-hover"
     >
       <Dot
         tone={
@@ -128,7 +141,7 @@ export function ConnectionPill({ health }: { health: Health | null }) {
       {health?.reachable && !unauthorized && (health.queuePending ?? 0) > 0 ? (
         <span className="font-mono tabular-nums">+{health.queuePending}</span>
       ) : null}
-    </div>
+    </button>
   );
 }
 
