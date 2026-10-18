@@ -7,7 +7,7 @@
  *   pnpm models:download --comfy <dir> --workflows all --skip minimax_h3_ref2va_bf16.safetensors
  *
  * Run it on the ComfyUI machine. Which files a workflow needs comes from the
- * graphs themselves (scripts/lib/needs.ts, the same list `check:nodes` asks
+ * graphs themselves (src/lib/workflows/needs.ts, the same list `check:nodes` asks
  * about), and where each comes from is scripts/lib/model-sources.ts.
  *
  * A file already in place at the right size is skipped. A partial download is
@@ -27,7 +27,7 @@ import { join, resolve } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { WORKFLOWS } from "../src/lib/workflows";
-import { collect } from "./lib/needs";
+import { collect } from "../src/lib/workflows/needs";
 import { EXTRAS, MODEL_SOURCES } from "./lib/model-sources";
 
 interface Args {

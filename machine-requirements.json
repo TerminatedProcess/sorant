@@ -1,0 +1,1851 @@
+{
+  "fingerprint": "419c96546bd25f89",
+  "classes": {
+    "AudioConcatenate": {
+      "inputs": [
+        "audio1",
+        "audio2",
+        "direction"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)"
+      ]
+    },
+    "BasicGuider": {
+      "inputs": [
+        "conditioning",
+        "model"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3",
+        "minimax-h3 (4-step)",
+        "minimax-h3 (sage)",
+        "minimax-h3 (spectrum)",
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3 (turbo)",
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v",
+        "minimax-h3-ref2v (4-step)",
+        "minimax-h3-ref2v (sage)",
+        "minimax-h3-ref2v (spectrum)",
+        "minimax-h3-ref2v (style, vhs tape)",
+        "minimax-h3-ref2v (turbo)"
+      ]
+    },
+    "BasicScheduler": {
+      "inputs": [
+        "denoise",
+        "model",
+        "scheduler",
+        "steps"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3",
+        "minimax-h3 (4-step)",
+        "minimax-h3 (sage)",
+        "minimax-h3 (spectrum)",
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3 (turbo)",
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v",
+        "minimax-h3-ref2v (4-step)",
+        "minimax-h3-ref2v (sage)",
+        "minimax-h3-ref2v (spectrum)",
+        "minimax-h3-ref2v (style, vhs tape)",
+        "minimax-h3-ref2v (turbo)"
+      ]
+    },
+    "BatchImagesNode": {
+      "inputs": [
+        "images.image0",
+        "images.image1",
+        "images.image2",
+        "images.image3"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)"
+      ]
+    },
+    "CLIPLoader": {
+      "inputs": [
+        "clip_name",
+        "device",
+        "type"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3",
+        "minimax-h3 (4-step)",
+        "minimax-h3 (sage)",
+        "minimax-h3 (spectrum)",
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3 (turbo)",
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v",
+        "minimax-h3-ref2v (4-step)",
+        "minimax-h3-ref2v (sage)",
+        "minimax-h3-ref2v (spectrum)",
+        "minimax-h3-ref2v (style, vhs tape)",
+        "minimax-h3-ref2v (turbo)",
+        "minimax-music3"
+      ]
+    },
+    "CLIPTextEncode": {
+      "inputs": [
+        "clip",
+        "text"
+      ],
+      "optional": false,
+      "workflows": [
+        "image-edit"
+      ]
+    },
+    "ComfyMathExpression": {
+      "inputs": [
+        "expression",
+        "values.a",
+        "values.b"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3",
+        "minimax-h3 (4-step)",
+        "minimax-h3 (sage)",
+        "minimax-h3 (spectrum)",
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3 (turbo)",
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v",
+        "minimax-h3-ref2v (4-step)",
+        "minimax-h3-ref2v (sage)",
+        "minimax-h3-ref2v (spectrum)",
+        "minimax-h3-ref2v (style, vhs tape)",
+        "minimax-h3-ref2v (turbo)",
+        "seedvr2-upscale"
+      ]
+    },
+    "ComfySwitchNode": {
+      "inputs": [
+        "on_false",
+        "on_true",
+        "switch"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-music3"
+      ]
+    },
+    "ConditioningZeroOut": {
+      "inputs": [
+        "conditioning"
+      ],
+      "optional": false,
+      "workflows": [
+        "image-edit",
+        "minimax-music3"
+      ]
+    },
+    "CreateVideo": {
+      "inputs": [
+        "audio",
+        "bit_depth",
+        "fps",
+        "images"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3",
+        "minimax-h3 (4-step)",
+        "minimax-h3 (sage)",
+        "minimax-h3 (spectrum)",
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3 (turbo)",
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v",
+        "minimax-h3-ref2v (4-step)",
+        "minimax-h3-ref2v (sage)",
+        "minimax-h3-ref2v (spectrum)",
+        "minimax-h3-ref2v (style, vhs tape)",
+        "minimax-h3-ref2v (turbo)"
+      ]
+    },
+    "DualCLIPLoader": {
+      "inputs": [
+        "clip_name1",
+        "clip_name2",
+        "type"
+      ],
+      "optional": false,
+      "workflows": [
+        "image-edit"
+      ]
+    },
+    "EmptyMiniMaxMusic3LatentAudio": {
+      "inputs": [
+        "batch_size",
+        "seconds"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-music3"
+      ]
+    },
+    "FluxGuidance": {
+      "inputs": [
+        "conditioning",
+        "guidance"
+      ],
+      "optional": false,
+      "workflows": [
+        "image-edit"
+      ]
+    },
+    "FrameInterpolate": {
+      "inputs": [
+        "images",
+        "interp_model",
+        "multiplier"
+      ],
+      "optional": false,
+      "workflows": [
+        "seedvr2-upscale"
+      ]
+    },
+    "FrameInterpolationModelLoader": {
+      "inputs": [
+        "model_name"
+      ],
+      "optional": false,
+      "workflows": [
+        "seedvr2-upscale"
+      ]
+    },
+    "GetImageSize": {
+      "inputs": [
+        "image"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (turbo)"
+      ]
+    },
+    "GetImageSizeAndCount": {
+      "inputs": [
+        "image"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3-ref2v",
+        "minimax-h3-ref2v (4-step)",
+        "minimax-h3-ref2v (sage)",
+        "minimax-h3-ref2v (spectrum)",
+        "minimax-h3-ref2v (style, vhs tape)",
+        "minimax-h3-ref2v (turbo)"
+      ]
+    },
+    "GetVideoComponents": {
+      "inputs": [
+        "video"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)"
+      ]
+    },
+    "ImageBatch": {
+      "inputs": [
+        "image1",
+        "image2"
+      ],
+      "optional": false,
+      "workflows": [
+        "seedvr2-upscale"
+      ]
+    },
+    "ImageFromBatch": {
+      "inputs": [
+        "batch_index",
+        "image",
+        "length"
+      ],
+      "optional": false,
+      "workflows": [
+        "seedvr2-upscale"
+      ]
+    },
+    "ImageScaleToTotalPixels": {
+      "inputs": [
+        "image",
+        "megapixels",
+        "resolution_steps",
+        "upscale_method"
+      ],
+      "optional": false,
+      "workflows": [
+        "image-edit",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)"
+      ]
+    },
+    "KSampler": {
+      "inputs": [
+        "cfg",
+        "denoise",
+        "latent_image",
+        "model",
+        "negative",
+        "positive",
+        "sampler_name",
+        "scheduler",
+        "seed",
+        "steps"
+      ],
+      "optional": false,
+      "workflows": [
+        "image-edit",
+        "minimax-music3",
+        "seedvr2-upscale"
+      ]
+    },
+    "KSamplerSelect": {
+      "inputs": [
+        "sampler_name"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3",
+        "minimax-h3 (sage)",
+        "minimax-h3 (spectrum)",
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3 (turbo)",
+        "minimax-h3-extend",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v",
+        "minimax-h3-ref2v (sage)",
+        "minimax-h3-ref2v (spectrum)",
+        "minimax-h3-ref2v (style, vhs tape)",
+        "minimax-h3-ref2v (turbo)"
+      ]
+    },
+    "LoadAudio": {
+      "inputs": [
+        "audio"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)"
+      ]
+    },
+    "LoadImage": {
+      "inputs": [
+        "image"
+      ],
+      "optional": false,
+      "workflows": [
+        "image-edit",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)"
+      ]
+    },
+    "LoraLoaderModelOnly": {
+      "inputs": [
+        "lora_name",
+        "model",
+        "strength_model"
+      ],
+      "optional": true,
+      "workflows": [
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref2v (style, vhs tape)"
+      ]
+    },
+    "MiniMaxH3ImageToVideo": {
+      "inputs": [
+        "clip",
+        "first_frame",
+        "height",
+        "length",
+        "prompt",
+        "vae",
+        "width"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3",
+        "minimax-h3 (4-step)",
+        "minimax-h3 (sage)",
+        "minimax-h3 (spectrum)",
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3 (turbo)",
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (turbo)"
+      ]
+    },
+    "MiniMaxH3ReferenceToVideo": {
+      "inputs": [
+        "audio_vae",
+        "clip",
+        "height",
+        "length",
+        "prompt",
+        "ref_audios.ref_audio_0",
+        "ref_audios.ref_audio_1",
+        "ref_audios.ref_audio_2",
+        "ref_image_size",
+        "ref_images.ref_image_0",
+        "ref_images.ref_image_1",
+        "ref_images.ref_image_2",
+        "ref_images.ref_image_3",
+        "ref_video_audios.ref_video_audio_0",
+        "ref_videos.ref_video_0",
+        "vae",
+        "width"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v",
+        "minimax-h3-ref2v (4-step)",
+        "minimax-h3-ref2v (sage)",
+        "minimax-h3-ref2v (spectrum)",
+        "minimax-h3-ref2v (style, vhs tape)",
+        "minimax-h3-ref2v (turbo)"
+      ]
+    },
+    "MiniMaxH3TurboLoRA": {
+      "inputs": [
+        "lora_name",
+        "low_vram",
+        "model",
+        "strength"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3 (turbo)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v (turbo)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v (turbo)"
+      ]
+    },
+    "MiniMaxH3TurboSampler": {
+      "inputs": [],
+      "optional": false,
+      "workflows": [
+        "minimax-h3 (4-step)",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref2v (4-step)"
+      ]
+    },
+    "MiniMaxMusic3TextEncode": {
+      "inputs": [
+        "caption",
+        "cfg_scale",
+        "clip",
+        "lyrics",
+        "max_duration",
+        "seed",
+        "top_k"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-music3"
+      ]
+    },
+    "PathchSageAttentionKJ": {
+      "inputs": [
+        "allow_compile",
+        "model",
+        "sage_attention"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3 (sage)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref2v (sage)"
+      ]
+    },
+    "PrimitiveFloat": {
+      "inputs": [
+        "value"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3",
+        "minimax-h3 (4-step)",
+        "minimax-h3 (sage)",
+        "minimax-h3 (spectrum)",
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3 (turbo)",
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)"
+      ]
+    },
+    "PrimitiveStringMultiline": {
+      "inputs": [
+        "value"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3",
+        "minimax-h3 (4-step)",
+        "minimax-h3 (sage)",
+        "minimax-h3 (spectrum)",
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3 (turbo)",
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v",
+        "minimax-h3-ref2v (4-step)",
+        "minimax-h3-ref2v (sage)",
+        "minimax-h3-ref2v (spectrum)",
+        "minimax-h3-ref2v (style, vhs tape)",
+        "minimax-h3-ref2v (turbo)",
+        "minimax-music3"
+      ]
+    },
+    "RandomImageFromBatch": {
+      "inputs": [
+        "end_index",
+        "input",
+        "max_distance",
+        "min_distance",
+        "num_frames",
+        "randomness",
+        "seed",
+        "start_index"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)"
+      ]
+    },
+    "RandomNoise": {
+      "inputs": [
+        "noise_seed"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3",
+        "minimax-h3 (4-step)",
+        "minimax-h3 (sage)",
+        "minimax-h3 (spectrum)",
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3 (turbo)",
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v",
+        "minimax-h3-ref2v (4-step)",
+        "minimax-h3-ref2v (sage)",
+        "minimax-h3-ref2v (spectrum)",
+        "minimax-h3-ref2v (style, vhs tape)",
+        "minimax-h3-ref2v (turbo)"
+      ]
+    },
+    "ReferenceLatent": {
+      "inputs": [
+        "conditioning",
+        "latent"
+      ],
+      "optional": false,
+      "workflows": [
+        "image-edit"
+      ]
+    },
+    "RegexReplace": {
+      "inputs": [
+        "case_insensitive",
+        "count",
+        "dotall",
+        "multiline",
+        "regex_pattern",
+        "replace",
+        "string"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-music3"
+      ]
+    },
+    "RepeatImageBatch": {
+      "inputs": [
+        "amount",
+        "image"
+      ],
+      "optional": false,
+      "workflows": [
+        "seedvr2-upscale"
+      ]
+    },
+    "ResizeImageMaskNode": {
+      "inputs": [
+        "input",
+        "resize_type",
+        "resize_type.shorter_size",
+        "scale_method"
+      ],
+      "optional": false,
+      "workflows": [
+        "seedvr2-upscale"
+      ]
+    },
+    "ResolutionSelector": {
+      "inputs": [
+        "aspect_ratio",
+        "megapixels",
+        "multiple"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3",
+        "minimax-h3 (4-step)",
+        "minimax-h3 (sage)",
+        "minimax-h3 (spectrum)",
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3 (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)"
+      ]
+    },
+    "SamplerCustomAdvanced": {
+      "inputs": [
+        "guider",
+        "latent_image",
+        "noise",
+        "sampler",
+        "sigmas"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3",
+        "minimax-h3 (4-step)",
+        "minimax-h3 (sage)",
+        "minimax-h3 (spectrum)",
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3 (turbo)",
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v",
+        "minimax-h3-ref2v (4-step)",
+        "minimax-h3-ref2v (sage)",
+        "minimax-h3-ref2v (spectrum)",
+        "minimax-h3-ref2v (style, vhs tape)",
+        "minimax-h3-ref2v (turbo)"
+      ]
+    },
+    "SaveAudioAdvanced": {
+      "inputs": [
+        "audio",
+        "filename_prefix",
+        "format",
+        "format.quality"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-music3"
+      ]
+    },
+    "SaveImage": {
+      "inputs": [
+        "filename_prefix",
+        "images"
+      ],
+      "optional": false,
+      "workflows": [
+        "image-edit"
+      ]
+    },
+    "SaveVideo": {
+      "inputs": [
+        "codec",
+        "filename_prefix",
+        "format",
+        "video",
+        "video-preview"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3",
+        "minimax-h3 (4-step)",
+        "minimax-h3 (sage)",
+        "minimax-h3 (spectrum)",
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3 (turbo)",
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v",
+        "minimax-h3-ref2v (4-step)",
+        "minimax-h3-ref2v (sage)",
+        "minimax-h3-ref2v (spectrum)",
+        "minimax-h3-ref2v (style, vhs tape)",
+        "minimax-h3-ref2v (turbo)"
+      ]
+    },
+    "SeedNode": {
+      "inputs": [
+        "seed"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-music3"
+      ]
+    },
+    "SeedVR2Conditioning": {
+      "inputs": [
+        "model",
+        "vae_conditioning"
+      ],
+      "optional": false,
+      "workflows": [
+        "seedvr2-upscale"
+      ]
+    },
+    "SeedVR2PostProcessing": {
+      "inputs": [
+        "color_correction_method",
+        "images",
+        "original_resized_images"
+      ],
+      "optional": false,
+      "workflows": [
+        "seedvr2-upscale"
+      ]
+    },
+    "SeedVR2Preprocess": {
+      "inputs": [
+        "resized_images"
+      ],
+      "optional": false,
+      "workflows": [
+        "seedvr2-upscale"
+      ]
+    },
+    "SeedVR2TemporalChunk": {
+      "inputs": [
+        "chunking_mode",
+        "chunking_mode.frames_per_chunk",
+        "latent",
+        "temporal_overlap"
+      ],
+      "optional": false,
+      "workflows": [
+        "seedvr2-upscale"
+      ]
+    },
+    "SeedVR2TemporalMerge": {
+      "inputs": [
+        "latents",
+        "temporal_overlap"
+      ],
+      "optional": false,
+      "workflows": [
+        "seedvr2-upscale"
+      ]
+    },
+    "SpectrumApplyMiniMaxH3": {
+      "inputs": [
+        "anchor_residual_feedback",
+        "audio_blend_weight",
+        "blend_weight",
+        "bootstrap_first_forecast",
+        "debug",
+        "degree",
+        "enabled",
+        "flex_window",
+        "history_storage",
+        "max_history",
+        "model",
+        "model_aware_mode",
+        "model_aware_replay_generic_correction",
+        "model_aware_risk_threshold",
+        "model_aware_trust_shrinkage",
+        "offline_archive_storage",
+        "offline_smoothing_replay",
+        "ridge_lambda",
+        "selective_rollback_correction",
+        "tail_actual_steps",
+        "warmup_steps",
+        "window_size"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3 (spectrum)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref2v (spectrum)"
+      ]
+    },
+    "StringConcatenate": {
+      "inputs": [
+        "delimiter",
+        "string_a",
+        "string_b"
+      ],
+      "optional": true,
+      "workflows": [
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref2v (style, vhs tape)"
+      ]
+    },
+    "TrimAudioDuration": {
+      "inputs": [
+        "audio",
+        "duration",
+        "start_index"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)"
+      ]
+    },
+    "UNETLoader": {
+      "inputs": [
+        "unet_name",
+        "weight_dtype"
+      ],
+      "optional": false,
+      "workflows": [
+        "image-edit",
+        "minimax-h3",
+        "minimax-h3 (4-step)",
+        "minimax-h3 (sage)",
+        "minimax-h3 (spectrum)",
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3 (turbo)",
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v",
+        "minimax-h3-ref2v (4-step)",
+        "minimax-h3-ref2v (sage)",
+        "minimax-h3-ref2v (spectrum)",
+        "minimax-h3-ref2v (style, vhs tape)",
+        "minimax-h3-ref2v (turbo)",
+        "minimax-music3",
+        "seedvr2-upscale"
+      ]
+    },
+    "VAEDecode": {
+      "inputs": [
+        "samples",
+        "vae"
+      ],
+      "optional": false,
+      "workflows": [
+        "image-edit",
+        "minimax-h3",
+        "minimax-h3 (4-step)",
+        "minimax-h3 (sage)",
+        "minimax-h3 (spectrum)",
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3 (turbo)",
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v",
+        "minimax-h3-ref2v (4-step)",
+        "minimax-h3-ref2v (sage)",
+        "minimax-h3-ref2v (spectrum)",
+        "minimax-h3-ref2v (style, vhs tape)",
+        "minimax-h3-ref2v (turbo)"
+      ]
+    },
+    "VAEDecodeAudio": {
+      "inputs": [
+        "samples",
+        "vae"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3",
+        "minimax-h3 (4-step)",
+        "minimax-h3 (sage)",
+        "minimax-h3 (spectrum)",
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3 (turbo)",
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v",
+        "minimax-h3-ref2v (4-step)",
+        "minimax-h3-ref2v (sage)",
+        "minimax-h3-ref2v (spectrum)",
+        "minimax-h3-ref2v (style, vhs tape)",
+        "minimax-h3-ref2v (turbo)",
+        "minimax-music3"
+      ]
+    },
+    "VAEDecodeAudioTiled": {
+      "inputs": [
+        "overlap",
+        "samples",
+        "tile_size",
+        "vae"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-music3"
+      ]
+    },
+    "VAEDecodeTiled": {
+      "inputs": [
+        "overlap",
+        "samples",
+        "temporal_overlap",
+        "temporal_size",
+        "tile_size",
+        "vae"
+      ],
+      "optional": false,
+      "workflows": [
+        "seedvr2-upscale"
+      ]
+    },
+    "VAEEncode": {
+      "inputs": [
+        "pixels",
+        "vae"
+      ],
+      "optional": false,
+      "workflows": [
+        "image-edit"
+      ]
+    },
+    "VAEEncodeTiled": {
+      "inputs": [
+        "overlap",
+        "pixels",
+        "temporal_overlap",
+        "temporal_size",
+        "tile_size",
+        "vae"
+      ],
+      "optional": false,
+      "workflows": [
+        "seedvr2-upscale"
+      ]
+    },
+    "VAELoader": {
+      "inputs": [
+        "vae_name"
+      ],
+      "optional": false,
+      "workflows": [
+        "image-edit",
+        "minimax-h3",
+        "minimax-h3 (4-step)",
+        "minimax-h3 (sage)",
+        "minimax-h3 (spectrum)",
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3 (turbo)",
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v",
+        "minimax-h3-ref2v (4-step)",
+        "minimax-h3-ref2v (sage)",
+        "minimax-h3-ref2v (spectrum)",
+        "minimax-h3-ref2v (style, vhs tape)",
+        "minimax-h3-ref2v (turbo)",
+        "minimax-music3",
+        "seedvr2-upscale"
+      ]
+    },
+    "VHS_BatchManager": {
+      "inputs": [
+        "frames_per_batch"
+      ],
+      "optional": false,
+      "workflows": [
+        "seedvr2-upscale"
+      ]
+    },
+    "VHS_LoadVideo": {
+      "inputs": [
+        "custom_height",
+        "custom_width",
+        "force_rate",
+        "frame_load_cap",
+        "meta_batch",
+        "select_every_nth",
+        "skip_first_frames",
+        "video"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v",
+        "minimax-h3-ref2v (4-step)",
+        "minimax-h3-ref2v (sage)",
+        "minimax-h3-ref2v (spectrum)",
+        "minimax-h3-ref2v (style, vhs tape)",
+        "minimax-h3-ref2v (turbo)",
+        "seedvr2-upscale"
+      ]
+    },
+    "VHS_SelectEveryNthImage": {
+      "inputs": [
+        "images",
+        "select_every_nth",
+        "skip_first_images"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v",
+        "minimax-h3-ref2v (4-step)",
+        "minimax-h3-ref2v (sage)",
+        "minimax-h3-ref2v (spectrum)",
+        "minimax-h3-ref2v (style, vhs tape)",
+        "minimax-h3-ref2v (turbo)"
+      ]
+    },
+    "VHS_VideoCombine": {
+      "inputs": [
+        "audio",
+        "crf",
+        "filename_prefix",
+        "format",
+        "frame_rate",
+        "images",
+        "loop_count",
+        "meta_batch",
+        "pingpong",
+        "pix_fmt",
+        "save_metadata",
+        "save_output",
+        "trim_to_audio"
+      ],
+      "optional": false,
+      "workflows": [
+        "seedvr2-upscale"
+      ]
+    },
+    "VHS_VideoInfoLoaded": {
+      "inputs": [
+        "video_info"
+      ],
+      "optional": false,
+      "workflows": [
+        "seedvr2-upscale"
+      ]
+    },
+    "VercelAIGatewayDescribeImage": {
+      "inputs": [
+        "batch_mode",
+        "image",
+        "max_image_side",
+        "max_tokens",
+        "model",
+        "prompt",
+        "seed",
+        "strip_thinking",
+        "system_prompt",
+        "temperature"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v",
+        "minimax-h3-ref2v (4-step)",
+        "minimax-h3-ref2v (sage)",
+        "minimax-h3-ref2v (spectrum)",
+        "minimax-h3-ref2v (style, vhs tape)",
+        "minimax-h3-ref2v (turbo)"
+      ]
+    },
+    "VercelAIGatewayGenerateText": {
+      "inputs": [
+        "max_tokens",
+        "model",
+        "prompt",
+        "seed",
+        "strip_thinking",
+        "system_prompt",
+        "temperature"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3",
+        "minimax-h3 (4-step)",
+        "minimax-h3 (sage)",
+        "minimax-h3 (spectrum)",
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3 (turbo)",
+        "minimax-music3"
+      ]
+    }
+  },
+  "models": {
+    "ae.safetensors": {
+      "loader": "VAELoader",
+      "input": "vae_name",
+      "optional": false,
+      "workflows": [
+        "image-edit"
+      ]
+    },
+    "clip_l.safetensors": {
+      "loader": "DualCLIPLoader",
+      "input": "clip_name1",
+      "optional": false,
+      "workflows": [
+        "image-edit"
+      ]
+    },
+    "flux1-kontext-dev.safetensors": {
+      "loader": "UNETLoader",
+      "input": "unet_name",
+      "optional": false,
+      "workflows": [
+        "image-edit"
+      ]
+    },
+    "minimax_h3_audio_vae_fp32.safetensors": {
+      "loader": "VAELoader",
+      "input": "vae_name",
+      "optional": false,
+      "workflows": [
+        "minimax-h3",
+        "minimax-h3 (4-step)",
+        "minimax-h3 (sage)",
+        "minimax-h3 (spectrum)",
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3 (turbo)",
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v",
+        "minimax-h3-ref2v (4-step)",
+        "minimax-h3-ref2v (sage)",
+        "minimax-h3-ref2v (spectrum)",
+        "minimax-h3-ref2v (style, vhs tape)",
+        "minimax-h3-ref2v (turbo)"
+      ]
+    },
+    "minimax_h3_fl2va_bf16.safetensors": {
+      "loader": "UNETLoader",
+      "input": "unet_name",
+      "optional": true,
+      "workflows": [
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape)"
+      ]
+    },
+    "minimax_h3_fl2va_pruned_fp8_scaled.safetensors": {
+      "loader": "UNETLoader",
+      "input": "unet_name",
+      "optional": true,
+      "workflows": [
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)"
+      ]
+    },
+    "minimax_h3_fl2va_pruned_int8_convrot.safetensors": {
+      "loader": "UNETLoader",
+      "input": "unet_name",
+      "optional": false,
+      "workflows": [
+        "minimax-h3",
+        "minimax-h3 (4-step)",
+        "minimax-h3 (sage)",
+        "minimax-h3 (spectrum)",
+        "minimax-h3 (turbo)",
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (turbo)"
+      ]
+    },
+    "minimax_h3_ref2va_bf16.safetensors": {
+      "loader": "UNETLoader",
+      "input": "unet_name",
+      "optional": false,
+      "workflows": [
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref2v (4-step)",
+        "minimax-h3-ref2v (style, vhs tape)"
+      ]
+    },
+    "minimax_h3_ref2va_pruned_int8_convrot.safetensors": {
+      "loader": "UNETLoader",
+      "input": "unet_name",
+      "optional": false,
+      "workflows": [
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v",
+        "minimax-h3-ref2v (sage)",
+        "minimax-h3-ref2v (spectrum)",
+        "minimax-h3-ref2v (turbo)"
+      ]
+    },
+    "minimax_h3_turbo_v4_step600_ema.safetensors": {
+      "loader": "MiniMaxH3TurboLoRA",
+      "input": "lora_name",
+      "optional": false,
+      "workflows": [
+        "minimax-h3 (turbo)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v (turbo)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v (turbo)"
+      ]
+    },
+    "minimax_h3_video_vae_fp16.safetensors": {
+      "loader": "VAELoader",
+      "input": "vae_name",
+      "optional": false,
+      "workflows": [
+        "minimax-h3",
+        "minimax-h3 (4-step)",
+        "minimax-h3 (sage)",
+        "minimax-h3 (spectrum)",
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3 (turbo)",
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v",
+        "minimax-h3-ref2v (4-step)",
+        "minimax-h3-ref2v (sage)",
+        "minimax-h3-ref2v (spectrum)",
+        "minimax-h3-ref2v (style, vhs tape)",
+        "minimax-h3-ref2v (turbo)"
+      ]
+    },
+    "minimax_music3_dav.safetensors": {
+      "loader": "VAELoader",
+      "input": "vae_name",
+      "optional": false,
+      "workflows": [
+        "minimax-music3"
+      ]
+    },
+    "minimax_music3_dit_fp16.safetensors": {
+      "loader": "UNETLoader",
+      "input": "unet_name",
+      "optional": false,
+      "workflows": [
+        "minimax-music3"
+      ]
+    },
+    "minimax_music3_text_encoder_pruned_int8_convrot.safetensors": {
+      "loader": "CLIPLoader",
+      "input": "clip_name",
+      "optional": false,
+      "workflows": [
+        "minimax-music3"
+      ]
+    },
+    "qwen3vl_32b_minimax_h3_bf16.safetensors": {
+      "loader": "CLIPLoader",
+      "input": "clip_name",
+      "optional": false,
+      "workflows": [
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref2v (4-step)"
+      ]
+    },
+    "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors": {
+      "loader": "CLIPLoader",
+      "input": "clip_name",
+      "optional": false,
+      "workflows": [
+        "minimax-h3",
+        "minimax-h3 (4-step)",
+        "minimax-h3 (sage)",
+        "minimax-h3 (spectrum)",
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3 (turbo)",
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v",
+        "minimax-h3-ref2v (sage)",
+        "minimax-h3-ref2v (spectrum)",
+        "minimax-h3-ref2v (style, vhs tape)",
+        "minimax-h3-ref2v (turbo)"
+      ]
+    },
+    "rife_v4.26.safetensors": {
+      "loader": "FrameInterpolationModelLoader",
+      "input": "model_name",
+      "optional": false,
+      "workflows": [
+        "seedvr2-upscale"
+      ]
+    },
+    "seedvr2_7b_sharp_int8_convrot.safetensors": {
+      "loader": "UNETLoader",
+      "input": "unet_name",
+      "optional": false,
+      "workflows": [
+        "seedvr2-upscale"
+      ]
+    },
+    "seedvr2_ema_vae_fp16.safetensors": {
+      "loader": "VAELoader",
+      "input": "vae_name",
+      "optional": false,
+      "workflows": [
+        "seedvr2-upscale"
+      ]
+    },
+    "t5xxl_fp8_e4m3fn.safetensors": {
+      "loader": "DualCLIPLoader",
+      "input": "clip_name2",
+      "optional": false,
+      "workflows": [
+        "image-edit"
+      ]
+    },
+    "vh5tape-comfyui.safetensors": {
+      "loader": "LoraLoaderModelOnly",
+      "input": "lora_name",
+      "optional": true,
+      "workflows": [
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref2v (style, vhs tape)"
+      ]
+    }
+  }
+}

@@ -25,6 +25,7 @@ installing and downloading itself, and asks you only for passwords and keys.
   - [Check it before you generate](#check-it-before-you-generate)
 - [4. Deploy to Vercel](#4-deploy-to-vercel)
   - [Deploying from GitHub instead](#deploying-from-github-instead)
+- [5. Updating](#5-updating)
 - [Troubleshooting](#troubleshooting)
 - [Security, in short](#security-in-short)
 - [How auth failures surface](#how-auth-failures-surface)
@@ -453,6 +454,30 @@ Security). It stops a stranger's pull request from building with your
 environment variables — including your ComfyUI token.
 
 ---
+
+## 5. Updating
+
+The app's header shows an **Update** notice when a newer release is out.
+Hover over it, or open the release notes, to see which kind of update it is:
+
+- **App-only.** Nothing changes on the ComfyUI machine. From any machine with a
+  clone: `git pull`, `pnpm install`, `vercel deploy --prod` (run `vercel link`
+  first and pick your existing project if that machine has never deployed).
+  If you deploy from GitHub instead, use **Sync fork** on your fork.
+- **ComfyUI machine changes.** The release notes list them under **ComfyUI
+  machine changes**: a node pack to install or update, a model file to
+  download, or a newer ComfyUI. Do those on the ComfyUI machine first, restart
+  ComfyUI, and run `pnpm check:nodes` until it passes. Only then deploy the
+  app. Deploying first is what leaves a workflow failing on a node ComfyUI
+  doesn't recognise.
+
+To check which kind an update is yourself, compare the `fingerprint` at the top
+of `machine-requirements.json` between the two versions. If it's the same, the
+update is app-only. If the ComfyUI machine is missing anything the new version
+needs, the workflow cards say so.
+
+A coding agent can do all of this: see [Updating](../README.md#updating) in the
+README for the prompt to paste.
 
 ## Troubleshooting
 

@@ -10,3 +10,7 @@ See [`AGENTS.md`](../AGENTS.md) for repo conventions.
 source of truth — it covers the required custom nodes and models, making
 ComfyUI reachable from Vercel, environment variables, and the deploy. Do not
 improvise it; most of it is failures that are not obvious in advance.
+
+**To update an existing install, follow the "Updating an existing install"
+section of the same runbook.** It decides whether the update is app-only or
+needs the ComfyUI machine first; never deploy the app ahead of the machine.

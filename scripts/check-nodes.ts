@@ -22,7 +22,7 @@ import {
   systemStats,
 } from "../src/lib/comfy";
 import { WORKFLOWS } from "../src/lib/workflows";
-import { collect } from "./lib/needs";
+import { collect } from "../src/lib/workflows/needs";
 import {
   REWRITE_MODELS,
   TEXT_CLASS,

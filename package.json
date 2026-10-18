@@ -1,6 +1,6 @@
 {
   "name": "sorant",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -11,7 +11,8 @@
     "check:workflows": "tsx scripts/check-workflows.ts",
     "check:nodes": "tsx scripts/check-nodes.ts",
     "sync:models": "tsx scripts/sync-gateway-models.ts",
-    "models:download": "tsx scripts/download-models.ts"
+    "models:download": "tsx scripts/download-models.ts",
+    "requirements:write": "tsx scripts/write-requirements.ts"
   },
   "dependencies": {
     "@vercel/blob": "^2.8.1",

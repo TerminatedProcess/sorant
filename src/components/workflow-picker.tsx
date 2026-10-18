@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { CompatReport, WorkflowCompat } from "@/lib/compat";
 import type { WorkflowSummary } from "@/lib/workflows/types";
 
 /**
@@ -11,6 +12,7 @@ export function WorkflowPicker({
   workflows,
   turbo,
   patches,
+  compat,
   selectedId,
   onSelect,
   disabled,
@@ -31,6 +33,12 @@ export function WorkflowPicker({
    * to be visible.
    */
   patches: Record<string, string[]>;
+  /**
+   * What the ComfyUI machine is missing, per workflow — null until it has been
+   * asked. Shown on the card rather than by disabling it: the check can be
+   * wrong about a machine mid-restart, and a run says for certain.
+   */
+  compat: CompatReport | null;
   selectedId: string | null;
   onSelect: (id: string) => void;
   disabled?: boolean;
@@ -90,6 +98,7 @@ export function WorkflowPicker({
         <p className="mt-1.5 px-3 text-[12px] leading-relaxed text-fg-muted">
           {current.description}
         </p>
+        <MachineNote status={compat?.workflows[current.id]} className="px-3" />
       </div>
     );
   }
@@ -149,9 +158,53 @@ export function WorkflowPicker({
             <p className="mt-1.5 pl-[22px] text-[12px] leading-relaxed text-fg-muted">
               {workflow.description}
             </p>
+            <MachineNote
+              status={compat?.workflows[workflow.id]}
+              className="pl-[22px]"
+            />
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * What the ComfyUI machine lacks for this workflow, and the fix — on the card,
+ * because a phone has no tooltip and the point is to say it before Generate.
+ * A problem with the graph every run uses comes first and in the warning
+ * colour; one that only stops a mode (Turbo, a patch) is quieter, since the
+ * workflow still runs without it.
+ */
+function MachineNote({
+  status,
+  className = "",
+}: {
+  status: WorkflowCompat | undefined;
+  className?: string;
+}) {
+  if (!status) return null;
+  const { blocking, modes } = status;
+  if (blocking.length === 0 && modes.length === 0) return null;
+
+  const names = (list: { name: string }[]) =>
+    list.length > 2
+      ? `${list.slice(0, 2).map((p) => p.name).join(", ")} and ${list.length - 2} more`
+      : list.map((p) => p.name).join(", ");
+
+  return (
+    <div className={`mt-1.5 text-[12px] leading-relaxed ${className}`}>
+      {blocking.length > 0 ? (
+        <p className="text-warning">
+          Your ComfyUI is missing {names(blocking)}. {blocking[0].fix}
+        </p>
+      ) : null}
+      {modes.map(({ mode, problems }) => (
+        <p key={mode} className="text-fg-subtle">
+          {mode.charAt(0).toUpperCase() + mode.slice(1)} won’t run here: missing{" "}
+          {names(problems)}. {problems[0].fix}
+        </p>
+      ))}
     </div>
   );
 }

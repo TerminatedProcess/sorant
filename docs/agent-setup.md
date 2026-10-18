@@ -23,6 +23,10 @@ the setup has to run on the ComfyUI machine, so they should clone the repo there
 and start you again. The one exception is a ComfyUI that is already fully set up
 and reachable; then only Phases 6 and 8 apply, with `COMFY_URL` pointing at it.
 
+**Updating an install that already works is different:** go to
+[Updating](#updating-an-existing-install). It can start on any machine with a
+clone, and it decides for itself whether it has to finish on the ComfyUI one.
+
 Work the phases in order. Phase 5 has to come before Phase 7 in particular: a
 ComfyUI made reachable before its password is set can be claimed by whoever
 finds it first.
@@ -387,6 +391,106 @@ publicly reachable, so `APP_ACCESS_TOKEN` is the only gate. If the fork is
 public, leave **Git Fork Protection** on (Project Settings → Security) — it
 stops a stranger's pull request from building with their environment
 variables, ComfyUI token included.
+
+## Updating an existing install
+
+For a Soran’t that is already set up and working, when the person wants the
+latest version. The ground rules above still hold — ask before restarting
+ComfyUI and before deploying.
+
+**The question that decides everything** is whether the update changes what the
+ComfyUI machine needs. Most releases are app-only: deploy them from any
+machine. Some add a node class, change how a graph drives a node, or name a new
+model file — and deploying the app ahead of the machine is how a workflow ends
+up failing several minutes after Generate on a class nobody recognises. The
+repo answers the question itself: `machine-requirements.json`, at its root,
+lists everything the graphs need from the machine, and its `fingerprint` changes
+exactly when that does.
+
+Copy this into your reply and keep it current:
+
+```
+Update progress:
+- [ ] U1 Where          on the ComfyUI machine or not; deployed version and
+                        fingerprint known (or known to be unknown)
+- [ ] U2 Kind           app-only or machine changes, from the fingerprints
+- [ ] U3 Machine        (machine changes only, on the ComfyUI machine)
+                        gate: `pnpm check:nodes` exits 0 on the new version
+- [ ] U4 App            gate: deployed, header shows no update notice, no
+                        workflow card says the machine is missing anything,
+                        one run finished
+```
+
+### U1 — Where you are, and what is deployed
+
+- **Is this the ComfyUI machine?** The same test as Phase 0: a ComfyUI install
+  on this computer that the app's `COMFY_URL` points at. If you cannot tell,
+  ask.
+- **What is deployed.** The deployment, not this clone, is what is being
+  updated — a clone on a laptop can be older or newer than what is live. Ask
+  the deployment: `GET <app URL>/api/updates` with the header
+  `x-app-token: <APP_ACCESS_TOKEN>` returns `current` (its version) and
+  `fingerprint`. Use the token from `.env.local` if it is there, without
+  printing it; otherwise have the person open
+  `<app URL>/api/updates?token=<their APP_ACCESS_TOKEN>` in their browser and
+  read you the two values — never the token.
+- A deployment from before 0.2.0 has no `/api/updates` (a 404). Its fingerprint
+  is unknown: treat the update as having machine changes unless U3's
+  `check:nodes` says otherwise.
+
+### U2 — App-only, or machine changes?
+
+```bash
+git fetch --tags origin
+git tag --sort=-v:refname | head -1        # the latest release; or use origin/main
+git show <target>:machine-requirements.json | grep -m1 '"fingerprint"'
+```
+
+- **Same fingerprint as deployed:** app-only. Skip U3.
+- **Different, or unknown:** machine changes. Say what they are before doing
+  anything: `git diff <deployed tag>..<target> -- machine-requirements.json`
+  shows them — a new class means a new or updated node pack, changed `inputs`
+  on a class mean an updated pack (or a newer ComfyUI for a core node), a new
+  model means a download. The release notes on GitHub say the same in words,
+  under **ComfyUI machine changes**.
+
+### U3 — Machine changes, on the ComfyUI machine
+
+**If you are not on the ComfyUI machine, stop here** — unless this machine
+can reach that ComfyUI (`COMFY_URL` and `COMFY_API_TOKEN` in `.env.local`) and,
+with the target version checked out, `pnpm check:nodes` exits 0: then the
+machine already has everything, and U4 can go ahead. Otherwise tell the person
+what the update needs on the machine, and that they should run this same update
+there; do not deploy the app first.
+
+On the ComfyUI machine:
+
+1. Check out the target: `git pull --ff-only` (or `git checkout <tag>`), then
+   `pnpm install`. Local changes in the clone: stop and ask.
+2. Node packs: `git pull` in each pack the diff points at — in
+   `custom_nodes/` — and reinstall its requirements with ComfyUI's own Python,
+   as in Phase 2. A pack not yet installed: install it as in Phase 2. When the
+   diff does not make it clear which pack, update all five from Phase 2.
+3. Models: `pnpm models:download` for the workflows the person uses — it fetches
+   only what is missing, and says how much before it starts. Ask before a large
+   download.
+4. ComfyUI itself, if the release notes say so.
+5. Restart ComfyUI (ask first — it may be rendering). Gate: `pnpm check:nodes`
+   exits 0.
+
+### U4 — The app
+
+1. If not already done in U3: `git pull --ff-only` (or check out the tag) and
+   `pnpm install`.
+2. Deploy to the **existing** project. On a machine that has deployed before,
+   `vercel deploy --prod`. On one that has not, `vercel link` first and pick the
+   existing project — never create a second one. Its environment variables and
+   Blob store are already there: do not add them again.
+   - If the person deploys through Git instead (a fork connected to Vercel):
+     **Sync fork** on GitHub, and the push to `main` deploys.
+   - Local-only installs: restart `pnpm dev` or `pnpm start`; nothing to deploy.
+3. Verify on the deployment: the header has no update notice, no workflow card
+   says the ComfyUI machine is missing something, and one generation finishes.
 
 ## When something is wrong
 

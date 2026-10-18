@@ -16,6 +16,7 @@ repo should also read [`AGENTS.md`](../AGENTS.md).
   - [If a correct token is still rejected](#if-a-correct-token-is-still-rejected)
 - [Branding and icons](#branding-and-icons)
 - [Scripts](#scripts)
+- [Releasing](#releasing)
 - [Known limits](#known-limits)
 - [Agent files](#agent-files)
 
@@ -394,6 +395,36 @@ and then to localhost — which is what `next dev` wants anyway.
 | `pnpm check:workflows` | Validate param→graph mappings. Needs nothing but this repo. |
 | `pnpm check:nodes` | Ask your ComfyUI whether it has the classes and models the graphs name, whether it holds a gateway key, and whether every offered rewrite model is still in the catalog. Needs `COMFY_URL`. |
 | `pnpm sync:models` | Rebuild the rewrite-model list from the gateway's live catalog. Also runs before every `pnpm build`. |
+| `pnpm requirements:write` | Rewrite `machine-requirements.json`. `check:workflows` fails while it is stale. |
+
+## Releasing
+
+Installs are updated by release, so cutting one is what tells everyone else
+there is something to update to. The app checks
+`github.com/pwillia7/sorant/releases/latest` every few hours and shows an
+**Update** notice when its tag is newer than the deployed `package.json`
+version.
+
+1. Bump `version` in `package.json` (semver; the tag is `v` plus it).
+2. `pnpm requirements:write`, `pnpm check:workflows`, `pnpm typecheck`.
+3. Commit, push, then tag and publish:
+
+   ```bash
+   git tag v0.3.0 && git push origin v0.3.0
+   gh release create v0.3.0 --title "v0.3.0" --notes-file notes.md
+   ```
+
+4. **End the notes with a "ComfyUI machine changes" section**, and work it out
+   rather than from memory: compare the fingerprint in
+   `git show v<previous>:machine-requirements.json` with the new one. The same
+   means write "None. This update is app-only." Different means
+   `git diff v<previous>..v0.3.0 -- machine-requirements.json` and say what each
+   change asks of the machine: a pack to install or update, a model to download
+   with its `models:download --workflows` line, or a newer ComfyUI.
+
+The notice reads the new release's `machine-requirements.json` from the tag, so
+it can say "app-only" or "needs your ComfyUI machine" without the notes. The
+notes are for the people and agents doing the update.
 
 ## Known limits
 

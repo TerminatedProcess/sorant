@@ -373,6 +373,36 @@ export async function getNodeSchema(
 }
 
 /**
+ * The same question as `getNodeSchema`, with "not installed" told apart from
+ * "could not ask". `getNodeSchema` folds both into null because its callers
+ * only want a fallback; a compatibility check that did the same would report
+ * every class missing whenever ComfyUI was slow to answer, which is exactly
+ * when it is busy generating.
+ *
+ * ComfyUI answers an unknown class with an empty object, not an error.
+ */
+export async function probeNodeSchema(
+  className: string,
+): Promise<NodeSchema | "absent" | "unknown"> {
+  const cached = schemaCache.get(className);
+  if (cached?.schema && Date.now() - cached.at < SCHEMA_TTL_MS) {
+    return cached.schema;
+  }
+  try {
+    const response = await comfyJson<Record<string, NodeSchema>>(
+      `/object_info/${encodeURIComponent(className)}`,
+      { timeoutMs: 15_000 },
+    );
+    const schema = response?.[className];
+    if (!schema) return "absent";
+    schemaCache.set(className, { at: Date.now(), schema });
+    return schema;
+  } catch {
+    return "unknown";
+  }
+}
+
+/**
  * Pull the allowed values for one input. ComfyUI describes an enum as a spec
  * whose first element is the array of choices: ["euler", "heun", ...].
  */

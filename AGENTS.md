@@ -23,6 +23,10 @@ downloading the models (`pnpm models:download`), locking ComfyUI with a
 password, making it reachable from Vercel, the environment variables, and the
 deploy.
 
+**To update an install that already works**, follow that runbook's "Updating an
+existing install" section: it works out whether the update needs the ComfyUI
+machine before it deploys anything.
+
 Do not improvise that process. Most of the runbook is failures that are
 non-obvious in advance — a gateway key that has to live on the ComfyUI host
 rather than in this app, a Windows GPU timeout that restarts the whole machine
@@ -57,7 +61,14 @@ afternoon.
   `scripts/lib/model-sources.ts` — repo, path, folder and size from Hugging
   Face. `check:workflows` fails without one, because `pnpm models:download`
   could not fetch it. Which files a workflow needs is read off the graphs in
-  `scripts/lib/needs.ts`, shared with `check:nodes`.
+  `src/lib/workflows/needs.ts`, shared with `check:nodes`.
+- **`machine-requirements.json` is generated, and committed.** It is what this
+  version needs from the ComfyUI machine — every node class with the inputs the
+  graphs drive, every model file — and its `fingerprint` is how an update tells
+  an app-only release from one that needs the machine first, and how the app
+  tells a stale machine apart. `pnpm requirements:write` after touching
+  anything under `src/lib/workflows/`; `check:workflows` fails while it is
+  stale. Never hand-edit it.
 - **`pnpm check:nodes`** asks a real ComfyUI whether the classes and model files
   the graphs name are installed, whether every model the rewrite picker offers is
   still in the gateway's catalog, whether that machine has a gateway key at all,

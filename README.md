@@ -16,6 +16,7 @@ right](docs/screenshot.jpg)
 - [Quick start](#quick-start)
   - [Set it up with a coding agent (recommended)](#set-it-up-with-a-coding-agent-recommended)
   - [Set it up by hand](#set-it-up-by-hand)
+- [Updating](#updating)
 - [When something goes wrong](#when-something-goes-wrong)
 - [Documentation](#documentation)
 - [Scripts](#scripts)
@@ -147,6 +148,29 @@ most failed setups skipped a step. In short:
 4. **[Deploy to Vercel](docs/setup.md#4-deploy-to-vercel)**, once one local
    generation has worked.
 
+## Updating
+
+When a new release is out, the app shows an **Update** notice in its header.
+Open your coding agent in your clone and paste this (in Claude Code, `/update`
+does the same):
+
+```text
+Update Soran't to the latest release by following the "Updating an existing
+install" section of docs/agent-setup.md. Work out first whether it needs
+changes on my ComfyUI machine, and ask me before restarting ComfyUI or
+deploying.
+```
+
+Most releases change only the app, and those can be deployed from any machine
+with a clone. Some also need something on the ComfyUI machine, such as a new
+node pack, a pack update or a model file. The agent tells the two apart from
+`machine-requirements.json` and won't deploy the app before your ComfyUI
+machine has what the new version needs. The notice says which kind an update
+is, and the workflow cards say if your ComfyUI is missing anything.
+
+By hand: `git pull`, `pnpm install`, then make any ComfyUI machine changes
+listed in the release notes, run `pnpm check:nodes`, and `vercel deploy --prod`.
+
 ## When something goes wrong
 
 Run `pnpm check:nodes` first — it names every missing pack, model file and key.
@@ -184,6 +208,7 @@ The [full troubleshooting table](docs/setup.md#troubleshooting) has the rest.
 | `pnpm check:nodes` | Ask your ComfyUI for every pack, model and key the app needs. Needs `COMFY_URL`. |
 | `pnpm check:workflows` | Check every workflow definition against its own graph. Needs nothing but this repo. |
 | `pnpm sync:models` | Rebuild the rewrite-model list from the AI Gateway's live catalog. |
+| `pnpm requirements:write` | Rewrite `machine-requirements.json`, what this version needs from the ComfyUI machine. Run after changing a workflow. |
 
 ## Known limits
 

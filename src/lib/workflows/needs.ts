@@ -4,17 +4,18 @@
  * patch, the step-count swap and the reference weights — since those name
  * classes and files no stored graph does.
  *
- * Shared by `check:nodes`, which asks a live install whether it has them, and
- * `models:download`, which fetches the files, so the two cannot disagree about
- * what a workflow needs.
+ * Shared by `check:nodes`, which asks a live install whether it has them,
+ * `models:download`, which fetches the files, and the machine requirements
+ * manifest the app and the update runbook read — so none of them can disagree
+ * about what a workflow needs.
  */
-import type { ComfyGraph } from "../../src/lib/comfy";
-import { WORKFLOWS } from "../../src/lib/workflows";
-import { patchVariants } from "../../src/lib/workflows/patches";
-import { promptConsumer } from "../../src/lib/workflows/director";
-import { stepSamplerGraph } from "../../src/lib/workflows/step-sampler";
-import { modelSwapGraph } from "../../src/lib/workflows/model-swap";
-import { turboGraph } from "../../src/lib/workflows/turbo";
+import type { ComfyGraph } from "@/lib/comfy";
+import { WORKFLOWS } from "./index";
+import { patchVariants } from "./patches";
+import { promptConsumer } from "./director";
+import { stepSamplerGraph } from "./step-sampler";
+import { modelSwapGraph } from "./model-swap";
+import { turboGraph } from "./turbo";
 
 /** Loader class -> the inputs naming files, for checking models are present. */
 const MODEL_INPUTS: Record<string, string | string[]> = {
@@ -49,8 +50,17 @@ export interface Need {
   optional: boolean;
 }
 
+/**
+ * A node class, and every input the graphs drive it through. The inputs are
+ * what catch a pack that is installed but too old: the class is there, and the
+ * input a newer graph sets on it is not.
+ */
+export interface ClassNeed extends Need {
+  inputs: Set<string>;
+}
+
 export function collect() {
-  const classes = new Map<string, Need>();
+  const classes = new Map<string, ClassNeed>();
   /** filename -> which loader input it has to appear in. */
   const models = new Map<string, { loader: string; input: string } & Need>();
 
@@ -122,10 +132,12 @@ export function collect() {
         if (existing) {
           existing.workflows.add(used);
           if (!optional) existing.optional = false;
+          for (const input of Object.keys(node.inputs)) existing.inputs.add(input);
         } else {
           classes.set(node.class_type, {
             workflows: new Set([used]),
             optional,
+            inputs: new Set(Object.keys(node.inputs)),
           });
         }
 

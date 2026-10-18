@@ -28,9 +28,11 @@ import { patchSuppressed } from "@/lib/workflows/patches";
 import { Button } from "@/components/ui/button";
 import { Panel, PanelHeader } from "@/components/ui/panel";
 import { WorkflowPicker } from "@/components/workflow-picker";
+import { UpdateBadge } from "@/components/update-badge";
 import { GenerationsPanel } from "@/components/generations-panel";
 import { SorantMark } from "@/components/sorant-logo";
 import { useJobs } from "@/hooks/use-jobs";
+import { useCompat } from "@/hooks/use-compat";
 import { isActive, isRerunnable, isRetryable, type Job } from "@/lib/jobs";
 import { restoreFrom } from "@/lib/restore";
 import { api, ApiError, getToken } from "@/lib/client";
@@ -207,6 +209,9 @@ function Workbench({
   const [selectedId, setSelectedId] = useState(offered[0]?.id ?? "");
   const jobs = useJobs();
   const health = useHealth();
+  const compat = useCompat(
+    health?.reachable === true && health.authorized !== false,
+  );
 
   /**
    * Which kind of gateway key this browser says it holds, and the workflows as
@@ -1041,6 +1046,7 @@ function Workbench({
           </span>
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
+            <UpdateBadge />
             <ConnectionPill health={health} />
             <RewriteKeyButton
               tier={gatewayTier}
@@ -1126,6 +1132,7 @@ function Workbench({
                 workflows={workflows}
                 turbo={turboByWorkflow}
                 patches={patchesByWorkflow}
+                compat={compat}
                 selectedId={selectedId}
                 onSelect={(id) => {
                   // Choosing a workflow by hand supersedes whatever Remix or

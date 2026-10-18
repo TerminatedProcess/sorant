@@ -6,8 +6,13 @@
  */
 import { validateWorkflow } from "../src/lib/params";
 import { WORKFLOWS } from "../src/lib/workflows";
-import { collect } from "./lib/needs";
+import { collect } from "../src/lib/workflows/needs";
 import { MODEL_SOURCES } from "./lib/model-sources";
+import { readFileSync } from "node:fs";
+import {
+  buildRequirements,
+  serializeRequirements,
+} from "../src/lib/workflows/requirements";
 
 let failed = false;
 
@@ -56,6 +61,22 @@ if (unsourced.length > 0) {
       `       ${file} is named by a graph but has no entry in scripts/lib/model-sources.ts`,
     );
   }
+}
+
+// The manifest the update runbook and the app read. Stale, it would tell an
+// update that needs the ComfyUI machine that it does not.
+let written = "";
+try {
+  written = readFileSync("machine-requirements.json", "utf8");
+} catch {
+  // Missing reads as stale.
+}
+if (written !== serializeRequirements(buildRequirements())) {
+  failed = true;
+  console.error("  FAIL machine-requirements.json");
+  console.error(
+    "       is stale — run `pnpm requirements:write` and commit the result",
+  );
 }
 
 if (failed) {
