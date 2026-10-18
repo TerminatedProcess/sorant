@@ -5,6 +5,9 @@ prompt, attach a picture or a clip if you like, and your GPU does the rest. The
 app runs on Vercel (or your laptop); the models and the rendering stay on your
 machine.
 
+[![Watch the Soran’t trailer on YouTube: a 90-second tour of every
+workflow](docs/sizzle-reel.jpg)](https://www.youtube.com/watch?v=ncpg6Nl_Q0g)
+
 ![Reference to Video: the workflow picker and a reference photo on the left, the
 finished clip with its result actions and the generation history on the
 right](docs/screenshot.jpg)
