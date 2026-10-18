@@ -14,7 +14,6 @@
  * /object_info, so "what do I need to install" is answered by the install
  * itself rather than by a list in the README that goes stale.
  */
-import { readFileSync } from "node:fs";
 import {
   enumValuesFor,
   gatewayStatus,
@@ -23,6 +22,7 @@ import {
 } from "../src/lib/comfy";
 import { WORKFLOWS } from "../src/lib/workflows";
 import { collect } from "../src/lib/workflows/needs";
+import { loadEnvFiles } from "./lib/env";
 import {
   REWRITE_MODELS,
   TEXT_CLASS,
@@ -34,36 +34,6 @@ import {
   LOCAL_DIRECTOR_MODELS,
   LOCAL_LOADER_CLASS,
 } from "../src/lib/workflows/local-director";
-
-/**
- * Next loads .env.local for the app; a bare tsx process gets nothing, so do it
- * here. Deliberately does not overwrite anything already in the environment,
- * which is what lets CI pass COMFY_URL without a file on disk.
- */
-function loadEnvFiles(): void {
-  for (const file of [".env.local", ".env"]) {
-    let raw: string;
-    try {
-      raw = readFileSync(file, "utf8");
-    } catch {
-      continue;
-    }
-    for (const line of raw.split("\n")) {
-      const match = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/.exec(line);
-      if (!match) continue;
-      const [, key, rest] = match;
-      if (process.env[key] !== undefined) continue;
-      process.env[key] = rest
-        .trim()
-        .replace(/^["']|["']$/g, "")
-        // dotenv turns an escaped \$ into a literal $, and the ComfyUI token is
-        // full of them. Matching that here is what keeps this script
-        // authenticating the same way the app does.
-        .replace(/\\\$/g, "$");
-    }
-  }
-}
-
 
 /** "custom_nodes.ComfyUI-KJNodes.nodes.image_nodes" -> "ComfyUI-KJNodes". */
 function packageOf(pythonModule: string | undefined): string {

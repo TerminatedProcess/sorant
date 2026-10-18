@@ -71,7 +71,11 @@ try {
 } catch {
   // Missing reads as stale.
 }
-if (written !== serializeRequirements(buildRequirements())) {
+// Compared without line endings as well as through .gitattributes: a clone
+// made before that file existed, or with eol overrides of its own, still has
+// CRLF, and that is not staleness.
+const lf = (text: string) => text.replace(/\r\n/g, "\n");
+if (lf(written) !== serializeRequirements(buildRequirements())) {
   failed = true;
   console.error("  FAIL machine-requirements.json");
   console.error(

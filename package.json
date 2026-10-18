@@ -12,7 +12,8 @@
     "check:nodes": "tsx scripts/check-nodes.ts",
     "sync:models": "tsx scripts/sync-gateway-models.ts",
     "models:download": "tsx scripts/download-models.ts",
-    "requirements:write": "tsx scripts/write-requirements.ts"
+    "requirements:write": "tsx scripts/write-requirements.ts",
+    "smoke": "tsx scripts/smoke.ts"
   },
   "dependencies": {
     "@vercel/blob": "^2.8.1",

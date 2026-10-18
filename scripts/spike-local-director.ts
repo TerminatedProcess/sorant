@@ -20,29 +20,14 @@ import {
   REFERENCE_DIRECTOR,
   TEXT_DIRECTOR,
 } from "../src/lib/workflows/minimax-common";
-
-function loadEnv(): void {
-  try {
-    for (const line of readFileSync(".env.local", "utf8").split("\n")) {
-      const match = line.match(/^\s*([A-Z_]+)\s*=\s*(.*)\s*$/);
-      if (match && process.env[match[1]] === undefined) {
-        // Unescape \$ the way dotenv does; the ComfyUI token is full of them.
-        process.env[match[1]] = match[2]
-          .replace(/^["']|["']$/g, "")
-          .replace(/\\\$/g, "$");
-      }
-    }
-  } catch {
-    // No .env.local — the environment has to carry it.
-  }
-}
+import { loadEnvFiles } from "./lib/env";
 
 function arg(name: string): string | undefined {
   const index = process.argv.indexOf(`--${name}`);
   return index === -1 ? undefined : process.argv[index + 1];
 }
 
-loadEnv();
+loadEnvFiles();
 const base = process.env.COMFY_URL?.replace(/\/$/, "");
 if (!base) throw new Error("COMFY_URL is not set");
 const headers: Record<string, string> = { "Content-Type": "application/json" };

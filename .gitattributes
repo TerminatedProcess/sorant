@@ -1,0 +1,4 @@
+# Generated files the checks compare byte for byte. Git for Windows checks text
+# out with CRLF by default, which would make them read as stale on a clean clone.
+machine-requirements.json text eol=lf
+src/lib/workflows/generated/* text eol=lf

@@ -10,7 +10,10 @@
  * graphs themselves (src/lib/workflows/needs.ts, the same list `check:nodes` asks
  * about), and where each comes from is scripts/lib/model-sources.ts.
  *
- * A file already in place at the right size is skipped. A partial download is
+ * Models already on the machine count wherever ComfyUI would find them: the
+ * install's own models/, every folder its extra_model_paths.yaml adds, and any
+ * further --models-dir. New files go to the first of those. A file already in
+ * place at the right size is skipped. A partial download is
  * resumed from where it stopped, so an interrupted run is safe to repeat. Set
  * HF_TOKEN for the gated FLUX Kontext file, after accepting its licence on
  * Hugging Face with the same account.
@@ -19,11 +22,12 @@ import {
   createWriteStream,
   existsSync,
   mkdirSync,
+  readFileSync,
   renameSync,
   statSync,
   statfsSync,
 } from "node:fs";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { WORKFLOWS } from "../src/lib/workflows";
@@ -32,7 +36,7 @@ import { EXTRAS, MODEL_SOURCES } from "./lib/model-sources";
 
 interface Args {
   comfy?: string;
-  modelsDir?: string;
+  modelsDirs: string[];
   workflows: string[];
   extras: string[];
   skip: string[];
@@ -40,17 +44,28 @@ interface Args {
 }
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { workflows: [], extras: [], skip: [], dryRun: false };
-  const list = (value: string | undefined) =>
-    (value ?? "").split(",").map((v) => v.trim()).filter(Boolean);
+  const args: Args = { modelsDirs: [], workflows: [], extras: [], skip: [], dryRun: false };
+  /**
+   * A list flag takes "a,b" and also "a b": PowerShell turns an unquoted a,b
+   * into an array, which reaches here as separate arguments.
+   */
+  const takeList = (i: number): [string[], number] => {
+    const values: string[] = [];
+    let j = i + 1;
+    while (j < argv.length && !argv[j].startsWith("--")) {
+      values.push(...argv[j].split(/[,\s]+/).map((v) => v.trim()).filter(Boolean));
+      j++;
+    }
+    return [values, j - 1];
+  };
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
     const value = argv[i + 1];
     if (flag === "--comfy") (args.comfy = value), i++;
-    else if (flag === "--models-dir") (args.modelsDir = value), i++;
-    else if (flag === "--workflows") (args.workflows = list(value)), i++;
-    else if (flag === "--extras") (args.extras = list(value)), i++;
-    else if (flag === "--skip") (args.skip = list(value)), i++;
+    else if (flag === "--models-dir") (args.modelsDirs.push(value), i++);
+    else if (flag === "--workflows") [args.workflows, i] = takeList(i);
+    else if (flag === "--extras") [args.extras, i] = takeList(i);
+    else if (flag === "--skip") [args.skip, i] = takeList(i);
     else if (flag === "--dry-run") args.dryRun = true;
     else if (flag === "--") continue;
     else {
@@ -59,6 +74,90 @@ function parseArgs(argv: string[]): Args {
     }
   }
   return args;
+}
+
+/**
+ * ComfyUI's old folder names, which it still searches: a file under unet/ is a
+ * diffusion model to it, and one under clip/ a text encoder.
+ */
+const LEGACY: Record<string, string[]> = {
+  diffusion_models: ["unet"],
+  text_encoders: ["clip"],
+};
+const canonical = (folder: string) =>
+  Object.entries(LEGACY).find(([, old]) => old.includes(folder))?.[0] ?? folder;
+
+/**
+ * Every folder ComfyUI would look in, per model folder name: each root's own
+ * subfolder (and its legacy name), plus what extra_model_paths.yaml adds.
+ */
+type SearchPath = Map<string, string[]>;
+
+function addRoot(paths: SearchPath, root: string): void {
+  for (const folder of new Set(Object.values(MODEL_SOURCES).map((s) => s.folder))) {
+    const list = paths.get(folder) ?? [];
+    for (const name of [folder, ...(LEGACY[folder] ?? [])]) list.push(join(root, name));
+    paths.set(folder, list);
+  }
+}
+
+/**
+ * The parts of extra_model_paths.yaml that say where models are: each section's
+ * base_path, and its folder keys, one path or a `|` block of several. A small
+ * reader rather than a YAML dependency, because this is the whole of the format
+ * ComfyUI documents for the file.
+ */
+function addExtraModelPaths(paths: SearchPath, comfy: string): string[] {
+  const file = join(comfy, "extra_model_paths.yaml");
+  if (!existsSync(file)) return [];
+  const added: string[] = [];
+  const unquote = (v: string) => v.trim().replace(/^["']|["']$/g, "");
+  const lines = readFileSync(file, "utf8").split(/\r?\n/);
+
+  interface Section { base: string; entries: [string, string[]][] }
+  const sections: Section[] = [];
+  let section: Section | null = null;
+  let block: [string, string[]] | null = null;
+  let blockIndent = -1;
+
+  for (const raw of lines) {
+    const line = raw.replace(/\s+#.*$/, "");
+    if (!line.trim() || line.trim().startsWith("#")) continue;
+    const indent = line.length - line.trimStart().length;
+    if (block && indent > blockIndent) {
+      block[1].push(unquote(line));
+      continue;
+    }
+    block = null;
+    if (indent === 0) {
+      section = { base: comfy, entries: [] };
+      sections.push(section);
+      continue;
+    }
+    const match = /^\s*([\w.-]+)\s*:\s*(.*)$/.exec(line);
+    if (!match || !section) continue;
+    const [, key, value] = match;
+    if (key === "base_path") section.base = resolve(dirname(file), unquote(value));
+    else if (key === "is_default") continue;
+    else if (value.trim() === "|" || value.trim() === "") {
+      block = [key, []];
+      blockIndent = indent;
+      section.entries.push(block);
+    } else section.entries.push([key, [unquote(value)]]);
+  }
+
+  for (const { base, entries } of sections) {
+    for (const [key, values] of entries) {
+      const folder = canonical(key);
+      if (!paths.has(folder)) continue;
+      for (const value of values) {
+        const dir = resolve(base, value);
+        paths.get(folder)!.push(dir);
+        added.push(dir);
+      }
+    }
+  }
+  return added;
 }
 
 const gb = (bytes: number) =>
@@ -83,10 +182,16 @@ function pathFor(modelsDir: string, file: string): string {
   return join(modelsDir, MODEL_SOURCES[file].folder, file);
 }
 
-/** Present means the right size: a short file is a download that stopped. */
-function isPresent(modelsDir: string, file: string): boolean {
-  const target = pathFor(modelsDir, file);
-  return existsSync(target) && statSync(target).size === MODEL_SOURCES[file].bytes;
+/**
+ * Present means somewhere ComfyUI will look, at the right size: a short file
+ * is a download that stopped.
+ */
+function isPresent(paths: SearchPath, file: string): boolean {
+  const { folder, bytes } = MODEL_SOURCES[file];
+  return (paths.get(folder) ?? []).some((dir) => {
+    const target = join(dir, file);
+    return existsSync(target) && statSync(target).size === bytes;
+  });
 }
 
 async function download(modelsDir: string, file: string): Promise<void> {
@@ -142,27 +247,39 @@ async function download(modelsDir: string, file: string): Promise<void> {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  if (!args.comfy && !args.modelsDir) {
+  if (!args.comfy && args.modelsDirs.length === 0) {
     console.error(
       "Pass --comfy <your ComfyUI folder> (the one containing main.py and models/),\n" +
         "or --models-dir <path> if your models live elsewhere (extra_model_paths.yaml).",
     );
     process.exit(2);
   }
-  const modelsDir = resolve(args.modelsDir ?? join(args.comfy!, "models"));
+  // New files go to the first root: the install's own models/, or the first
+  // --models-dir when there is no --comfy.
+  const roots = [
+    ...(args.comfy ? [resolve(args.comfy, "models")] : []),
+    ...args.modelsDirs.map((dir) => resolve(dir)),
+  ];
+  const modelsDir = roots[0];
   if (!existsSync(modelsDir)) {
     console.error(`No models folder at ${modelsDir}. Is --comfy the ComfyUI folder?`);
     process.exit(2);
   }
+  const paths: SearchPath = new Map();
+  for (const root of roots) addRoot(paths, root);
+  const extra = args.comfy ? addExtraModelPaths(paths, resolve(args.comfy)) : [];
+  const elsewhere = [...roots.slice(1), ...extra];
 
   const byWorkflow = requiredByWorkflow();
 
   // No selection: show what each choice costs and what is already there.
   if (args.workflows.length === 0 && args.extras.length === 0) {
-    console.log(`Models folder: ${modelsDir}\n\nWorkflows (--workflows, comma-separated, or all):`);
+    console.log(`Models folder: ${modelsDir}`);
+    for (const dir of elsewhere) console.log(`Also looking in: ${dir}`);
+    console.log("\nWorkflows (--workflows, comma-separated, or all):");
     for (const workflow of WORKFLOWS) {
       const files = [...(byWorkflow.get(workflow.id) ?? [])];
-      const missing = files.filter((f) => !isPresent(modelsDir, f));
+      const missing = files.filter((f) => !isPresent(paths, f));
       const bytes = missing.reduce((n, f) => n + MODEL_SOURCES[f].bytes, 0);
       console.log(
         `  ${workflow.id.padEnd(18)} ${workflow.name.padEnd(20)} ` +
@@ -171,7 +288,7 @@ async function main() {
     }
     console.log("\nExtras (--extras):");
     for (const [id, extra] of Object.entries(EXTRAS)) {
-      const missing = extra.files.filter((f) => !isPresent(modelsDir, f));
+      const missing = extra.files.filter((f) => !isPresent(paths, f));
       const bytes = missing.reduce((n, f) => n + MODEL_SOURCES[f].bytes, 0);
       console.log(
         `  ${id.padEnd(18)} ${extra.what} — ` +
@@ -206,7 +323,7 @@ async function main() {
   }
   for (const file of args.skip) wanted.delete(file);
 
-  const missing = [...wanted].filter((f) => !isPresent(modelsDir, f));
+  const missing = [...wanted].filter((f) => !isPresent(paths, f));
   const total = missing.reduce((n, f) => n + MODEL_SOURCES[f].bytes, 0);
   const free = (() => {
     const stats = statfsSync(modelsDir);
@@ -214,6 +331,7 @@ async function main() {
   })();
 
   console.log(`Models folder: ${modelsDir}`);
+  for (const dir of elsewhere) console.log(`Also looking in: ${dir}`);
   console.log(`${wanted.size - missing.length} of ${wanted.size} file(s) already present.`);
   for (const file of missing) {
     const source = MODEL_SOURCES[file];
@@ -223,9 +341,11 @@ async function main() {
   }
   console.log(`To download: ${gb(total)}. Free on that drive: ${gb(free)}.`);
 
+  // A dry run reports and succeeds: it is asking, not trying.
+  const fail = () => process.exit(args.dryRun ? 0 : 1);
   if (total > free) {
     console.error("\nNot enough free space. Choose fewer workflows, or use --skip.");
-    process.exit(1);
+    fail();
   }
   const gated = missing.filter((f) => MODEL_SOURCES[f].gated);
   if (gated.length > 0 && !process.env.HF_TOKEN) {
@@ -235,7 +355,7 @@ async function main() {
         "https://huggingface.co/settings/tokens, set HF_TOKEN, and run this again — " +
         "or add --skip for it to download everything else.",
     );
-    process.exit(1);
+    fail();
   }
   if (args.dryRun || missing.length === 0) return;
 
