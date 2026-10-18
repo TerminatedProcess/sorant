@@ -13,7 +13,18 @@
  * Models already on the machine count wherever ComfyUI would find them: the
  * install's own models/, every folder its extra_model_paths.yaml adds, and any
  * further --models-dir. New files go to the first of those. A file already in
- * place at the right size is skipped. A partial download is
+ * place at the right size is skipped.
+ *
+ * Two cases for someone who already runs H3 in ComfyUI:
+ *
+ * - The same file under another name, or in a subfolder: found by its exact
+ *   size and hard-linked under the name the graphs use — the same data under a
+ *   second name, no download and no copy. `--no-link` turns that off.
+ * - A file with the right name and the wrong size: someone's own copy, an older
+ *   or newer revision. Never overwritten silently — the script stops and says
+ *   where it is. `--replace <file>` downloads it anyway, into this install's
+ *   own models folder: a copy of theirs in that folder is kept as <file>.old,
+ *   and copies in other installs' folders are not touched. A partial download is
  * resumed from where it stopped, so an interrupted run is safe to repeat. Set
  * HF_TOKEN for the gated FLUX Kontext file, after accepting its licence on
  * Hugging Face with the same account.
@@ -21,7 +32,9 @@
 import {
   createWriteStream,
   existsSync,
+  linkSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   renameSync,
   statSync,
@@ -40,11 +53,21 @@ interface Args {
   workflows: string[];
   extras: string[];
   skip: string[];
+  replace: string[];
+  link: boolean;
   dryRun: boolean;
 }
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { modelsDirs: [], workflows: [], extras: [], skip: [], dryRun: false };
+  const args: Args = {
+    modelsDirs: [],
+    workflows: [],
+    extras: [],
+    skip: [],
+    replace: [],
+    link: true,
+    dryRun: false,
+  };
   /**
    * A list flag takes "a,b" and also "a b": PowerShell turns an unquoted a,b
    * into an array, which reaches here as separate arguments.
@@ -66,6 +89,8 @@ function parseArgs(argv: string[]): Args {
     else if (flag === "--workflows") [args.workflows, i] = takeList(i);
     else if (flag === "--extras") [args.extras, i] = takeList(i);
     else if (flag === "--skip") [args.skip, i] = takeList(i);
+    else if (flag === "--replace") [args.replace, i] = takeList(i);
+    else if (flag === "--no-link") args.link = false;
     else if (flag === "--dry-run") args.dryRun = true;
     else if (flag === "--") continue;
     else {
@@ -194,6 +219,73 @@ function isPresent(paths: SearchPath, file: string): boolean {
   });
 }
 
+/** Same name, wrong size, anywhere ComfyUI looks: someone's own copy. */
+function conflictFor(paths: SearchPath, file: string): string | null {
+  const { folder, bytes } = MODEL_SOURCES[file];
+  for (const dir of paths.get(folder) ?? []) {
+    const target = join(dir, file);
+    if (existsSync(target) && statSync(target).size !== bytes) return target;
+  }
+  return null;
+}
+
+const MODEL_EXTENSIONS = /\.(safetensors|sft|gguf|ckpt|pt|pth|bin)$/i;
+
+/**
+ * Every model file in every folder ComfyUI searches, by size, a few levels
+ * deep — ComfyUI lists files in subfolders as "sub/name", which no graph's
+ * filename matches, so they are as good as absent until linked.
+ */
+function filesBySize(paths: SearchPath): Map<number, string[]> {
+  const bySize = new Map<number, string[]>();
+  const seen = new Set<string>();
+  const walk = (dir: string, depth: number) => {
+    if (depth > 3 || seen.has(dir)) return;
+    seen.add(dir);
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) walk(full, depth + 1);
+      else if (MODEL_EXTENSIONS.test(entry.name)) {
+        try {
+          const size = statSync(full).size;
+          bySize.set(size, [...(bySize.get(size) ?? []), full]);
+        } catch {
+          // Unreadable: not ours to worry about.
+        }
+      }
+    }
+  };
+  for (const dirs of paths.values()) for (const dir of dirs) walk(dir, 0);
+  return bySize;
+}
+
+/**
+ * A file of exactly the expected size under another name. Byte-exact size is
+ * a strong match for files of hundreds of megabytes to tens of gigabytes; a
+ * name match is not required, because a renamed or moved copy is the point.
+ */
+function sameSizeElsewhere(bySize: Map<number, string[]>, file: string): string | null {
+  return bySize.get(MODEL_SOURCES[file].bytes)?.[0] ?? null;
+}
+
+/** A hard link: the same data under a second name. Fails across drives. */
+function linkInto(modelsDir: string, file: string, from: string): string | null {
+  const target = pathFor(modelsDir, file);
+  try {
+    mkdirSync(join(modelsDir, MODEL_SOURCES[file].folder), { recursive: true });
+    linkSync(from, target);
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+}
+
 async function download(modelsDir: string, file: string): Promise<void> {
   const source = MODEL_SOURCES[file];
   const target = pathFor(modelsDir, file);
@@ -242,6 +334,9 @@ async function download(modelsDir: string, file: string): Promise<void> {
         "Run this again to resume it.",
     );
   }
+  // Only reached for a conflicting file when --replace named it: theirs is
+  // kept beside the new one rather than overwritten.
+  if (existsSync(target)) renameSync(target, `${target}.old`);
   renameSync(partial, target);
 }
 
@@ -323,7 +418,27 @@ async function main() {
   }
   for (const file of args.skip) wanted.delete(file);
 
-  const missing = [...wanted].filter((f) => !isPresent(paths, f));
+  const absent = [...wanted].filter((f) => !isPresent(paths, f));
+
+  // Someone's own copy under the right name and the wrong size. Downloading
+  // would replace it (or shadow it), so it is left alone unless --replace
+  // names it.
+  const replaceAll = args.replace.includes("all");
+  const conflicts = absent
+    .map((file) => ({ file, at: conflictFor(paths, file) }))
+    .filter((c): c is { file: string; at: string } => c.at !== null)
+    .filter((c) => !replaceAll && !args.replace.includes(c.file));
+
+  // The same file under another name, or in a subfolder: linked, not fetched.
+  const bySize = args.link ? filesBySize(paths) : new Map<number, string[]>();
+  const linkable = absent
+    .filter((file) => !conflicts.some((c) => c.file === file))
+    .map((file) => ({ file, from: sameSizeElsewhere(bySize, file) }))
+    .filter((l): l is { file: string; from: string } => l.from !== null);
+
+  const missing = absent.filter(
+    (f) => !conflicts.some((c) => c.file === f) && !linkable.some((l) => l.file === f),
+  );
   const total = missing.reduce((n, f) => n + MODEL_SOURCES[f].bytes, 0);
   const free = (() => {
     const stats = statfsSync(modelsDir);
@@ -332,7 +447,15 @@ async function main() {
 
   console.log(`Models folder: ${modelsDir}`);
   for (const dir of elsewhere) console.log(`Also looking in: ${dir}`);
-  console.log(`${wanted.size - missing.length} of ${wanted.size} file(s) already present.`);
+  console.log(`${wanted.size - absent.length} of ${wanted.size} file(s) already present.`);
+  for (const { file, from } of linkable) {
+    console.log(`  link ${MODEL_SOURCES[file].folder}/${file}  ← same file, found as ${from}`);
+  }
+  for (const { file, at } of conflicts) {
+    console.log(
+      `  KEEP ${at}  — has the right name but not the right size (${gb(statSync(at).size)}, expected ${gb(MODEL_SOURCES[file].bytes)})`,
+    );
+  }
   for (const file of missing) {
     const source = MODEL_SOURCES[file];
     console.log(
@@ -357,7 +480,33 @@ async function main() {
     );
     fail();
   }
-  if (args.dryRun || missing.length === 0) return;
+  if (conflicts.length > 0) {
+    console.error(
+      `\n${conflicts.length} file(s) on this machine have the right name and the wrong size — ` +
+        "probably your own copies, an older or newer revision. Nothing has been downloaded.\n" +
+        "To use the versions this app was made with, run again with --replace " +
+        `${conflicts.map((c) => c.file).join(",")}. Each is downloaded into ${modelsDir}, which ` +
+        "ComfyUI searches first; a copy of yours in that same folder is kept as <name>.old, and " +
+        "copies elsewhere — another install's folders — are left exactly as they are.\n" +
+        "To keep yours, --skip them instead; the workflows may not run with them.",
+    );
+    fail();
+  }
+  if (args.dryRun) return;
+
+  for (const { file, from } of linkable) {
+    const problem = linkInto(modelsDir, file, from);
+    console.log(
+      problem
+        ? `  could not link ${file} (${problem}); it will be downloaded instead`
+        : `  linked ${file} → ${from}`,
+    );
+    if (problem) missing.push(file);
+  }
+  if (missing.length === 0) {
+    console.log("\nAll files in place. Restart ComfyUI if it was running, then run pnpm check:nodes.");
+    return;
+  }
 
   const failures: string[] = [];
   for (const [i, file] of missing.entries()) {

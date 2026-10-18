@@ -166,8 +166,12 @@ pnpm models:download --comfy <your ComfyUI folder> --workflows minimax-h3  # Tex
 pnpm models:download --comfy <your ComfyUI folder> --workflows all
 ```
 
-It checks free space first, skips files you already have, resumes interrupted
-downloads, and checks every file's size. The FLUX Kontext model for the Edit
+It checks free space first, skips files you already have — in this install,
+in any folder your `extra_model_paths.yaml` adds, or under another name, which
+it hard-links rather than copying — resumes interrupted downloads, and checks
+every file's size. If you have a file with the right name but a different size,
+it stops without downloading and asks you: `--replace <file>` to get the
+version these workflows use, or `--skip <file>` to keep yours. The FLUX Kontext model for the Edit
 button is gated: accept its licence on Hugging Face, then set `HF_TOKEN` to a
 read token from that account. The tables below say what each file is for.
 
@@ -223,10 +227,11 @@ Where to get them:
 | FLUX Kontext | ComfyUI's [Kontext tutorial](https://docs.comfy.org/tutorials/flux/flux-1-kontext-dev). The diffusion model is gated: accept its licence on Hugging Face first |
 | Local rewrite model | [radiatingreverberations/Gemma-4-12B-It-Uncensored-Heretic-INT8-ConvRot-ComfyUI](https://huggingface.co/radiatingreverberations/Gemma-4-12B-It-Uncensored-Heretic-INT8-ConvRot-ComfyUI) |
 
-**Is your copy named differently?** Change the `unet_name`, `clip_name` or
-`vae_name` in the matching `src/lib/workflows/*.ts` file instead of renaming —
-one line, and it survives re-downloading. The same goes for the low-VRAM int8
-build of the Music 3 DiT.
+**Is your copy named differently?** The download script finds it by size and
+links it under the expected name, so there is nothing to rename or edit. To use
+a *different* build — the low-VRAM int8 Music 3 DiT, say — change `unet_name`
+in the matching `src/lib/workflows/*.ts` file, and expect to redo it after an
+update.
 
 **Why two `ref2va` checkpoints?** Reference to Video normally runs on the int8
 model, but the int8 build fails on a soundtrack, voice or clip reference, so

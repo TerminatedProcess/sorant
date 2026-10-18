@@ -273,9 +273,17 @@ licence and creates a token (Phase 0), then sets `HF_TOKEN` in the shell that
 runs the script. The script stops and says so if it is missing;
 `--skip flux1-kontext-dev.safetensors` downloads the rest.
 
-Filenames must match exactly — they are values inside the graphs. If a model is
-already on the machine under another name, edit `unet_name` / `clip_name` /
-`vae_name` in the workflow file rather than downloading it twice.
+**Someone who already runs H3 in ComfyUI** usually downloads nothing. A file
+already in a models folder under another name, or in a subfolder, is found by
+its exact size and hard-linked under the name the graphs use: the same data
+under a second name, no copy. A file with the right name but the **wrong size**
+is someone's own copy — an older or newer revision — and the script stops
+without downloading anything and says where it is. Ask the person: `--replace
+<file>` gets the version these workflows were made with (theirs is kept as
+`<file>.old` if it is in this install's own folder, and left alone anywhere
+else), `--skip <file>` keeps theirs and accepts that the workflow may not run.
+Never edit the filenames in the workflow files to match: an update would undo
+it.
 
 **The optional sets, and when to offer them:**
 
