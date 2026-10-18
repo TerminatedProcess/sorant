@@ -3,7 +3,7 @@
  * Do not edit: run the script. The curation, and why it is these, is in
  * ../rewrite-catalog.ts.
  *
- * Synced 2026-09-30: 395 models in the catalog,
+ * Synced 2026-10-18: 476 models in the catalog,
  * 15 families declared, 28 offered.
  */
 import type { OfferedModel } from "../rewrite-catalog";
@@ -94,25 +94,25 @@ export const REWRITE_MODELS: OfferedModel[] = [
     pricePerMillion: 0.26,
   },
   {
-    id: "mistral/mistral-medium-3.5",
-    label: "Mistral Medium Latest — $7.50/M",
+    id: "mistral/mistral-large-4",
+    label: "Mistral Large 4 — $2.09/M",
     vision: true,
     free: false,
-    pricePerMillion: 7.5,
+    pricePerMillion: 2.09,
   },
   {
     id: "mistral/mistral-nemo",
-    label: "Mistral Nemo 12B — $0.17/M",
+    label: "Mistral Nemo 12B — $0.03/M",
     vision: false,
     free: false,
-    pricePerMillion: 0.17,
+    pricePerMillion: 0.03,
   },
   {
-    id: "nvidia/nemotron-nano-12b-v2-vl",
-    label: "Nvidia Nemotron Nano 12B V2 VL — $0.60/M",
+    id: "nvidia/nemotron-3.5-super-vl",
+    label: "NVIDIA Nemotron 3.5 Super VL — $0.50/M",
     vision: true,
     free: false,
-    pricePerMillion: 0.6,
+    pricePerMillion: 0.5,
   },
   {
     id: "nvidia/nemotron-3-ultra-550b-a55b",
@@ -122,6 +122,13 @@ export const REWRITE_MODELS: OfferedModel[] = [
     pricePerMillion: 2.4,
   },
   {
+    id: "nvidia/nemotron-3.5-lightning-free",
+    label: "Nemotron 3.5 Lightning Free — free",
+    vision: false,
+    free: true,
+    pricePerMillion: 0,
+  },
+  {
     id: "inclusionai/ling-3.0-flash-vl",
     label: "Ling 3.0 Flash VL — $0.22/M",
     vision: true,
@@ -129,18 +136,11 @@ export const REWRITE_MODELS: OfferedModel[] = [
     pricePerMillion: 0.22,
   },
   {
-    id: "inclusionai/ling-3.0-flash",
-    label: "Ling 3.0 Flash — $0.06/M",
+    id: "inclusionai/ling-3.1-flash",
+    label: "Ling 3.1 Flash — $0.90/M",
     vision: false,
     free: false,
-    pricePerMillion: 0.063,
-  },
-  {
-    id: "inclusionai/ling-3.1-flash",
-    label: "Ling 3.1 Flash — free",
-    vision: false,
-    free: true,
-    pricePerMillion: 0,
+    pricePerMillion: 0.9,
   },
   {
     id: "xiaomi/mimo-v2.6-flash",
@@ -151,10 +151,10 @@ export const REWRITE_MODELS: OfferedModel[] = [
   },
   {
     id: "xiaomi/mimo-v2.5-pro",
-    label: "MiMo V2.5 Pro — $0.87/M",
+    label: "MiMo V2.5 Pro — $0.61/M",
     vision: false,
     free: false,
-    pricePerMillion: 0.87,
+    pricePerMillion: 0.609,
   },
   {
     id: "tencent/hy3",
@@ -192,11 +192,11 @@ export const REWRITE_MODELS: OfferedModel[] = [
     pricePerMillion: 0.5,
   },
   {
-    id: "google/gemini-3.8-flash",
-    label: "Gemini 3.8 Flash — $3.75/M",
+    id: "google/gemini-4-argon",
+    label: "Gemini 4 Argon — $10/M",
     vision: true,
     free: false,
-    pricePerMillion: 3.75,
+    pricePerMillion: 10,
   },
   {
     id: "anthropic/claude-sonnet-5.5",
