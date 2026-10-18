@@ -65,7 +65,7 @@ It is only a front end: no model weights, no database, nothing expensive.
 | **Disk** | **43 GB** for Text to Video alone; **234.5 GB** for every workflow; **337.4 GB** with every optional extra. See below. |
 | **ComfyUI** | A recent build — tested on 0.38 — plus five custom node packs. |
 | **OS** | Windows, Linux or macOS for ComfyUI; tested on Windows, which needs [one registry fix](docs/setup.md#on-windows-raise-the-gpu-timeout-first). |
-| **For the app** | Node 20+ and pnpm. A free Vercel account to deploy it and to get a rewrite key ($5 of free credit a month). |
+| **For the app** | Node 20.9+ and pnpm. A free Vercel account to deploy it. A Tailscale account to reach your ComfyUI from Vercel. An AI Gateway key is optional: the prompt rewrite can run on your own machine instead. |
 
 Disk space by what you want to run — download only what you will use:
 
@@ -108,16 +108,22 @@ agent does that for you and checks each step as it goes.
    start to finish. This is my ComfyUI machine: install the custom node packs,
    download the models for the workflows I choose, apply any fixes this OS
    needs, lock ComfyUI with a password, verify a generation, and then help me
-   deploy the app to Vercel. Keep the runbook's progress checklist updated as
-   you go, and ask me before anything outward-facing or system-wide.
+   deploy the app to Vercel. Run the test generation yourself and fix what
+   fails. Keep the runbook's progress checklist updated as you go, and ask me
+   before anything outward-facing or system-wide. Keep a list of anything that
+   went wrong, and at the end offer to file it as a setup report on the
+   project's GitHub.
    ```
 
 3. **Answer its questions.** It asks which workflows you want and whether you
    are deploying, then installs the node packs, downloads the models, applies
-   the Windows GPU fixes, verifies a generation, makes ComfyUI reachable and
-   deploys. You only step in for what has to be yours: choosing the ComfyUI
-   password, signing in to Vercel (and Hugging Face, for the Edit button), and
-   pasting your AI Gateway key into the app.
+   the Windows GPU fixes, runs a test generation and fixes what fails, makes
+   ComfyUI reachable and deploys. You only step in for what has to be yours:
+   choosing the ComfyUI password, signing in to Vercel and Tailscale (and
+   Hugging Face, for the Edit button), and choosing where prompts are
+   rewritten: on your own machine with no account, or with an AI Gateway key.
+   At the end it offers to send a setup report to the project if anything went
+   wrong; that's up to you.
 
 It works from [`docs/agent-setup.md`](docs/agent-setup.md), a runbook written
 for agents, and most agents find it on their own:
@@ -134,9 +140,10 @@ for agents, and most agents find it on their own:
 Prefer to do it yourself? Follow the [setup guide](docs/setup.md), in order —
 most failed setups skipped a step. In short:
 
-1. **[Get ComfyUI ready](docs/setup.md#1-get-comfyui-ready)** — five node packs,
+1. **[Get ComfyUI ready](docs/setup.md#1-get-comfyui-ready)** — six node packs,
    the model files you want (`pnpm install`, then `pnpm models:download`), a password,
-   and a rewrite key on the ComfyUI machine.
+   and a choice of where prompts are rewritten: on that machine, or with an AI
+   Gateway key.
 2. **[Make ComfyUI reachable](docs/setup.md#2-make-comfyui-reachable)** — only
    if you are deploying. Tailscale Funnel is the easy way.
 3. **[Run it locally](docs/setup.md#3-run-it-locally)**:
@@ -211,6 +218,7 @@ The [full troubleshooting table](docs/setup.md#troubleshooting) has the rest.
 | `pnpm check:nodes` | Ask your ComfyUI for every pack, model and key the app needs. Needs `COMFY_URL`. |
 | `pnpm check:workflows` | Check every workflow definition against its own graph. Needs nothing but this repo. |
 | `pnpm sync:models` | Rebuild the rewrite-model list from the AI Gateway's live catalog. |
+| `pnpm smoke` | Run one short Text to Video through the app and wait for it — the end-to-end check that a setup works. `--director local` for the on-machine rewrite, `--url` for a deployment. |
 | `pnpm requirements:write` | Rewrite `machine-requirements.json`, what this version needs from the ComfyUI machine. Run after changing a workflow. |
 
 ## Known limits

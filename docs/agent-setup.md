@@ -12,84 +12,126 @@ works from.
 You are running **on the person's ComfyUI machine** — the computer with the GPU
 — with this repo cloned onto it. Your job is to configure that machine so the
 app works against it: install the custom node packs, download the models,
-apply the Windows fixes, lock ComfyUI with a password, run the app here to prove
-a generation works, then make ComfyUI reachable and deploy the app to Vercel.
-The app itself is the easy part; almost every failed setup is on the ComfyUI
-side, which is why you are on it.
+apply the Windows fixes, lock ComfyUI with a password, prove a generation works
+by running one yourself, then make ComfyUI reachable and deploy the app to
+Vercel. The app itself is the easy part; almost every failed setup is on the
+ComfyUI side, which is why you are on it.
 
-**Check that first.** Find ComfyUI on this machine (Phase 0). If it is not here
-— the repo was cloned onto a laptop and ComfyUI is elsewhere — stop and say so:
-the setup has to run on the ComfyUI machine, so they should clone the repo there
-and start you again. The one exception is a ComfyUI that is already fully set up
-and reachable; then only Phases 6 and 8 apply, with `COMFY_URL` pointing at it.
+**Check that first.** Find ComfyUI on this machine (Phase 0). If the repo was
+cloned onto a laptop and ComfyUI is on another computer, stop and say so: the
+setup has to run on the ComfyUI machine, so they should clone the repo there and
+start you again. If this machine has the GPU but no ComfyUI at all, Phase 0 says
+how to install one.
 
 **Updating an install that already works is different:** go to
 [Updating](#updating-an-existing-install). It can start on any machine with a
 clone, and it decides for itself whether it has to finish on the ComfyUI one.
 
-Work the phases in order. Phase 5 has to come before Phase 7 in particular: a
-ComfyUI made reachable before its password is set can be claimed by whoever
-finds it first.
+Work the phases in order. Phase 5 (the password) always comes before Phase 6
+(making ComfyUI reachable): a ComfyUI made reachable before its password is set
+can be claimed by whoever finds it first.
 
 ## Ground rules
 
 - **Do the work.** Install, download, edit config, run checks. Do not hand the
   person a list of things you could have done yourself.
+- **Be prescriptive.** Assume the person is not technical. Where this runbook
+  gives a default — a port, a name, a folder, an order — use it and say in one
+  line what you did; do not offer a menu of options. Ask only what is theirs to
+  decide: which workflows, local or deployed, their accounts and passwords,
+  disk space and money, and anything system-wide.
+- **Run the checks and the test generation yourself.** `pnpm check:nodes` and
+  `pnpm smoke` tell you what is wrong in words you can act on. When something
+  fails, read the error, fix it, and run it again before involving the person.
+  Bring them in for what only they can do, not to report an error you could
+  have fixed.
 - **Ask before** anything that changes the machine beyond ComfyUI's own folder
-  (installing system software, the registry), anything that restarts ComfyUI
-  while it may be rendering, and anything outward-facing: Tailscale Funnel,
-  Vercel projects, environment variables, deploys.
+  and this repo (installing system software, the registry, PATH), anything that
+  restarts ComfyUI while it may be rendering, and anything outward-facing:
+  Tailscale Funnel, Vercel projects, environment variables, deploys, filing an
+  issue.
 - **Never handle their secrets in chat.** The ComfyUI password, the AI Gateway
   key and the Hugging Face token are typed by the person — into a browser, the
   app, or their own shell. You may read the ComfyUI token from its file and
   write it into `.env.local` or Vercel, but never print it.
+- **Keep a running list of what went wrong.** Every error, every place this
+  runbook was wrong or silent, every workaround. Phase 9 offers to send it to
+  the project so the next setup goes better.
 - **Tick gates from output, not from what you are told.** Copy this checklist
   into your reply and keep it current:
 
 ```
 Setup progress:
-- [ ] 0 Survey          ComfyUI found; GPU, RAM, disk, Python, version known;
-                        workflows chosen; local-only or deploy decided
+- [ ] 0 Survey          ComfyUI found (or installed); GPU, RAM, disk, Node,
+                        version known; workflows chosen; local or deploy
+                        decided; accounts started
 - [ ] 1 App             gate: `pnpm install` succeeds
-- [ ] 2 Node packs      gate: all five import cleanly after a restart
+- [ ] 2 Node packs      gate: no IMPORT FAILED in the startup log, Python
+                        headers present (Windows portable)
 - [ ] 3 Models          gate: `pnpm models:download` exits 0 for the chosen set
-- [ ] 4 Windows         TDR raised, --vram-headroom 3 (Windows only)
+- [ ] 4 Windows         TDR values set, reboot done (Windows only)
 - [ ] 5 Password        gate: ComfyUI-Login on, password set, token in .env.local
-- [ ] 6 Local verify    gate: `pnpm check:nodes` exits 0, gateway key present,
-                        one Text to Video run finished
-- [ ] 7 Reachability    (deploy only, ask first) gate: public URL refuses
-                        without the token and answers with it
-- [ ] 8 Deploy          (ask first) gate: deployed pill Ready, one run finished
+- [ ] 6 Reachability    (deploy only, ask first) Funnel on; gate checked in 8
+- [ ] 7 Local verify    gate: `pnpm check:nodes` exits 0, a prompt rewrite is
+                        set up, `pnpm smoke` passes
+- [ ] 8 Deploy          (ask first) gate: `pnpm smoke --url <deployment>` passes
+- [ ] 9 Report          (optional, ask first) issue filed or declined
 ```
+
+**On Windows**, a few shell habits save time:
+
+- In PowerShell, quote comma-separated lists (`'a,b'`): unquoted, `a,b` is an
+  array.
+- Write files with LF line endings (or let the scripts read CRLF — they do now).
+- The Vercel CLI prints hints on stderr, which PowerShell turns into a
+  `NativeCommandError` even when the command worked. Judge Vercel commands by
+  their output, not their exit code.
+- `nslookup` and `Resolve-DnsName` are answered by Tailscale locally on a
+  machine running it, even when you name a public server. See Phase 6.
 
 ## Phase 0 — Survey the machine
 
 Find out, by looking rather than asking where you can:
 
-- **Where ComfyUI is.** The folder containing `main.py`, `custom_nodes/` and
-  `models/`. Common places: a `ComfyUI_windows_portable\ComfyUI` folder, a git
-  clone, or the ComfyUI Desktop app's data folder. If several, ask which one
-  runs.
-- **Which Python runs it.** Packages must go into *that* environment, never the
-  system Python. Portable: `python_embeded\python.exe` next to the `ComfyUI`
-  folder. A clone: its `venv`/`.venv`. Desktop: the `.venv` in its data folder.
-  Read their launch script (`run_nvidia_gpu.bat`, a shell script, a systemd
-  unit) to be sure — you will edit it in Phase 4 too.
+- **Every ComfyUI install on this machine.** Look for a `main.py` with a
+  `custom_nodes/` folder beside it: a `ComfyUI_windows_portable\ComfyUI` folder,
+  a git clone, or the ComfyUI Desktop app's data folder. For each one, note its
+  version (`comfyui_version.py`), its Python (portable: `python_embeded\python.exe`
+  next to the `ComfyUI` folder; a clone: its `venv`/`.venv`; Desktop: the `.venv`
+  in its data folder), the port in its launch script (`--port`, default 8188),
+  whether `login/PASSWORD` exists, its `extra_model_paths.yaml`, and whether its
+  `models` folders are links into another install (`Get-ChildItem models |
+  select Name,LinkType,Target` on Windows, `ls -l` elsewhere). One install: use
+  it. Several: say what each is in a line and ask which to set up.
+- **Its launch script** (`run_nvidia_gpu.bat`, a shell script, a systemd unit) —
+  you will edit it in Phase 2.
 - **Whether it is running**, and its version: `curl -s
-  http://127.0.0.1:8188/system_stats` reports the ComfyUI version, Python,
+  http://127.0.0.1:<its port>/system_stats` reports the ComfyUI version, Python,
   PyTorch, OS, RAM and GPU. Not running is fine; a ComfyUI with ComfyUI-Login
   already on answers with a redirect to `/login`.
-- **Where models go.** `models/` under ComfyUI, unless an
-  `extra_model_paths.yaml` sends them elsewhere — read it if it exists.
 - **GPU and drive**: `nvidia-smi`, and free space on the models drive.
-- **Node 20+, pnpm and git.** Install pnpm with `npm i -g pnpm` if missing.
+- **Node 20.9+, pnpm and git.** `node -v` below 20.9 needs a newer Node, which is
+  system software: ask, then on Windows `winget install OpenJS.NodeJS.LTS` (or,
+  with nvm-windows, `nvm install <full version> 64` — not `nvm install 22`,
+  which can resolve to an arm64 build — then `nvm use <version>` from an
+  Administrator terminal). On Linux, the person's package manager or nvm. Git
+  for Windows: `winget install Git.Git`. Then `npm i -g pnpm`.
 
-**Hardware.** Tested on Windows, ComfyUI 0.38, an RTX 3090 (24 GB) and 64 GB of
-RAM. ComfyUI's Dynamic VRAM (NVIDIA, Windows and Linux, not WSL) streams weights
-from RAM, so VRAM limits speed and frame size rather than whether a model loads:
-16 GB should run the default 0.5 MP frame size; 12 GB has a community report of
-864×480, 5 s with Turbo on a 3060. Below 12 GB, AMD or Apple: say it is
-unsupported. The full table is in [`setup.md`](setup.md#how-much-vram).
+**No ComfyUI on this machine, but it has the GPU:** offer to install it. On
+Windows, the portable build — the latest NVIDIA release from
+<https://github.com/comfyanonymous/ComfyUI/releases>, extracted to a folder with
+room for the models (a drive with 150 GB or more free if they want everything).
+On Linux, `git clone https://github.com/comfyanonymous/ComfyUI`, a venv, and its
+`requirements.txt` with the PyTorch build for their CUDA. Run it once to prove it
+starts, then carry on.
+
+**Hardware.** Tested on Windows, ComfyUI 0.38 and later, an RTX 3090 (24 GB) and
+64 GB of RAM. ComfyUI's Dynamic VRAM (NVIDIA, Windows and Linux, not WSL)
+streams weights from RAM, so VRAM limits speed and frame size rather than
+whether a model loads: 16 GB should run the default 0.5 MP frame size; 12 GB has
+a community report of 864×480, 5 s with Turbo on a 3060. Below 12 GB, AMD or
+Apple: say it is unsupported. The full table is in
+[`setup.md`](setup.md#how-much-vram).
 
 A ComfyUI older than 0.38 should be updated first — the H3, SeedVR2 and FLUX
 Kontext nodes are built in, but only on a recent build, and the local director
@@ -97,13 +139,29 @@ needs 0.38's `TextGenerate`. Ask before updating a working install.
 
 **Then ask two things:**
 
-1. **Which workflows they want.** Run `pnpm models:download --comfy <ComfyUI
-   folder>` after Phase 1 to show what each costs on disk and what is already
-   there. Text to Video, Image to Video and Extend share one 43 GB set;
-   Reference to Video and Remix add 21 GB, and 118 GB more for a song, voice or
-   clip as a reference; Music 14 GB; Upscale 9 GB; the Edit button 29 GB. A
-   narrower first pass that works beats a complete one that takes a day.
-2. **Local only, or deployed to Vercel.** Local only skips Phases 7 and 8.
+1. **Which workflows they want.** Text to Video, Image to Video and Extend share
+   one 43 GB set; Reference to Video and Remix add 21 GB, and 118 GB more for a
+   song, voice or clip as a reference; Music 14 GB; Upscale 9 GB; the Edit button
+   29 GB. Phase 3 checks these against what is already on disk. Recommend
+   starting with Text to Video if disk or time is short: a narrower first pass
+   that works beats a complete one that takes a day.
+2. **Local only, or deployed to Vercel** so they can use it from their phone or
+   anywhere. Local only skips Phases 6 and 8.
+
+**Start the accounts now**, so they are ready by the time they are needed and
+the person can do them while downloads run. Tell them which apply:
+
+- **Deploying:** a Vercel account (<https://vercel.com/signup>), and a Tailscale
+  account (<https://login.tailscale.com/start>). In the Tailscale admin console
+  they turn on **DNS → MagicDNS** and **DNS → HTTPS Certificates**, and add to
+  **Access Controls**:
+  `"nodeAttrs": [{ "target": ["autogroup:member"], "attr": ["funnel"] }]`.
+  Installing Tailscale on this machine can wait for Phase 6.
+- **The Edit button:** a Hugging Face account, the FLUX Kontext licence accepted
+  at <https://huggingface.co/black-forest-labs/FLUX.1-Kontext-dev>, and a read
+  token from <https://huggingface.co/settings/tokens> (Phase 3).
+- **Nothing else is required.** The prompt rewrite can run on this machine with
+  no account (Phase 7); an AI Gateway key is optional.
 
 ## Phase 1 — The app
 
@@ -119,7 +177,7 @@ resolve and say so.
 Clone each into ComfyUI's `custom_nodes/` and install its requirements with
 ComfyUI's own Python (`<python> -m pip install -r requirements.txt` — on the
 portable build, `python_embeded\python.exe -s -m pip ...`). Skip any already
-present; `git pull` updates one.
+present; `git pull` updates one. Some packs have no `requirements.txt`.
 
 | Pack | Repository | Needed by |
 | --- | --- | --- |
@@ -130,25 +188,55 @@ present; `git pull` updates one.
 | Spectrum | `https://github.com/xmarre/ComfyUI-Spectrum-MiniMax-H3` | the Spectrum switch |
 | ComfyUI-Login | `https://github.com/liusida/ComfyUI-Login` | locking ComfyUI — **clone it, but read Phase 5 before restarting** |
 
-Treat the first five as required: Turbo, SageAttention and Spectrum all start
-switched on, so a video run fails without their packs. A pack that genuinely
-will not install can be worked around by turning its switch off in the app's
-settings panel — say which.
+All six are required: Turbo, SageAttention and Spectrum all start switched on,
+so a video run fails without their packs, and ComfyUI-Login is the lock. A pack
+that genuinely will not install can be worked around by turning its switch off
+in the app's settings panel — say which.
 
 **SageAttention also needs the `sageattention` Python package** in ComfyUI's
-environment; the node patches in a kernel rather than shipping one. Try `<python>
--m pip install sageattention` (on Windows it also needs `triton-windows`), then
-check with `<python> -c "import sageattention"`. If it will not install
-cleanly against their PyTorch, stop there — do not reinstall PyTorch — and tell
-them to switch SageAttention off. `check:nodes` cannot see this package; it only
-sees the node.
+environment; the node patches in a kernel rather than shipping one. Install
+`<python> -m pip install sageattention` (on Windows also `triton-windows`, whose
+version has to match PyTorch — pip normally resolves it; 3.8 for torch 2.14,
+3.7 for 2.13). If it will not install cleanly against their PyTorch, stop there
+— do not reinstall PyTorch — and tell them to switch SageAttention off.
 
-Restart ComfyUI once all of them, ComfyUI-Login included, are in (ask first if
-it may be rendering), and read the startup log: each pack should load without
-an import error. The gateway pack logs `[VercelAIGateway] v1.0.0 loaded 5
-nodes`. ComfyUI-Login will start locking the server on this restart, so go
-straight on to Phase 5's password step if you are doing it now — or leave
-ComfyUI-Login out of `custom_nodes/` until Phase 5.
+**On the Windows portable build, give its Python its headers.** Triton compiles
+a small helper against the embedded Python on the first SageAttention run, and
+the portable `python_embeded` ships without `Include\` and `libs\`. Without them
+`import sageattention` succeeds and the first generation fails with a `tcc.exe
+… returned non-zero exit status 1` error. Check for
+`python_embeded\Include\Python.h` and `python_embeded\libs\python3XX.lib`; if
+either is missing, take both folders from the official NuGet package of
+**exactly** the same Python version, which needs no installer:
+
+```powershell
+$v = & .\python_embeded\python.exe -c "import platform; print(platform.python_version())"
+Invoke-WebRequest "https://www.nuget.org/api/v2/package/python/$v" -OutFile "$env:TEMP\python-$v.zip"
+Expand-Archive "$env:TEMP\python-$v.zip" "$env:TEMP\python-$v" -Force
+Copy-Item "$env:TEMP\python-$v\tools\include" .\python_embeded\Include -Recurse -Force
+Copy-Item "$env:TEMP\python-$v\tools\libs" .\python_embeded\libs -Recurse -Force
+```
+
+If NuGet has no package for that exact version, copy the two folders from
+another install of the same version, and say so. `pnpm smoke` in Phase 7 is
+what proves SageAttention actually works; `check:nodes` only sees the node.
+
+**Edit the launch line once, now, before the restart.** Add `--vram-headroom 3`
+(keeps Dynamic VRAM from paging into a full card on Windows,
+Comfy-Org/ComfyUI#15360, at no cost in speed) and `--max-upload-size 100` (the
+app's upload ceiling). Do not add `--listen`: Funnel connects to localhost, and
+`--listen` exposes ComfyUI to the whole network. Do not add
+`--enable-cors-header` with a specific origin (see troubleshooting). Keep the
+`--port` it has.
+
+**Restart ComfyUI** (ask first if it may be rendering). Start it from its launch
+script in a window of its own — on Windows `start "" <script>.bat` — so it keeps
+running after your session ends; tell the person that is how to start it after
+a reboot. Read the startup log: the gate is no `IMPORT FAILED` line, and every
+pack listed under the import times (a long path can wrap onto the next line).
+ComfyUI-Login starts locking the server on this restart, so go straight on to
+Phase 5's password step if you are doing it now — or leave ComfyUI-Login out of
+`custom_nodes/` until Phase 5.
 
 ## Phase 3 — Models
 
@@ -158,24 +246,32 @@ pnpm models:download --comfy <ComfyUI folder> --workflows minimax-h3,minimax-mus
 pnpm models:download --comfy <ComfyUI folder> --workflows minimax-h3,minimax-music3
 ```
 
-Use `--models-dir <path>` instead of `--comfy` when `extra_model_paths.yaml`
-moves them. `--workflows all` takes everything required; `--extras` adds
-optional sets (`local-director`, `vhs-tape`, `vhs-tape-lighter`, `upscale-3b`,
-`film`); `--skip <file>` leaves one out — the usual one is the bf16 pair,
+The script counts a file as present wherever ComfyUI would find it: the
+install's own `models/`, every folder its `extra_model_paths.yaml` adds, and
+any further `--models-dir <path>`. New files go into the install's own
+`models/`. `--workflows all` takes everything required; `--extras` adds optional
+sets (`local-director`, `vhs-tape`, `vhs-tape-lighter`, `upscale-3b`, `film`);
+`--skip <file>` leaves one out — the usual one is the bf16 pair,
 `minimax_h3_ref2va_bf16.safetensors,qwen3vl_32b_minimax_h3_bf16.safetensors`, if
-they will use only pictures as references.
+they will use only pictures as references. Lists take commas or spaces.
+
+**Another ComfyUI on this machine already has the files?** Do not download them
+twice. Add that install's models folder to this one's `extra_model_paths.yaml`
+— a section with `base_path:` set to it and a line per folder
+(`diffusion_models: diffusion_models/`, `text_encoders: text_encoders/`,
+`vae: vae/`, `loras: loras/`, and so on) — and run the script again; it reads
+the file.
 
 The script works out which files each workflow needs from the graphs
-themselves, checks free space before starting, skips files already in place at
-the right size, resumes partial downloads, and verifies each file's size. It
-exits 0 when everything chosen is in place, so re-run it until it does. These
-are tens of gigabytes: run it in the background and carry on with Phase 4.
+themselves, checks free space before starting, resumes partial downloads, and
+verifies each file's size. It exits 0 when everything chosen is in place, so
+re-run it until it does. These are tens of gigabytes — hours on a home
+connection: run it in the background and carry on with Phase 4.
 
-**The Edit button's FLUX Kontext model is gated.** The person has to accept the
-licence at <https://huggingface.co/black-forest-labs/FLUX.1-Kontext-dev> while
-signed in, create a read token at <https://huggingface.co/settings/tokens>, and
-set `HF_TOKEN` in the shell that runs the script. The script stops and says so
-if it is missing; `--skip flux1-kontext-dev.safetensors` downloads the rest.
+**The Edit button's FLUX Kontext model is gated.** The person accepts the
+licence and creates a token (Phase 0), then sets `HF_TOKEN` in the shell that
+runs the script. The script stops and says so if it is missing;
+`--skip flux1-kontext-dev.safetensors` downloads the rest.
 
 Filenames must match exactly — they are values inside the graphs. If a model is
 already on the machine under another name, edit `unet_name` / `clip_name` /
@@ -183,10 +279,10 @@ already on the machine under another name, edit `unet_name` / `clip_name` /
 
 **The optional sets, and when to offer them:**
 
-- **`local-director`** — rewrites prompts with an uncensored Gemma through
-  ComfyUI's built-in `TextGenerate`, chosen from the app's key button. No key
-  and nothing refused, about 20 seconds slower a run. Offer it when refusals are
-  what fails their runs. The app finds the file by what it is, not its name.
+- **`local-director`** (12 GB) — rewrites prompts with an uncensored Gemma
+  through ComfyUI's built-in `TextGenerate`. No account, no key and nothing
+  refused, about 20 seconds slower a run. **Offer it by default**: it is the
+  rewrite that needs nothing else (Phase 7).
 - **`vhs-tape` / `vhs-tape-lighter`** — the VHS tape content LoRA. H3 LoRAs
   break on the int8 *rotated* base the graphs ship on (warped faces, melting
   limbs, no error), so the switch swaps to a non-rotated checkpoint while on:
@@ -200,29 +296,35 @@ changing `unet_name` in `minimax-music3.ts`.
 
 ## Phase 4 — Windows only
 
-**Raise the GPU timeout before the first H3 run.** H3 issues single GPU
+**Set the GPU timeout before the first H3 run.** H3 issues single GPU
 operations long enough to cross Windows' two-second TDR limit. When the driver
 reset succeeds, ComfyUI dies and Display event 4101 is logged; when it fails,
 the machine blue-screens and restarts with nothing in the log. On a 3090 it was
-about a third of runs. These need an elevated prompt and a reboot — ask first,
-run them if you are elevated, otherwise give them the two lines to paste into an
-Administrator terminal:
+about a third of runs. Read the current values first:
+
+```
+reg query "HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" /v TdrDelay
+reg query "HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" /v TdrDdiDelay
+```
+
+Both 60 (`0x3c`): done. Otherwise they need an elevated prompt and a reboot —
+ask first, run them if you are elevated, otherwise give the person these two
+lines to paste into an Administrator terminal:
 
 ```
 reg add "HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" /v TdrDelay /t REG_DWORD /d 60 /f
 reg add "HKLM\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" /v TdrDdiDelay /t REG_DWORD /d 60 /f
 ```
 
-The reboot can wait until the downloads finish.
-
-**Add `--vram-headroom 3` to ComfyUI's launch line** (the `.bat` or script you
-found in Phase 0). It keeps Dynamic VRAM from paging into a full card, a
-separate Windows failure (Comfy-Org/ComfyUI#15360), at no cost in speed.
+**The reboot has to happen before Phase 7's test generation** — that first H3
+run is the one most likely to reset the machine. Time it for when the downloads
+are done, or before them if there are none, and remind the person to start
+ComfyUI from its launch script afterwards.
 
 ## Phase 5 — Lock ComfyUI with a password
 
 Do this even for local-only use if the machine is on a shared network, and
-always before Phase 7.
+always before Phase 6.
 
 **There is no default password.** ComfyUI-Login has none until someone sets
 one, and whoever first opens its login page chooses it. Until then it is not a
@@ -232,165 +334,249 @@ restart that enables it, and always before ComfyUI is reachable from the
 internet.
 
 1. With ComfyUI-Login in `custom_nodes/`, restart ComfyUI.
-2. Have the person open <http://127.0.0.1:8188> in a browser **on this
+2. Have the person open `http://127.0.0.1:<port>` — give them the exact
+   address, with the port from the launch script — in a browser **on this
    machine**. The first visit shows a first-time page: they choose a username
    and password. That password is what they will type to use ComfyUI's own web
    interface from now on. Do not choose it for them.
 3. The API token is the bcrypt hash of that password, stored as the **first
    line of `<ComfyUI folder>/login/PASSWORD`** (the console also prints it as
    `For direct API calls, use token=$2b$...`). Read it from the file and write
-   it into `.env.local` (Phase 6) — without printing it.
+   it into `.env.local` (Phase 7) — without printing it.
 
 **Forgotten password, or a fresh start:** stop ComfyUI, delete
 `login/PASSWORD`, restart, and set a new one. The token changes with it, so
 update `.env.local` and Vercel.
 
-## Phase 6 — Configure and verify locally
+**Deploying?** Go to Phase 6 now, then come back to Phase 7. A new Funnel
+address takes a few minutes to reach public DNS, and Phase 7 covers the wait.
 
-```bash
-cp .env.example .env.local
-```
-
-- `COMFY_URL=http://127.0.0.1:8188` (or the port their launch line sets).
-- `COMFY_API_TOKEN=` the token from Phase 5, with **every `$` escaped as `\$`**
-  — dotenv reads `$2b` as a variable and silently blanks it:
-  `COMFY_API_TOKEN=\$2b\$12\$AbCd...`
-- `APP_ACCESS_TOKEN=` a new random value (`openssl rand -hex 32`, or
-  `node -e "console.log(crypto.randomBytes(32).toString('hex'))"`). This is
-  **the app's password** — what they type at the deployed app's gate. Tell them
-  to keep it in a password manager, and where it is. Optional for local use,
-  required before deploying.
-
-Then:
-
-```bash
-pnpm check:nodes
-```
-
-It asks ComfyUI for every node class, model file and dropdown option the
-workflows use, names the pack behind each missing class, and reports whether the
-gateway pack can see a key. Exit **0**: everything required is there. **1**:
-something is missing — fix it from its output, mapping classes to packs in
-Phase 2. **2**: it could not ask at all — ComfyUI not running, wrong
-`COMFY_URL`, or the token rejected (check the `\$` escaping first). Optional
-files reported absent do not fail it.
-
-**The gateway key.** Every generating workflow rewrites the prompt through a
-language model on the [Vercel AI Gateway](https://vercel.com/docs/ai-gateway),
-called by the gateway pack on this machine. `check:nodes` will report no key
-until there is one. The person creates it at
-[vercel.com/dashboard](https://vercel.com/dashboard) → **AI Gateway** → **API
-Keys** ($5 of free credit a month) and enters it themselves, one of two ways:
-
-- **The key button in the app's header**, once `pnpm dev` is running. It writes
-  `custom_nodes/comfyui-vercel-ai-gateway/config.json` on this machine and is
-  never stored by the app.
-- **`AI_GATEWAY_API_KEY` in ComfyUI's launch environment** — you can add the
-  line to the launch script with a placeholder for them to fill in. It wins over
-  the file.
-
-Without a key at all, the **Send my prompt as written** switch beside each
-prompt runs without the rewrite — mention it, but not as the normal way to run:
-the rewrite is most of what makes a one-line prompt work. The local director
-(Phase 3 extras) is the key-free alternative.
-
-Now run the app:
-
-```bash
-pnpm check:workflows   # the app's own definitions; needs no ComfyUI
-pnpm dev
-curl -s localhost:3000/api/health -H "x-app-token: <APP_ACCESS_TOKEN>"
-# want: "reachable":true,"authorized":true
-```
-
-Have the person open <http://localhost:3000>, confirm the pill reads **Ready**,
-and run one **Text to Video** generation — it needs no upload, and it proves the
-models load and the key works, which no check can. Then one of each other
-workflow they chose, if they have the time.
-
-## Phase 7 — Reachability (deploying only)
+## Phase 6 — Reachability (deploying only)
 
 A Vercel function is not on their network, so ComfyUI must be reachable from
-the internet. Ask before doing any of this.
+the internet. Ask before doing this, then do it without further questions.
 
-### Tailscale Funnel — recommended
+**Use Tailscale Funnel**: real HTTPS, no open router ports, and it survives a
+changing home IP.
 
-Real HTTPS, no open router ports, survives a changing home IP. On this machine:
-
-1. Install Tailscale if it is not (`tailscale version`); the person signs in.
-2. The person, in the Tailscale admin console: **DNS** → enable **MagicDNS** and
-   **HTTPS Certificates**; **Access Controls** → add
-   `"nodeAttrs": [{ "target": ["autogroup:member"], "attr": ["funnel"] }]`.
-3. You: `tailscale funnel --bg --https=443 localhost:8188` (ComfyUI's *local*
-   port), then `tailscale funnel status` for the public URL —
-   `https://<machine>.<tailnet>.ts.net`. That is the deployed `COMFY_URL`.
+1. **Install Tailscale** if `tailscale version` fails — on Windows `winget
+   install Tailscale.Tailscale` (needs admin; ask), on Linux
+   `curl -fsSL https://tailscale.com/install.sh | sh`. Run `tailscale up` and
+   give the person the sign-in link it prints.
+2. **Check the admin console steps from Phase 0 are done** (MagicDNS, HTTPS
+   Certificates, the `funnel` node attribute). If not, give the person the three
+   steps again.
+3. **Pick the port without asking:** `tailscale funnel status` and
+   `tailscale serve status` show what is in use. Use 443 if it is free, else
+   8443, else 10000 — the only ports Funnel serves — and never replace an
+   existing entry.
+4. **Turn it on:** `tailscale funnel --bg --https=<port> localhost:<ComfyUI's
+   port>`. On a tailnet where Funnel has never been used, it prints a link to
+   enable it instead; give the person the link, then run it again.
+5. `tailscale funnel status` shows the address: `https://<machine>.<tailnet>.ts.net`,
+   plus `:<port>` unless the port is 443. That is the deployed `COMFY_URL`.
 
 Funnel is public, not tailnet-private — that is the point, since Vercel is not
 on their tailnet — so the ComfyUI-Login token is what guards it. Tailscale
 *Serve* is the private variant and will not work.
 
-### Dynamic DNS and a port forward
-
-If Tailscale is unwelcome: a DDNS hostname (DuckDNS, No-IP, Afraid.org, or the
-router's own) plus a router port forward to 8188; `COMFY_URL` is
-`http://<host>:<port>`. The person does the router side. Say plainly that a
-forwarded port is not encryption — the token and prompts cross the internet in
-cleartext, so it should be rotated if it ever has — and that ComfyUI is now on
-the open internet. A static public IP works the same way, only if the ISP
-guarantees it.
-
-**Gate:** from outside, the public URL must refuse without the token and answer
-with it:
+**Checking it from this machine:** do not trust `nslookup`, `dig` or
+`Resolve-DnsName` here — Tailscale answers `*.ts.net` lookups locally with the
+private address, even when you ask a public resolver, so a loop waiting for the
+public address never ends. Ask DNS-over-HTTPS instead, and connect to the
+address it gives:
 
 ```bash
-curl -s -o /dev/null -w "%{http_code}\n" <public URL>/system_stats                          # 302 or 401
-curl -s -o /dev/null -w "%{http_code}\n" <public URL>/system_stats -H "Authorization: Bearer <token>"  # 200
+curl -s "https://cloudflare-dns.com/dns-query?name=<host>&type=A" -H "accept: application/dns-json"
+curl -s -o /dev/null -w "%{http_code}\n" --resolve <host>:<port>:<ingress ip> https://<host>:<port>/system_stats       # 401 or 302
+curl -s -o /dev/null -w "%{http_code}\n" --resolve <host>:<port>:<ingress ip> https://<host>:<port>/system_stats -H "Authorization: Bearer <token>"  # 200
 ```
+
+No `Answer` yet is normal for the first few minutes: go on with Phase 7 and
+check again before Phase 8. Phase 8's deployed check is the real gate.
+
+**If they will not use Tailscale:** a DDNS hostname (DuckDNS, No-IP, Afraid.org,
+or the router's own) plus a router port forward to ComfyUI's port; `COMFY_URL`
+is `http://<host>:<port>`. The person does the router side. Say plainly that a
+forwarded port is not encryption — the token and prompts cross the internet in
+cleartext, and the app will show a warning saying so — and that ComfyUI is now
+on the open internet.
+
+## Phase 7 — Configure and verify locally
+
+```bash
+cp .env.example .env.local
+```
+
+- `COMFY_URL=http://127.0.0.1:<port>` — the port from the launch script.
+- `COMFY_API_TOKEN=` the token from Phase 5, with **every `$` escaped as `\$`**
+  — dotenv reads `$2b` as a variable and silently blanks it:
+  `COMFY_API_TOKEN=\$2b\$12\$AbCd...`
+- `APP_ACCESS_TOKEN=` a new random value (`openssl rand -hex 32`, or
+  `node -e "console.log(crypto.randomBytes(32).toString('hex'))"`). This is
+  **the app's password** — what they type at the deployed app's gate. Tell the
+  person, in these words or close to them: *"Your app password is the
+  `APP_ACCESS_TOKEN` line in `.env.local` in this folder. I made a long random
+  one. If you'd like something easier to type, change that line now and I'll
+  use yours when we deploy. Changing it later means updating it in Vercel too —
+  any coding agent can do that for you."*
+
+**Choose where prompts are rewritten.** Every generating workflow turns the
+person's one line into the detailed format MiniMax H3 was trained on, and
+something has to do the rewriting. Offer both, and recommend the first unless
+they already have a Vercel account they want to use:
+
+1. **On this machine — no account, recommended to start.** The `local-director`
+   set (12 GB) from Phase 3:
+   `pnpm models:download --comfy <ComfyUI folder> --extras local-director`.
+   In the app, the person clicks the **Gateway** button in the header and sets
+   *Where is the prompt rewritten?* to **This ComfyUI machine**. The choice is
+   remembered per browser, so they set it once on each device they use. It is
+   uncensored and about 20 seconds slower a run.
+2. **The Vercel AI Gateway — a key.** Hosted models, faster, each with a content
+   policy. The person creates a key at
+   [vercel.com/dashboard](https://vercel.com/dashboard) → **AI Gateway** → **API
+   Keys** ($5 of free credit a month) and enters it themselves, through the key
+   button in the app's header (it writes
+   `custom_nodes/comfyui-vercel-ai-gateway/config.json` on whichever ComfyUI
+   `COMFY_URL` points at, and is never stored by the app) or as
+   `AI_GATEWAY_API_KEY` in ComfyUI's launch environment. Re-run
+   `pnpm check:nodes` afterwards: its `NO KEY` line should be gone.
+
+They can have both and switch at any time. Without either, the **Send my prompt
+as written** switch beside each prompt skips the rewrite — mention it, but not
+as the normal way to run.
+
+**Then check, start the app, and run the test generation yourself:**
+
+```bash
+pnpm check:nodes            # exit 0: every class and required model is there
+pnpm check:workflows        # the app's own definitions; needs no ComfyUI
+pnpm dev                    # in the background
+pnpm smoke --director local # or --director gateway, matching their choice
+```
+
+`check:nodes` asks ComfyUI for every node class, model file and dropdown option
+the workflows use, names the pack behind each missing class, and reports whether
+the gateway pack can see a key. Exit **0**: everything required is there. **1**:
+something is missing — fix it from its output, mapping classes to packs in
+Phase 2. **2**: it could not ask at all — ComfyUI not running, wrong
+`COMFY_URL`, or the token rejected (check the `\$` escaping first).
+
+`pnpm smoke` queues a five-second Text to Video through the app with the
+switches a new user gets (Turbo, SageAttention, Spectrum), waits, and prints
+ComfyUI's own error if it fails. **It is the gate.** On failure, fix the cause
+from the error and the troubleshooting table, and run it again; the first run
+on a new machine is where SageAttention's headers (Phase 2) and the GPU timeout
+(Phase 4) show up. The first run also loads every model from disk, so allow
+several minutes.
+
+Once it passes, have the person open <http://localhost:3000>, enter the app
+password, see the clip in the history, and try one generation of their own.
 
 ## Phase 8 — Deploy to Vercel
 
-Only once a local generation has succeeded. Ask before each outward step.
+Only once `pnpm smoke` has passed. Ask before deploying, then do the steps
+without further questions.
 
 ```bash
-pnpm i -g vercel     # if needed
-vercel login         # the person signs in, in their browser
-vercel link
+npm i -g vercel      # if needed — npm, not pnpm: pnpm's global bin is often not on PATH
+vercel login         # run it in the background; give the person the link it prints
 ```
 
-Environment variables, Production scope. **Values here are literal — no `$`
-escaping.** `vercel env add` reads the value from stdin; pipe it in rather than
-pasting it into chat, and never pass `NAME=value` as an argument:
+**The project.** Name it `sorant` unless they want another name. Check the name
+is free first — `vercel project inspect <name>` fails with `project_not_found`
+when it is — and if it is taken, use `sorant-<their username>`. Then:
 
 ```bash
-vercel env add COMFY_URL production          # the PUBLIC url from Phase 7, never localhost
-vercel env add COMFY_API_TOKEN production    # the unescaped token
-vercel env add APP_ACCESS_TOKEN production
+vercel link --yes --project <name>
 ```
+
+Linking may report `Failed to link <repo>. You need to add a Login Connection
+to your GitHub account first.` That is harmless — the project is created and
+linked, and deploys go through the CLI. Linking also rewrites `.env.local` with
+the project's Development variables and a `VERCEL_OIDC_TOKEN`; afterwards,
+`pnpm check:nodes` exiting 0 is the check that `COMFY_URL` and
+`COMFY_API_TOKEN` there are still right.
+
+**Environment variables**, Production scope. **Values here are literal — no `$`
+escaping.** `vercel env add` reads the value from stdin; pipe it in without a
+trailing newline (in bash, `printf '%s' "$VALUE" | vercel env add NAME
+production`; from PowerShell, run that through Git Bash), never paste it into
+chat, and never pass `NAME=value` as an argument:
+
+- `COMFY_URL` — the **public** address from Phase 6, never localhost
+- `COMFY_API_TOKEN` — the unescaped token
+- `APP_ACCESS_TOKEN` — whatever is in `.env.local` now, including a value the
+  person changed
 
 **A private Blob store, for uploads over 4 MB.** Vercel refuses request bodies
 over 4.5 MB, so larger uploads go from the browser to Blob and are copied to
-ComfyUI from there. Without one, small uploads work and large ones fail.
+ComfyUI from there. Name it after the project:
 
 ```bash
-vercel blob create-store sorant-uploads --access private --yes
-vercel deploy --prod
+vercel blob create-store <name>-uploads --access private --yes
+vercel deploy --prod --yes
 ```
 
-`create-store` adds `BLOB_READ_WRITE_TOKEN` to every environment and also
-rewrites `.env.local` with the project's Development variables — check that
-`COMFY_URL` and `COMFY_API_TOKEN` there are still right afterwards. The upload
-ceiling is 100 MB, matching ComfyUI's `--max-upload-size 100`; raise
-`LARGE_UPLOAD_MAX_BYTES` in `src/lib/upload-limits.ts` together with that flag.
+A name already taken in their account fails with a 409: ask whether to connect
+the existing store or create one with another name. `create-store` adds
+`BLOB_READ_WRITE_TOKEN` to every environment. The upload ceiling is 100 MB,
+matching ComfyUI's `--max-upload-size 100`; raise `LARGE_UPLOAD_MAX_BYTES` in
+`src/lib/upload-limits.ts` together with that flag.
 
-Then the person loads the deployment, enters `APP_ACCESS_TOKEN` at the gate,
-confirms **Ready**, and generates once.
+**Verify it yourself before handing over:**
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" https://<app>/api/health        # 401: the gate is on
+curl -s https://<app>/api/health -H "x-app-token: <APP_ACCESS_TOKEN>"    # reachable, authorized, secure: true
+pnpm smoke --url https://<app> --director local                          # or gateway — the gate
+```
+
+`reachable: false` usually means Funnel's public DNS is not there yet (Phase 6)
+or `COMFY_URL` is wrong. Then the person opens the deployment, enters the app
+password, and — if they use the local rewrite — sets it to **This ComfyUI
+machine** in that browser too.
+
+Production on Vercel's Hobby and Pro plans is public: `APP_ACCESS_TOKEN` is the
+only gate. Vercel's own login protects preview URLs, not production.
 
 **If they connect the GitHub repo instead:** a push to `main` deploys
-production, other branches get previews. Production on Hobby and Pro is
-publicly reachable, so `APP_ACCESS_TOKEN` is the only gate. If the fork is
-public, leave **Git Fork Protection** on (Project Settings → Security) — it
-stops a stranger's pull request from building with their environment
-variables, ComfyUI token included.
+production, other branches get previews. If the fork is public, leave **Git
+Fork Protection** on (Project Settings → Security) — it stops a stranger's pull
+request from building with their environment variables, ComfyUI token
+included.
+
+## Phase 9 — Report back (optional)
+
+Setups that hit a problem are how this runbook gets better. At the end — or as
+soon as you are stuck — write up your running list (ground rules) and **ask the
+person** whether you may file it as an issue on the project. Say what it
+contains and that it has no passwords or tokens in it.
+
+The report, in markdown:
+
+- **Environment:** OS and version, GPU and VRAM, RAM, ComfyUI version, how it
+  was installed (portable, clone, Desktop), Python and PyTorch versions, which
+  agent you are.
+- **Outcome:** each phase's gate, passed or failed.
+- **Problems:** every error (the command and its message), every place this
+  runbook was wrong or silent — quote the line and say what it should say — and
+  what fixed it.
+
+**Leave out** tokens, passwords, keys, the Funnel or DDNS hostname, the Vercel
+project URL, and usernames in paths (write `C:\Users\<user>`).
+
+If they agree and `gh auth status` succeeds:
+
+```bash
+gh issue create --repo pwillia7/sorant --label setup \
+  --title "Setup report: <OS>, <GPU>, <worked / stuck at Phase N>" --body-file <report.md>
+```
+
+Otherwise save the report to a file, and give them
+<https://github.com/pwillia7/sorant/issues/new?template=setup-report.md> to paste
+it into. If they decline, that is fine — tick the gate and move on.
 
 ## Updating an existing install
 
@@ -470,13 +656,14 @@ On the ComfyUI machine:
 2. Node packs: `git pull` in each pack the diff points at — in
    `custom_nodes/` — and reinstall its requirements with ComfyUI's own Python,
    as in Phase 2. A pack not yet installed: install it as in Phase 2. When the
-   diff does not make it clear which pack, update all five from Phase 2.
+   diff does not make it clear which pack, update all six from Phase 2.
 3. Models: `pnpm models:download` for the workflows the person uses — it fetches
    only what is missing, and says how much before it starts. Ask before a large
    download.
 4. ComfyUI itself, if the release notes say so.
-5. Restart ComfyUI (ask first — it may be rendering). Gate: `pnpm check:nodes`
-   exits 0.
+5. Restart ComfyUI from its launch script (ask first — it may be rendering).
+   Gate: `pnpm check:nodes` exits 0, and `pnpm smoke` passes against a local
+   `pnpm dev`.
 
 ### U4 — The app
 
@@ -489,8 +676,10 @@ On the ComfyUI machine:
    - If the person deploys through Git instead (a fork connected to Vercel):
      **Sync fork** on GitHub, and the push to `main` deploys.
    - Local-only installs: restart `pnpm dev` or `pnpm start`; nothing to deploy.
-3. Verify on the deployment: the header has no update notice, no workflow card
-   says the ComfyUI machine is missing something, and one generation finishes.
+3. Verify on the deployment: `pnpm smoke --url https://<app>` passes (add
+   `--director local` if they use the local rewrite), and the person sees no
+   update notice in the header and no workflow card saying the ComfyUI machine
+   is missing something.
 
 ## When something is wrong
 
@@ -499,20 +688,25 @@ On the ComfyUI machine:
 | Pill reads **Offline** | `COMFY_URL`; ComfyUI running; port reachable from where the app runs |
 | Pill reads **Auth failed** | `COMFY_API_TOKEN`; the `$` escaping; whether the password was reset since |
 | Works locally, fails deployed | `COMFY_URL` still `localhost`, or `$` escaped in Vercel where it should not be |
+| Deployed health says `reachable: false` right after Phase 6 | Funnel's public DNS is not there yet; check with DNS-over-HTTPS (Phase 6) |
 | Valid token still rejected | ComfyUI launched with `--enable-cors-header <specific-origin>`: ComfyUI-Login only checks the bearer token when that matches, and server-side calls send no Origin. Drop the flag or set it to `*` |
 | Every API call gets 401 or a redirect to `/login` | No password set yet, or no token sent — Phase 5 |
 | A pack fails to import at startup | Its requirements were installed into the wrong Python. Reinstall with ComfyUI's own |
-| Fails with SageAttention on, works with it off | The `sageattention` package — Phase 2 |
+| `tcc.exe … returned non-zero exit status 1` on the first run | The portable Python has no `Include\`/`libs\` — Phase 2. A stale system `CUDA_PATH` can cause the same; check it points at an installed CUDA |
+| Fails with SageAttention on, works with it off | The `sageattention` / `triton-windows` packages or the headers — Phase 2. Fix it rather than leaving the switch off |
+| `check:nodes` says `COMFY_URL is not set` but `.env.local` sets it | An old copy of the scripts reading a CRLF file; pull, or save `.env.local` with LF endings |
+| `check:workflows` says `machine-requirements.json` is stale on a fresh clone | An old copy reading CRLF; pull. Do not commit a regenerated file to fix it |
 | A run fails naming a node class | `pnpm check:nodes` — a pack is missing |
 | Only the **Edit** button fails | One of the FLUX Kontext files; `models:download --workflows image-edit` |
-| Fails at the rewrite, no key | The gateway key — Phase 6 |
-| Fails at the rewrite, no reason | Usually a refusal. Change **Rewrite model** and retry |
+| Fails at the rewrite, no key | Set up a rewrite — Phase 7. Either a gateway key, or the local director chosen in the app |
+| Fails at the rewrite, no reason | Usually a refusal. Change **Rewrite model**, or use the local director |
 | Rewrite refused: model not in the list | The gateway retired it. `pnpm sync:models`, then commit the regenerated file |
 | "The local director is chosen but … is not in" | `models:download --extras local-director`, or switch back to the gateway |
 | Large uploads fail deployed, work locally | No Blob store — Phase 8 |
 | A job shows as **Lost** | ComfyUI restarted and dropped its history |
 | "Contact was lost" | The connection dropped, not the workflow. Check the pill and resubmit |
 | The Windows machine restarts during step 1 | The TDR values — Phase 4. Display event 4101 in the System log confirms it |
+| The deployed app goes Offline when you close your session | ComfyUI was started from your shell. Start it from its launch script in its own window — Phase 2 |
 
 `/api/health` reports `reachable`, `authorized` and `secure` separately, so it
 tells "cannot connect" from "connected but refused".
@@ -520,13 +714,21 @@ tells "cannot connect" from "connected but refused".
 ## Done when
 
 - `pnpm check:nodes` exits 0 against the `COMFY_URL` the app uses.
-- One generation has finished locally, and — if deploying — one on the
-  deployment.
+- `pnpm smoke` has passed locally, and — if deploying — against the deployment.
 - ComfyUI-Login is on, and the public URL refuses a request without the token.
 - The deployment asks for `APP_ACCESS_TOKEN` before anything else.
+- Phase 9 offered.
 
-Then tell the person, in a short list: their two passwords and what each is for
-(the ComfyUI password for ComfyUI's own web page; `APP_ACCESS_TOKEN` for the
-app), where each is kept, what they skipped (workflows not downloaded, optional
-sets, switches to keep off because a pack would not install), and whether the
-Windows reboot is still pending.
+Then tell the person, in a short list:
+
+- **Their two passwords** and what each is for: the ComfyUI password for
+  ComfyUI's own web page, and the app password (`APP_ACCESS_TOKEN`, in
+  `.env.local`) for the app. How to change the app password later: edit
+  `.env.local` and the Vercel variable, then redeploy — or ask any coding agent.
+- **The app's address**, if deployed, and that the rewrite choice is set per
+  browser.
+- **How to start ComfyUI** after a reboot: its launch script.
+- **What they skipped:** workflows not downloaded, optional sets, switches to
+  keep off because a pack would not install.
+- **Anything pending:** a Windows reboot, a Node upgrade still to make permanent
+  from an Administrator terminal.

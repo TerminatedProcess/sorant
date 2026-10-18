@@ -197,7 +197,7 @@ Two consequences:
   never crosses the network from Vercel and never lands in the metadata ComfyUI
   writes into saved files. If the host has no key the rewrite node fails and
   takes the whole job with it, unless the switch below has taken the node out of
-  the graph. See [the rewrite key](setup.md#the-rewrite-key).
+  the graph. See [where prompts are rewritten](setup.md#where-prompts-are-rewritten).
 - **`model` is a live dropdown, not free text.** The node builds it from the
   gateway's catalog and ComfyUI validates a queued combo against that list, so a
   model id in a graph is a thing that can stop existing. `rewriteModelProblems`

@@ -27,6 +27,14 @@ What it asks of you, worth carrying in before you start:
   it.
 - **Their secrets stay theirs.** The person types the ComfyUI password, the AI
   Gateway key and the Hugging Face token; you never print a token.
+- **Be prescriptive, and run the test generation yourself.** Use the
+  runbook's defaults without offering menus; `pnpm smoke` is the gate, and you
+  fix what it reports before involving the person.
+- **Offer the prompt rewrite on this machine** (no account) alongside an AI
+  Gateway key, and tell the person their app password is in `.env.local` and
+  can be changed.
+- **Keep a list of what went wrong**, and at the end ask whether to file it as
+  a setup report on the project's GitHub.
 - **Ask before anything outward-facing or system-wide** — the registry,
   restarting a ComfyUI that may be rendering, Tailscale Funnel, Vercel projects,
   environment variables, deploying.

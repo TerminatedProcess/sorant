@@ -12,7 +12,7 @@ installing and downloading itself, and asks you only for passwords and keys.
 - [1. Get ComfyUI ready](#1-get-comfyui-ready)
   - [How much VRAM](#how-much-vram)
   - [Custom node packs](#custom-node-packs)
-  - [The rewrite key](#the-rewrite-key)
+  - [Where prompts are rewritten](#where-prompts-are-rewritten)
   - [Model files](#model-files)
   - [On Windows, raise the GPU timeout first](#on-windows-raise-the-gpu-timeout-first)
 - [2. Make ComfyUI reachable](#2-make-comfyui-reachable)
@@ -104,53 +104,56 @@ Restart ComfyUI after installing. Three things in that table are easy to miss:
 Music needs only the gateway pack. Upscale needs only VideoHelperSuite. Edit
 needs none.
 
-### The rewrite key
+### Where prompts are rewritten
 
 Every workflow that generates runs your prompt through a language model first,
-on the [Vercel AI Gateway](https://vercel.com/docs/ai-gateway). That call is
-made by the gateway pack on the ComfyUI machine, so **the key lives there, not
-in this app**.
+which turns one line into the detailed format MiniMax H3 was trained on. You
+choose where that happens, from the **Gateway** button in the app's header, and
+you can switch at any time:
 
-Create one at [vercel.com/dashboard](https://vercel.com/dashboard) → **AI
-Gateway** → **API Keys**. Every Vercel team gets $5 of credit a month; the model
-picker marks which models are free.
+- **On your ComfyUI machine — no account needed.** An uncensored Gemma runs
+  through ComfyUI's built-in `TextGenerate` node: no key, nothing refused, about
+  20 seconds slower a run. It needs one more 12 GB file
+  (`pnpm models:download --comfy <ComfyUI folder> --extras local-director`).
+  Then open the **Gateway** button and set *Where is the prompt rewritten?* to
+  **This ComfyUI machine**. The choice is remembered per browser, so set it once
+  on each device. The easiest way to start.
+- **On the Vercel AI Gateway — a key.** Hosted models: faster, each with a
+  content policy. Create a key at
+  [vercel.com/dashboard](https://vercel.com/dashboard) → **AI Gateway** → **API
+  Keys**. Every Vercel team gets $5 of credit a month; the model picker marks
+  which models are free.
 
-Then give it to the ComfyUI machine, one of two ways:
+  The call is made by the gateway pack on the ComfyUI machine, so **the key
+  lives there, not in this app**. Give it to the machine one of two ways:
 
-- **From the app** — the key button in the header, which shows a warning colour
-  until a key is set. The key goes through to
-  `custom_nodes/comfyui-vercel-ai-gateway/config.json` on the ComfyUI machine.
-  This app never stores it and cannot read it back. Easiest when ComfyUI is on a
-  machine you are not sitting at.
-- **From the environment**, which wins over the file. Set it in the same shell
-  that launches ComfyUI — a different terminal does nothing:
+  - **From the app** — the key button in the header. The key goes through to
+    `custom_nodes/comfyui-vercel-ai-gateway/config.json` on the ComfyUI
+    machine. This app never stores it and cannot read it back. Easiest when
+    ComfyUI is on a machine you are not sitting at.
+  - **From the environment**, which wins over the file. Set it in the same
+    shell that launches ComfyUI — a different terminal does nothing:
 
-  ```bash
-  export AI_GATEWAY_API_KEY=vck_...     # macOS / Linux
-  python main.py
-  ```
+    ```bash
+    export AI_GATEWAY_API_KEY=vck_...     # macOS / Linux
+    python main.py
+    ```
 
-  ```powershell
-  $env:AI_GATEWAY_API_KEY = "vck_..."   # Windows PowerShell
-  python main.py
-  ```
+    ```powershell
+    $env:AI_GATEWAY_API_KEY = "vck_..."   # Windows PowerShell
+    python main.py
+    ```
 
-  Under systemd or another service manager, use its own mechanism
-  (`Environment=` in the unit file).
+    Under systemd or another service manager, use its own mechanism
+    (`Environment=` in the unit file).
 
-The key is deliberately never written into a workflow: ComfyUI stamps the queued
-workflow into the metadata of every file it saves, so it would travel inside
-every video you share.
+  The key is deliberately never written into a workflow: ComfyUI stamps the
+  queued workflow into the metadata of every file it saves, so it would travel
+  inside every video you share.
 
-**No key at all?** Each workflow has a **Send my prompt as written** switch that
-skips the rewrite. It works, but the rewrite is most of what turns a one-line
-prompt into a usable video — see [the prompt rewrite](prompt-rewrite.md).
-
-**Or no gateway at all.** The key button can move the rewrite onto the ComfyUI
-machine itself, running an uncensored Gemma through ComfyUI's built-in
-`TextGenerate` node: no key, nothing refused, about 20 seconds slower a run. It
-needs one more 12 GB file (in the table below). Worth it if refusals are what is
-failing your runs.
+**Neither?** Each workflow has a **Send my prompt as written** switch that skips
+the rewrite. It works, but the rewrite is most of what turns a one-line prompt
+into a usable video — see [the prompt rewrite](prompt-rewrite.md).
 
 ### Model files
 
@@ -344,7 +347,7 @@ Fill in `.env.local`:
 | --- | --- |
 | `COMFY_URL` | **Required.** ComfyUI's address, no trailing slash. `http://127.0.0.1:8188` when the app runs on the ComfyUI machine; the public address from step 2 on Vercel. |
 | `COMFY_API_TOKEN` | The ComfyUI-Login token — see below, and mind the `$` escaping. |
-| `APP_ACCESS_TOKEN` | **The app's password** — what you type at the deployed app's gate. There is no default: make one with `openssl rand -hex 32` (or, on Windows, `node -e "console.log(crypto.randomBytes(32).toString('hex'))"`) and keep it in a password manager. Optional locally, **required before deploying**. |
+| `APP_ACCESS_TOKEN` | **The app's password** — what you type at the deployed app's gate. There is no default: make one with `openssl rand -hex 32` (or, on Windows, `node -e "console.log(crypto.randomBytes(32).toString('hex'))"`) and keep it in a password manager, or replace it with something easier to type. To change it later, change it here and in Vercel's environment variables, then redeploy. Optional locally, **required before deploying**. |
 | `GENERATION_TIMEOUT_SECONDS` | How long the UI waits on a run before giving up. Default 1800. |
 | `COMFY_BASIC_AUTH` | Optional `user:password`, if ComfyUI sits behind basic auth instead. |
 | `COMFY_AUTH_HEADER_NAME` / `_VALUE` | Optional custom auth header, for other proxies. |
@@ -491,7 +494,8 @@ README for the prompt to paste.
 | Works locally, fails deployed | `COMFY_URL` still `localhost`, or the token escaped in Vercel where it should not be |
 | A correct token is still rejected | ComfyUI launched with `--enable-cors-header <some-origin>` — drop the flag or set it to `*`. ComfyUI-Login only checks the token when that header matches, and server-side requests send none |
 | A run fails naming a node class | `pnpm check:nodes` — a pack is missing |
-| Fails at the rewrite: no key | Set the key from the header button, or `AI_GATEWAY_API_KEY` on the ComfyUI machine |
+| Fails at the rewrite: no key | Switch the rewrite to **This ComfyUI machine** from the header's Gateway button, or set a key there — see [where prompts are rewritten](#where-prompts-are-rewritten) |
+| First run fails with `tcc.exe … returned non-zero exit status 1` (Windows portable) | The portable Python has no `Include` and `libs` folders, which SageAttention's compiler needs. Copy both from the NuGet `python` package of exactly the same version — the [agent runbook](agent-setup.md#phase-2--custom-node-packs) has the commands. Don't just turn SageAttention off |
 | Fails at the rewrite, no clear reason | Usually the model refused. Pick a different **Rewrite model** and retry |
 | Rewrite says the model is not in the list | The gateway retired it. Run `pnpm sync:models` and commit the result |
 | "The local director is chosen but … is not in" | The Gemma file is not in `models/text_encoders/`, or switch the rewrite back to the gateway |
