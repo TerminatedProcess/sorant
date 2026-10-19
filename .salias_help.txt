@@ -1,0 +1,13 @@
+APP
+  install           Install app dependencies
+  run               Start ComfyUI if needed, then the app at localhost:3000
+  stop              Stop the app and ComfyUI
+
+CHECKS
+  check             Typecheck and validate workflows
+  nodes             Ask ComfyUI what is installed
+  smoke             One end-to-end test generation (local rewrite)
+
+COMFYUI
+  cstatus           Service status
+  clog              Follow the ComfyUI log
