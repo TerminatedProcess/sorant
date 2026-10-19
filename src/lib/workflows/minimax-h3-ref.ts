@@ -1,6 +1,7 @@
 import type { ComfyGraph } from "@/lib/comfy";
 import { ParamError } from "@/lib/params";
 import { hideDirectorOnly } from "./director";
+import { latentTailNodes } from "./latent-tail";
 import {
   REWRITE_IMAGE_INPUT,
   rewriteModelParam,
@@ -934,6 +935,10 @@ const graph: ComfyGraph = {
     },
     _meta: { title: "Trim Audio Duration (Second voice)" },
   },
+
+  // The run's last 0.9 s of latents, for Extend to carry on from. See
+  // latent-tail.ts.
+  ...latentTailNodes("125"),
 };
 
 /**

@@ -527,6 +527,9 @@ export function collectOutputs(entry: ComfyHistoryEntry): ComfyFileRef[] {
       const keyRank = KEY_PRIORITY.indexOf(key);
       for (const ref of refs) {
         if (!ref?.filename) continue;
+        // A run's latent tail is for Extend to pick up, not a result to show
+        // — see latent-tail.ts.
+        if (ref.filename.endsWith(".latent")) continue;
         const looksLikeVideo = VIDEO_EXTENSIONS.test(ref.filename);
         files.push({
           ref,

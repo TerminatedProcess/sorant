@@ -655,7 +655,7 @@ function Workbench({
     async (job: Job, action: ClipAction) => {
       const target = clipWorkflows.get(action);
       if (!target?.clipTarget || sending) return;
-      const { sourceParam, carry, fresh } = target.clipTarget;
+      const { sourceParam, carry, fresh, carriedParam } = target.clipTarget;
 
       const output = job.outputs[0];
       if (!output) return;
@@ -663,19 +663,29 @@ function Workbench({
       setSending(action);
       setClipError(null);
       try {
-        const { ref } = await api<{ ref: string }>("/api/remix", {
-          method: "POST",
-          body: JSON.stringify({
-            filename: output.filename,
-            subfolder: output.subfolder,
-            type: output.type,
-          }),
-        });
+        const { ref, tail } = await api<{ ref: string; tail?: string | null }>(
+          "/api/remix",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              filename: output.filename,
+              subfolder: output.subfolder,
+              type: output.type,
+              // Only asked for where the destination can use it — the copy is
+              // a history lookup and two more files.
+              tailOf: carriedParam ? job.promptId : undefined,
+            }),
+          },
+        );
 
         setValuesByWorkflow((previous) => {
           const next = {
             ...(fresh ? defaultValuesFor(target) : previous[target.id]),
             [sourceParam]: ref,
+            // Cleared when this clip has none, so an earlier clip's tail is
+            // not left in the slot. Extend would ignore it anyway — it only
+            // takes a tail named after the clip it is given.
+            ...(carriedParam ? { [carriedParam]: tail ?? "" } : {}),
           };
 
           // Carry across whatever this destination asked for, so the new run

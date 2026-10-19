@@ -1,7 +1,13 @@
 import type { ComfyGraph } from "@/lib/comfy";
 import { hideDirectorOnly } from "./director";
+import {
+  latentTailNodes,
+  TAIL_FRAMES,
+  TAIL_TOKENS,
+  tailFileFor,
+} from "./latent-tail";
 import { rewriteModelParam, rewriteNode } from "./rewrite-model";
-import type { ParamDef, WorkflowDef } from "./types";
+import type { ParamDef, ParamValue, WorkflowDef } from "./types";
 import {
   directorBypassFor,
   directorTarget,
@@ -21,16 +27,29 @@ import {
 /**
  * MiniMax H3 extend: keep a clip running past where it stopped.
  *
- * Structurally this is the image-to-video graph with the clip's own last frame
+ * Structurally this is the image-to-video graph with the end of the clip
  * standing in for an upload, plus a join on the way out. Three parts:
  *
- * 1. **The seam.** 126 loads the clip at 24 fps — frames on output 0, sound on
- *    output 2 — and 128 takes the last frame of that sequence
- *    (`start_index: -1`). That single
- *    frame is the whole bridge: 105:104 receives it as `first_frame`, 120
- *    measures it for the output size, and 123 shows it to the prompt director.
- *    So the new segment starts on the exact image the source ended on, at the
- *    source's own dimensions — nothing else could line the two up.
+ * 1. **The seam.** It is built one of two ways, and `finalize` picks per run.
+ *
+ *    - **From the latents**, when the clip is a generation from this app and
+ *      the hand-off brought its latent tail along (latent-tail.ts). 141 and 142
+ *      load the last 22 frames' worth of video and audio latents exactly as
+ *      the previous run's sampler left them; 145 pads the video to the new
+ *      segment's length with a denoise mask that keeps those 7 tokens fixed,
+ *      and 148 freezes the audio the same way. So the new segment *starts
+ *      with* the end of the old one, sound included, and is sampled onward from
+ *      it — nothing decoded and re-encoded in between. That is what keeps the
+ *      colour from drifting pass after pass and the voice from resetting at
+ *      the join.
+ *    - **From the last frame**, for anything else — an upload has pixels
+ *      only. 128 takes the last frame of the clip (`start_index: -1`) and
+ *      105:104 receives it as `first_frame`. This is how every extension
+ *      worked before the tails existed.
+ *
+ *    Either way 126 loads the clip at 24 fps — frames on output 0, sound on
+ *    output 2 — 120 measures the last frame for the output size, and 123 shows
+ *    it to the prompt director.
  * 2. **The generation.** The 105:* nodes are the same sampler stack as the
  *    other generating graphs, and the same duration → frame-count expression.
  *    That duration times the *new segment only*, which is the one thing about
@@ -38,9 +57,11 @@ import {
  *    12-second clip and 22 seconds come back.
  * 3. **The join.** 131 concatenates the source frames with the generated ones
  *    and 135 does the same to the two audio tracks, so 137/138 save the whole
- *    video rather than the addition on its own. That is what makes extending an
- *    extension work: the output is always a complete clip, so it can go
- *    straight back in through the Extend button.
+ *    video rather than the addition on its own. That is what makes extending
+ *    an extension work: the output is always a complete clip, so it can go
+ *    straight back in through the Extend button. From the latents, the new
+ *    segment's first 22 frames are the source's last 22 again, so 151 and 152
+ *    drop them before the join.
  *
  * Which also means the file grows with each pass, and so does the time spent
  * decoding and re-encoding it — the sampling cost stays flat, since only the
@@ -259,6 +280,103 @@ const graph: ComfyGraph = {
     _meta: { title: "Float (duration)" },
   },
 
+  // The latent seam — see the top of the file. Present in every stored graph,
+  // and either wired in or deleted by `finalize`, so check:nodes and the
+  // requirements see the classes it needs.
+  //
+  // The two tail files, by name. The `source_tail` param writes both.
+  "141": {
+    class_type: "LoadLatent",
+    inputs: { latent: "" },
+    _meta: { title: "Load Latent (video tail)" },
+  },
+  "142": {
+    class_type: "LoadLatent",
+    inputs: { latent: "" },
+    _meta: { title: "Load Latent (audio tail)" },
+  },
+  // The segment is one 17-frame group longer than from a frame, because its
+  // first 22 frames are the carried ones and get dropped at the join: 5 s of
+  // added time is 124 + 17 = 141 frames generated, 119 of them new.
+  "143": {
+    class_type: "ComfyMathExpression",
+    inputs: { expression: "a + 17", "values.a": ["105:107", 1] },
+    _meta: { title: "Math Expression (frames with tail)" },
+  },
+  // KJ's mask node works in LTX's time units: at a nominal 8 fps it addresses
+  // H3's tokens one to one, and an end time of T - 7/8 pads the 7 carried
+  // tokens out to the T this frame count has. Tokens are 5 per 17 frames, plus
+  // 2.
+  "144": {
+    class_type: "ComfyMathExpression",
+    inputs: {
+      expression: "((a - 5) // 17) * 5 + 2 - 0.875",
+      "values.a": ["143", 1],
+    },
+    _meta: { title: "Math Expression (mask end)" },
+  },
+  // Generate from the token after the tail onward; the tail itself and nothing
+  // else is held. The padding is all masked in.
+  "145": {
+    class_type: "LTXVAudioVideoMask",
+    inputs: {
+      video_latent: ["141", 0],
+      video_fps: 8,
+      video_start_time: (8 * (TAIL_TOKENS - 1) + 1) / 8,
+      video_end_time: ["144", 0],
+      audio_start_time: 0,
+      audio_end_time: 0,
+      max_length: "pad",
+      existing_mask_mode: "add",
+    },
+    _meta: { title: "LTXV Audio Video Mask" },
+  },
+  // An empty AV latent of the new length, only for its audio stream's shape:
+  // 150 lays the frozen audio tail over the start of it.
+  "146": {
+    class_type: "EmptyMiniMaxH3LatentAV",
+    inputs: { width: ["120", 0], height: ["120", 1], length: ["143", 1] },
+    _meta: { title: "Empty MiniMax H3 Latent AV" },
+  },
+  "147": {
+    class_type: "LTXVSeparateAVLatent",
+    inputs: { av_latent: ["146", 0] },
+    _meta: { title: "Separate AV Latent" },
+  },
+  "148": {
+    class_type: "LTXVFreezeLatent",
+    inputs: { latent: ["142", 0] },
+    _meta: { title: "LTXV Freeze Latent (audio tail)" },
+  },
+  "149": {
+    class_type: "LTXVConcatAVLatent",
+    inputs: { video_latent: ["145", 0], audio_latent: ["147", 1] },
+    _meta: { title: "Concat AV Latent" },
+  },
+  // Concat onto an AV latent swaps its audio stream for this one and pads it
+  // to length, the padding left to be generated.
+  "150": {
+    class_type: "LTXVConcatAVLatent",
+    inputs: { video_latent: ["149", 0], audio_latent: ["148", 0] },
+    _meta: { title: "Concat AV Latent (audio tail)" },
+  },
+  // The carried 22 frames and their sound, off the front of the new segment.
+  // Both lengths run past the end on purpose and are clamped to it.
+  "151": {
+    class_type: "ImageFromBatch",
+    inputs: { image: ["132", 0], batch_index: TAIL_FRAMES, length: 4096 },
+    _meta: { title: "Image From Batch (after the tail)" },
+  },
+  "152": {
+    class_type: "TrimAudioDuration",
+    inputs: {
+      audio: ["132", 1],
+      start_index: TAIL_FRAMES / SOURCE_FPS,
+      duration: 3600,
+    },
+    _meta: { title: "Trim Audio Duration (after the tail)" },
+  },
+
   // The join. 132 splits the generated segment back into frames and audio so
   // both can be appended to the source's own — pictures in 131, sound in 135 —
   // and 137 re-encodes the pair as one video at the same 24fps.
@@ -305,7 +423,54 @@ const graph: ComfyGraph = {
     },
     _meta: { title: "Save Video" },
   },
+
+  // This run's own tail, so the extension can itself be extended the same way.
+  ...latentTailNodes("105:14"),
 };
+
+/** The nodes only the latent seam uses, deleted when it is not taken. */
+const LATENT_SEAM = [
+  "141",
+  "142",
+  "143",
+  "144",
+  "145",
+  "146",
+  "147",
+  "148",
+  "149",
+  "150",
+  "151",
+  "152",
+];
+
+const TAIL_PARAM = "source_tail";
+
+/**
+ * Takes the latent seam when the loaded clip has a tail, and the last-frame one
+ * otherwise. See the top of the file.
+ *
+ * A tail counts only when it is named after the clip in the source slot: the
+ * hand-off writes the clip's reference into both, and an upload over it
+ * afterwards changes only the one. Gluing another clip's ending onto this one
+ * would start the extension on frames that are not there.
+ */
+function finalize(graph: ComfyGraph, values: Record<string, ParamValue>) {
+  const source = String(values.source_video ?? "");
+  const tail = String(values[TAIL_PARAM] ?? "");
+
+  if (!source || tail !== source) {
+    for (const id of LATENT_SEAM) delete graph[id];
+    return;
+  }
+
+  const i2v = graph["105:104"].inputs;
+  delete i2v.first_frame;
+  i2v.length = ["143", 1];
+  graph["105:14"].inputs.latent_image = ["150", 0];
+  graph["131"].inputs["images.image1"] = ["151", 0];
+  graph["135"].inputs.audio2 = ["152", 0];
+}
 
 /**
  * The single target every control that shapes the director's instructions
@@ -324,9 +489,20 @@ const params: ParamDef[] = [
     type: "video",
     default: "",
     required: true,
-    help: "Its last frame is where the new footage starts, and sets the size. Up to 768×1344, 20s, 100 MB.",
+    help: "A clip made here carries on from its own latents; an upload, from its last frame. Up to 768×1344, 20s, 100 MB.",
     group: "Source",
     targets: [{ node: VIDEO_NODE, input: "video" }],
+  },
+  {
+    id: TAIL_PARAM,
+    label: "Latent tail",
+    type: "carried",
+    default: "",
+    group: "Source",
+    targets: [
+      { node: "141", input: "latent", transform: (v) => tailFileFor(String(v), "video") },
+      { node: "142", input: "latent", transform: (v) => tailFileFor(String(v), "audio") },
+    ],
   },
 
   promptParam(
@@ -375,5 +551,27 @@ export const minimaxH3Extend: WorkflowDef = {
    * carrying it across would ask the director to continue the clip by doing
    * again what it just did.
    */
-  clipTarget: { action: "extend", accepts: "video", sourceParam: "source_video" },
+  clipTarget: {
+    action: "extend",
+    accepts: "video",
+    sourceParam: "source_video",
+    carriedParam: TAIL_PARAM,
+  },
+  finalize,
+  finalizeCases: [
+    {
+      name: "a generation with its latent tail",
+      values: { source_video: "clip.mp4", [TAIL_PARAM]: "clip.mp4" },
+    },
+    { name: "an upload, no tail", values: { source_video: "clip.mp4" } },
+    {
+      name: "a tail left over from another clip",
+      values: { source_video: "upload.mp4", [TAIL_PARAM]: "clip.mp4" },
+    },
+    {
+      name: "a generation with its latent tail, turbo",
+      values: { source_video: "clip.mp4", [TAIL_PARAM]: "clip.mp4" },
+      mode: { turbo: true },
+    },
+  ],
 };

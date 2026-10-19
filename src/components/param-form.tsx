@@ -50,13 +50,13 @@ export function ParamForm({
 
   // Preserve declaration order of both groups and params within them.
   //
-  // A `measured` param is dropped here rather than rendered as nothing: it has
-  // no control, and leaving it in would let a group that holds only measured
-  // params draw an empty heading.
+  // A `measured` or `carried` param is dropped here rather than rendered as
+  // nothing: it has no control, and leaving it in would let a group that holds
+  // only those draw an empty heading.
   const groups = useMemo(() => {
     const ordered = new Map<string, ClientParam[]>();
     for (const param of params) {
-      if (param.type === "measured") continue;
+      if (param.type === "measured" || param.type === "carried") continue;
       const key = param.group ?? DEFAULT_GROUP;
       const existing = ordered.get(key);
       if (existing) existing.push(param);
@@ -464,6 +464,7 @@ function Control({
     // Filled in by whichever control measures it — see `measures` on the video
     // param. Nothing to draw.
     case "measured":
+    case "carried":
       return null;
 
     case "seed": {

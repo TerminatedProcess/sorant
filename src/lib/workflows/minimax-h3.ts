@@ -1,5 +1,6 @@
 import type { ComfyGraph } from "@/lib/comfy";
 import { hideDirectorOnly } from "./director";
+import { latentTailNodes } from "./latent-tail";
 import { rewriteModelParam, rewriteNode } from "./rewrite-model";
 import type { ParamDef, WorkflowDef } from "./types";
 import {
@@ -189,6 +190,10 @@ const graph: ComfyGraph = {
     inputs: { value: 5 },
     _meta: { title: "Float (duration)" },
   },
+
+  // The run's last 0.9 s of latents, for Extend to carry on from. See
+  // latent-tail.ts.
+  ...latentTailNodes("105:14"),
 };
 
 /**

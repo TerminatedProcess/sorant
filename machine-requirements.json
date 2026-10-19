@@ -1,5 +1,5 @@
 {
-  "fingerprint": "419c96546bd25f89",
+  "fingerprint": "eddc07eedf1bfc92",
   "classes": {
     "AudioConcatenate": {
       "inputs": [
@@ -308,6 +308,23 @@
         "image-edit"
       ]
     },
+    "EmptyMiniMaxH3LatentAV": {
+      "inputs": [
+        "height",
+        "length",
+        "width"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)"
+      ]
+    },
     "EmptyMiniMaxMusic3LatentAudio": {
       "inputs": [
         "batch_size",
@@ -417,6 +434,13 @@
       ],
       "optional": false,
       "workflows": [
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
         "seedvr2-upscale"
       ]
     },
@@ -503,6 +527,146 @@
         "minimax-h3-ref2v (turbo)"
       ]
     },
+    "LTXVAudioVideoMask": {
+      "inputs": [
+        "audio_end_time",
+        "audio_start_time",
+        "existing_mask_mode",
+        "max_length",
+        "video_end_time",
+        "video_fps",
+        "video_latent",
+        "video_start_time"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)"
+      ]
+    },
+    "LTXVConcatAVLatent": {
+      "inputs": [
+        "audio_latent",
+        "video_latent"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)"
+      ]
+    },
+    "LTXVFreezeLatent": {
+      "inputs": [
+        "latent"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)"
+      ]
+    },
+    "LTXVSeparateAVLatent": {
+      "inputs": [
+        "av_latent"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3",
+        "minimax-h3 (4-step)",
+        "minimax-h3 (sage)",
+        "minimax-h3 (spectrum)",
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3 (turbo)",
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v",
+        "minimax-h3-ref2v (4-step)",
+        "minimax-h3-ref2v (sage)",
+        "minimax-h3-ref2v (spectrum)",
+        "minimax-h3-ref2v (style, vhs tape)",
+        "minimax-h3-ref2v (turbo)"
+      ]
+    },
+    "LatentCut": {
+      "inputs": [
+        "amount",
+        "dim",
+        "index",
+        "samples"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3",
+        "minimax-h3 (4-step)",
+        "minimax-h3 (sage)",
+        "minimax-h3 (spectrum)",
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3 (turbo)",
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v",
+        "minimax-h3-ref2v (4-step)",
+        "minimax-h3-ref2v (sage)",
+        "minimax-h3-ref2v (spectrum)",
+        "minimax-h3-ref2v (style, vhs tape)",
+        "minimax-h3-ref2v (turbo)"
+      ]
+    },
     "LoadAudio": {
       "inputs": [
         "audio"
@@ -539,6 +703,21 @@
         "minimax-h3-ref (spectrum)",
         "minimax-h3-ref (style, vhs tape)",
         "minimax-h3-ref (turbo)"
+      ]
+    },
+    "LoadLatent": {
+      "inputs": [
+        "latent"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)"
       ]
     },
     "LoraLoaderModelOnly": {
@@ -970,6 +1149,49 @@
         "image-edit"
       ]
     },
+    "SaveLatent": {
+      "inputs": [
+        "filename_prefix",
+        "samples"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3",
+        "minimax-h3 (4-step)",
+        "minimax-h3 (sage)",
+        "minimax-h3 (spectrum)",
+        "minimax-h3 (style, vhs tape)",
+        "minimax-h3 (style, vhs tape, lighter base)",
+        "minimax-h3 (turbo)",
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
+        "minimax-h3-i2v",
+        "minimax-h3-i2v (4-step)",
+        "minimax-h3-i2v (sage)",
+        "minimax-h3-i2v (spectrum)",
+        "minimax-h3-i2v (style, vhs tape)",
+        "minimax-h3-i2v (style, vhs tape, lighter base)",
+        "minimax-h3-i2v (turbo)",
+        "minimax-h3-ref",
+        "minimax-h3-ref (4-step)",
+        "minimax-h3-ref (reference weights)",
+        "minimax-h3-ref (sage)",
+        "minimax-h3-ref (spectrum)",
+        "minimax-h3-ref (style, vhs tape)",
+        "minimax-h3-ref (turbo)",
+        "minimax-h3-ref2v",
+        "minimax-h3-ref2v (4-step)",
+        "minimax-h3-ref2v (sage)",
+        "minimax-h3-ref2v (spectrum)",
+        "minimax-h3-ref2v (style, vhs tape)",
+        "minimax-h3-ref2v (turbo)"
+      ]
+    },
     "SaveVideo": {
       "inputs": [
         "codec",
@@ -1137,6 +1359,13 @@
       ],
       "optional": false,
       "workflows": [
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)",
         "minimax-h3-ref",
         "minimax-h3-ref (4-step)",
         "minimax-h3-ref (reference weights)",

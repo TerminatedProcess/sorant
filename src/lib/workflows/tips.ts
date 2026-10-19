@@ -251,7 +251,8 @@ export const WORKFLOW_TIPS: Record<string, WorkflowTips> = {
         heading: "Working from a clip",
         items: [
           "Two ways in. Press Extend on a finished generation and the clip arrives ready to continue, or drop a video of your own into the Source panel.",
-          "Only the clip's last frame reaches the model. It is the first frame of the new footage, and its size is the size everything is generated at — so the same 768×1344 ceiling applies as everywhere else.",
+          "A clip you press Extend on carries on from its own latents: the last second of picture and sound, exactly as the model left them, so colour, light and voice run straight through the join instead of drifting a little more every pass.",
+          "A clip you upload has pixels only, so it carries on from its last frame. That frame's size is the size everything is generated at, so the same 768×1344 ceiling applies as everywhere else.",
           "What comes back is the source clip with the new footage joined onto the end, picture and sound. So an extension can be extended again, and again, without ever reassembling anything by hand.",
         ],
       },
@@ -269,7 +270,7 @@ export const WORKFLOW_TIPS: Record<string, WorkflowTips> = {
           "This one runs a continuation director. It reads what you type as what happens next, and spends most of its effort on the seam: no establishing shot, no reset to a neutral pose, no cut, and motion already underway carried through.",
           "So write the next beat, not the scene. “Then he opens the door” is a complete instruction — identity, wardrobe, lighting, camera and location all carry over from the last frame without being asked for.",
           "It will not replay the source's dialogue, and it only writes new lines when your continuation calls for speech.",
-          "Everything it knows about the source is that one frame. If something important happened earlier in the clip and matters to what comes next, say so.",
+          "Everything the director knows about the source is its last frame. If something important happened earlier in the clip and matters to what comes next, say so.",
           LITERAL_NOTE,
         ],
       },

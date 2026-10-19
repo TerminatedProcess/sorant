@@ -1,5 +1,6 @@
 import type { ComfyGraph } from "@/lib/comfy";
 import { hideDirectorOnly } from "./director";
+import { latentTailNodes } from "./latent-tail";
 import { rewriteModelParam, rewriteNode } from "./rewrite-model";
 import type { ParamDef, ParamValue, WorkflowDef } from "./types";
 import {
@@ -322,6 +323,10 @@ const graph: ComfyGraph = {
     inputs: { image: ["154", 0] },
     _meta: { title: "Get Image Size & Count" },
   },
+
+  // The run's last 0.9 s of latents, for Extend to carry on from. See
+  // latent-tail.ts.
+  ...latentTailNodes("125"),
 };
 
 /**

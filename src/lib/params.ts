@@ -178,6 +178,16 @@ function coerce(
       return value;
     }
 
+    // Filled in by a clip hand-off, never typed, but it arrives over the same
+    // wire and names a file the same way a video does.
+    case "carried": {
+      const value = typeof raw === "string" ? raw.trim() : "";
+      if (value && isUnsafePath(value)) {
+        throw new ParamError(`Invalid ${param.label} reference.`, param.id);
+      }
+      return value;
+    }
+
     // Not user input in the usual sense — the form measures it off a loaded
     // clip — but it arrives over the same wire as everything else, so it is
     // checked the same way. Anything unusable falls back to the default, which

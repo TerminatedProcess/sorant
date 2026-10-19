@@ -1,7 +1,18 @@
 import { unauthorized } from "@/lib/auth";
-import { inputFileRef, uploadInputFile, viewFile } from "@/lib/comfy";
+import {
+  getHistoryEntry,
+  inputFileRef,
+  uploadInputFile,
+  viewFile,
+} from "@/lib/comfy";
 import { errorResponse } from "@/lib/errors";
 import { isUnsafePath, ParamError } from "@/lib/params";
+import {
+  TAIL_SAVE_AUDIO,
+  TAIL_SAVE_VIDEO,
+  tailFileFor,
+  type TailPart,
+} from "@/lib/workflows/latent-tail";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -53,6 +64,11 @@ export async function POST(request: Request) {
       filename?: string;
       subfolder?: string;
       type?: string;
+      /**
+       * The run that made the file, when the destination wants its latent
+       * tail as well. See latent-tail.ts.
+       */
+      tailOf?: string;
     };
 
     const filename = body.filename?.trim();
@@ -118,14 +134,58 @@ export async function POST(request: Request) {
     // unique per generation, so remixing the same clip twice should land on
     // the one file rather than accumulating copies.
     const uploaded = await uploadInputFile(blob, filename, { overwrite: true });
+    const ref = inputFileRef(uploaded);
+    const tailOf = body.tailOf?.trim();
 
     return Response.json({
-      ref: inputFileRef(uploaded),
+      ref,
       name: uploaded.name,
       subfolder: uploaded.subfolder,
       type: uploaded.type,
+      tail: tailOf ? await copyTail(tailOf, ref) : null,
     });
   } catch (error) {
     return errorResponse(error);
+  }
+}
+
+/**
+ * Copies a run's latent tail into the input directory, named after the clip it
+ * belongs to, and answers with that clip's reference — or null when there is
+ * no tail to copy.
+ *
+ * Null is an ordinary answer, not a failure: a run from before tails were
+ * saved, one whose history ComfyUI has since forgotten (it keeps history in
+ * memory, so a restart clears it), a graph that saves none. The clip still
+ * goes across, and Extend falls back to starting from its last frame.
+ */
+async function copyTail(promptId: string, clipRef: string): Promise<string | null> {
+  try {
+    const entry = await getHistoryEntry(promptId);
+    const parts: Array<[TailPart, string]> = [
+      ["video", TAIL_SAVE_VIDEO],
+      ["audio", TAIL_SAVE_AUDIO],
+    ];
+    const files = parts.map(([part, node]) => {
+      const saved = entry?.outputs?.[node]?.latents?.[0];
+      return saved ? ([part, saved] as const) : null;
+    });
+    if (files.some((file) => file === null)) return null;
+
+    for (const file of files) {
+      const [part, saved] = file!;
+      const upstream = await viewFile(saved);
+      const blob = await upstream.blob();
+      if (!upstream.ok || blob.size === 0) return null;
+      // Named after the clip, which is how Extend tells whose tail it is —
+      // see tailFileFor. An upload lands at the input root, so the clip's
+      // reference is a bare name and so is this.
+      await uploadInputFile(blob, tailFileFor(clipRef, part), {
+        overwrite: true,
+      });
+    }
+    return clipRef;
+  } catch {
+    return null;
   }
 }

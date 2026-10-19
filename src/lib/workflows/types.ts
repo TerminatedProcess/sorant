@@ -398,6 +398,19 @@ export interface MeasuredParam extends ParamBase {
   default: number;
 }
 
+/**
+ * A file reference a clip hand-off brings along with the clip, rather than
+ * anything the user picks — the latent tail Extend carries on from. Same shape
+ * of value as a video's: a name in ComfyUI's input directory.
+ *
+ * It renders no control, like a measured param. Whatever fills it in is named
+ * by the workflow's `clipTarget.carriedParam`.
+ */
+export interface CarriedParam extends ParamBase {
+  type: "carried";
+  default: "";
+}
+
 export type ParamDef =
   | TextParam
   | NumberParam
@@ -407,7 +420,8 @@ export type ParamDef =
   | ImageParam
   | VideoParam
   | AudioParam
-  | MeasuredParam;
+  | MeasuredParam
+  | CarriedParam;
 
 export type ParamValue = string | number | boolean;
 
@@ -468,6 +482,14 @@ export interface ClipTarget {
    * `carry` still applies on top.
    */
   fresh?: boolean;
+  /**
+   * Id of a `carried` param the hand-off fills with the source's latent tail,
+   * when the generation saved one — see latent-tail.ts. The value is the clip's
+   * own reference, and the tail's files are named after it, so the workflow
+   * can tell a tail that belongs to the loaded clip from one left over from a
+   * clip that has since been replaced. Left empty when there is no tail.
+   */
+  carriedParam?: string;
 }
 
 /**
