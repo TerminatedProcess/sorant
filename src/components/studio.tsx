@@ -118,6 +118,49 @@ const CLIP_NOTICE: Record<ClipAction, { verb: string; detail: string }> = {
   },
 };
 
+/**
+ * What a clip already showed, for a destination with a `storyParam`: the story
+ * its own run was given, if it was made by that same hand-off, and then the
+ * prompt that made it. So the third Extend in a chain still knows the first
+ * prompt, not only the second.
+ *
+ * The earlier story counts only where that run's tail named its source — the
+ * rule the workflow itself reads it by. A run on an upload kept whatever was
+ * left in the hidden box, which describes some other clip.
+ *
+ * Over the control's limit, the first prompt is kept — it is the one that says
+ * who and where — and the oldest Extend lines after it go.
+ */
+function storySoFar(
+  job: Job,
+  target: WorkflowSummary,
+  storyParam: string,
+): string {
+  const { sourceParam, carriedParam } = target.clipTarget ?? {};
+  const resolved = job.resolved ?? {};
+  const earlier =
+    sourceParam &&
+    carriedParam &&
+    resolved[sourceParam] &&
+    resolved[carriedParam] === resolved[sourceParam]
+      ? resolved[storyParam]
+      : undefined;
+  const lines = [
+    ...(typeof earlier === "string" ? earlier.split("\n") : []),
+    job.prompt,
+  ]
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const param = target.params.find((p) => p.id === storyParam);
+  const max = param && "maxLength" in param ? param.maxLength : undefined;
+  while (max && lines.length > 2 && lines.join("\n").length > max) {
+    lines.splice(1, 1);
+  }
+  const story = lines.join("\n");
+  return max ? story.slice(0, max) : story;
+}
+
 type Boot =
   | { kind: "loading" }
   | { kind: "locked" }
@@ -655,7 +698,8 @@ function Workbench({
     async (job: Job, action: ClipAction) => {
       const target = clipWorkflows.get(action);
       if (!target?.clipTarget || sending) return;
-      const { sourceParam, carry, fresh, carriedParam } = target.clipTarget;
+      const { sourceParam, carry, fresh, carriedParam, storyParam } =
+        target.clipTarget;
 
       const output = job.outputs[0];
       if (!output) return;
@@ -686,6 +730,9 @@ function Workbench({
             // not left in the slot. Extend would ignore it anyway — it only
             // takes a tail named after the clip it is given.
             ...(carriedParam ? { [carriedParam]: tail ?? "" } : {}),
+            ...(storyParam
+              ? { [storyParam]: storySoFar(job, target, storyParam) }
+              : {}),
           };
 
           // Carry across whatever this destination asked for, so the new run

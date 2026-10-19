@@ -490,6 +490,13 @@ export interface ClipTarget {
    * clip that has since been replaced. Left empty when there is no tail.
    */
   carriedParam?: string;
+  /**
+   * Id of a text param the hand-off fills with what the clip already showed:
+   * the story the source was itself given, if it was made here from one, and
+   * then the prompt that made it. So a chain of runs carries its first prompt
+   * all the way down rather than only the last thing typed.
+   */
+  storyParam?: string;
 }
 
 /**

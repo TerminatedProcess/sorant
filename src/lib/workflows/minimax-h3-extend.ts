@@ -447,6 +447,35 @@ const LATENT_SEAM = [
 const TAIL_PARAM = "source_tail";
 
 /**
+ * What the clip already showed: the prompt that made it and every Extend line
+ * since, oldest first, filled in by the hand-off. See `storyBlock`.
+ */
+const STORY_PARAM = "source_story";
+
+/**
+ * The story so far, for the director to read as background.
+ *
+ * Told as history it must not replay, never as the instruction: a segment given
+ * the whole prompt again restarts it. Without it the director knows the clip
+ * only from its last frame and re-describes the people in it from that alone,
+ * and the description, the grade and the camera drift a little further with
+ * each pass. With it they hold.
+ *
+ * Only for the clip it was written about — the one the tail names, which an
+ * upload over the source slot no longer is.
+ */
+function storyBlock(values: Record<string, ParamValue>): string {
+  const story = String(values[STORY_PARAM] ?? "").trim();
+  const source = String(values.source_video ?? "");
+  if (!story || !source || values[TAIL_PARAM] !== source) return "";
+  return `WHAT THE CLIP ALREADY SHOWED
+
+The source video was made from these instructions, oldest first. They are background only: use them for who these people are, what they wear, where this is, and how the clip looks and is shot. Do not repeat, replay or summarise any of it — the continuation describes only what happens next.
+
+${story}`;
+}
+
+/**
  * Takes the latent seam when the loaded clip has a tail, and the last-frame one
  * otherwise. See the top of the file.
  *
@@ -478,7 +507,7 @@ function finalize(graph: ComfyGraph, values: Record<string, ParamValue>) {
  * graph so that adding a second contributor is a matter of passing this along
  * rather than of noticing that it needed to be.
  */
-const director = directorTarget(ids, EXTEND_DIRECTOR);
+const director = directorTarget(ids, EXTEND_DIRECTOR, [storyBlock]);
 
 const bypass = directorBypassFor(ids);
 
@@ -508,9 +537,21 @@ const params: ParamDef[] = [
   promptParam(
     ids,
     "He turns to her and says we need to leave.",
-    "Say what happens next, not what the clip already showed. It can see the last frame.",
+    "Say what happens next, not what the clip already showed. It can see the last frame and the story so far.",
     6,
   ),
+  {
+    id: STORY_PARAM,
+    label: "Story so far",
+    type: "textarea",
+    default: "",
+    maxLength: 4000,
+    rows: 4,
+    help: "What the clip already showed, filled in by Extend. The rewrite reads it as background and won't replay it.",
+    group: "Source",
+    revealedBy: TAIL_PARAM,
+    targets: [director],
+  },
   literalPromptParam(),
   rewriteModelParam(graph, [ids.director]),
 
@@ -548,20 +589,26 @@ export const minimaxH3Extend: WorkflowDef = {
   /**
    * No `carry`, unlike Remix. The prompt that made the source describes the
    * source, and this graph reads what you type as what happens *next* — so
-   * carrying it across would ask the director to continue the clip by doing
-   * again what it just did.
+   * carrying it into the prompt box would ask the director to continue the clip
+   * by doing again what it just did. It travels as the story instead, which
+   * the director is told is history.
    */
   clipTarget: {
     action: "extend",
     accepts: "video",
     sourceParam: "source_video",
     carriedParam: TAIL_PARAM,
+    storyParam: STORY_PARAM,
   },
   finalize,
   finalizeCases: [
     {
       name: "a generation with its latent tail",
-      values: { source_video: "clip.mp4", [TAIL_PARAM]: "clip.mp4" },
+      values: {
+        source_video: "clip.mp4",
+        [TAIL_PARAM]: "clip.mp4",
+        [STORY_PARAM]: "She walks along the pier.",
+      },
     },
     { name: "an upload, no tail", values: { source_video: "clip.mp4" } },
     {

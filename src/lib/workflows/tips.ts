@@ -270,14 +270,15 @@ export const WORKFLOW_TIPS: Record<string, WorkflowTips> = {
           "This one runs a continuation director. It reads what you type as what happens next, and spends most of its effort on the seam: no establishing shot, no reset to a neutral pose, no cut, and motion already underway carried through.",
           "So write the next beat, not the scene. “Then he opens the door” is a complete instruction — identity, wardrobe, lighting, camera and location all carry over from the last frame without being asked for.",
           "It will not replay the source's dialogue, and it only writes new lines when your continuation calls for speech.",
-          "Everything the director knows about the source is its last frame. If something important happened earlier in the clip and matters to what comes next, say so.",
+          "Besides the last frame, a clip you press Extend on brings its story so far: the prompt that made it and every Extend line since, in the Story so far box under Source. The director reads it as background — who these people are, where this is, how it is shot — and is told not to replay any of it. It is what keeps the third pass looking like the first.",
+          "A clip you upload has no story, so all the director knows of it is its last frame. If something earlier in the clip matters to what comes next, say so in the prompt.",
           LITERAL_NOTE,
         ],
       },
       {
         heading: "What carries over, and what does not",
         items: [
-          "The prompt does not come across, unlike Remix. The text that made the source describes the source, and asking a continuation director to continue with it would have the clip do again what it just did.",
+          "The prompt box starts empty, unlike Remix. The text that made the source describes the source, and handing it to a continuation director as the instruction would have the clip do again what it just did. It travels as the story so far instead, which the director is told is history.",
           "The seed does not carry over either — the new segment is generated from noise like any other.",
         ],
       },
