@@ -1,0 +1,44 @@
+# Soran't - Project aliases and functions
+# All commands defined here, sourced by .salias
+# Run 'help' to see all available commands
+
+# ── Help ──
+# Relative path: .salias_f is always sourced with the project dir as PWD.
+function help
+    clear
+    cat ./.salias_help.txt
+end
+
+# ── App ──
+function install
+    pnpm install
+end
+
+# Start ComfyUI (systemd user unit) if it isn't up, then the app in the foreground.
+function run
+    if not systemctl --user is-active --quiet comfyui
+        systemctl --user start comfyui
+        echo "Started ComfyUI on :8188"
+    end
+    pnpm dev
+end
+
+# Stop this project's dev server and ComfyUI.
+function stop
+    for p in (pgrep -f 'next/dist/bin/next dev')
+        if test (readlink /proc/$p/cwd) = (pwd)
+            kill $p
+        end
+    end
+    systemctl --user stop comfyui
+    echo "Stopped app and ComfyUI"
+end
+
+# ── Checks ──
+alias check='pnpm typecheck; and pnpm check:workflows'
+alias nodes='pnpm check:nodes'
+alias smoke='pnpm smoke --director local'
+
+# ── ComfyUI (systemd) ──
+alias cstatus='systemctl --user status comfyui --no-pager'
+alias clog='journalctl --user -u comfyui -f'
