@@ -961,6 +961,10 @@ function Workbench({
     workflow: picked?.scenes ? selected : undefined,
     sceneWorkflow: picked?.scenes ? modesWorkflow : undefined,
     stitchWorkflow,
+    // Whichever workflow the Upscale button sends a clip to.
+    upscaleWorkflow: picked?.scenes
+      ? workflows.find((workflow) => workflow.clipTarget?.action === "upscale")
+      : undefined,
     values,
     modes: { ...modes, lowVram, localDirector: runDirector },
     jobs,

@@ -23,6 +23,10 @@ export interface MusicVideoProject {
   scenes: ProjectScene[];
   /** The run that joins the scenes, once every one of them has a clip. */
   stitchPromptId?: string;
+  /** Set once someone asks for the upscaled video; the join of it follows. */
+  upscaleRequested?: boolean;
+  /** The run that joins the upscaled scenes. */
+  upscaledStitchPromptId?: string;
 }
 
 export interface ProjectScene extends SceneWindow {
@@ -32,6 +36,8 @@ export interface ProjectScene extends SceneWindow {
   promptId?: string;
   /** How many times it has been put back after a transient gateway failure. */
   retries?: number;
+  /** The job that upscaled its clip, if the video has been upscaled. */
+  upscalePromptId?: string;
 }
 
 /**

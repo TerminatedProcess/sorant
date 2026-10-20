@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { JobsController } from "@/hooks/use-jobs";
-import { getToken } from "@/lib/client";
+import { api, ApiError, getToken } from "@/lib/client";
 import type { Job } from "@/lib/jobs";
 import { analyseSong } from "@/lib/music-video/beats";
 import {
@@ -15,7 +15,7 @@ import {
 import { keptFrames, splitSong } from "@/lib/music-video/scenes";
 import { FPS } from "@/lib/workflows/minimax-common";
 import type { RunModes } from "@/lib/workflows/modes";
-import type { ParamValue, WorkflowSummary } from "@/lib/workflows/types";
+import { defaultValuesFor, type ParamValue, type WorkflowSummary } from "@/lib/workflows/types";
 
 /**
  * The music video, from a song in the form to a finished file.
@@ -59,6 +59,14 @@ export interface MusicVideoController {
   renderAll: () => Promise<void>;
   /** The finished video, once the stitch has run. */
   final: Job | undefined;
+  /** The upscaled version, once every scene has been upscaled and rejoined. */
+  upscaledFinal: Job | undefined;
+  /** Each scene's upscale job, where it has one. */
+  upscaleFor: (scene: ProjectScene) => Job | undefined;
+  /** How far the upscale has got: scenes done, and whether it is running. */
+  upscale: { done: number; active: boolean; joining: boolean };
+  /** Upscale every scene that has no upscale yet, then join the upscaled clips. */
+  upscaleAll: () => Promise<void>;
   /** Throw a scene's take away and render it again, on a fresh seed. */
   redo: (index: number) => Promise<void>;
   stitch: () => Promise<void>;
@@ -70,6 +78,7 @@ interface Options {
   workflow: WorkflowSummary | undefined;
   sceneWorkflow: WorkflowSummary | undefined;
   stitchWorkflow: WorkflowSummary | undefined;
+  upscaleWorkflow: WorkflowSummary | undefined;
   values: Record<string, ParamValue>;
   modes: RunModes & { lowVram?: boolean; localDirector?: string };
   jobs: JobsController;
@@ -97,6 +106,17 @@ function writeProject(project: MusicVideoProject | null): void {
 const TRANSIENT = /AI Gateway request failed \(HTTP (429|5\d\d)\)/;
 const MAX_RETRIES = 2;
 
+/**
+ * The video a job saved, not a preview of what it read: a run that loads clips
+ * reports each loader's input too. See collectOutputs.
+ */
+const savedVideo = (job: Job | undefined) =>
+  job?.phase === "done"
+    ? job.outputs.find(
+        (file) => (file.type || "output") === "output" && /\.(mp4|webm|mov|mkv)$/i.test(file.filename),
+      )
+    : undefined;
+
 const failed = (job: Job | undefined) =>
   job !== undefined && ["error", "cancelled", "unknown"].includes(job.phase);
 
@@ -104,6 +124,7 @@ export function useMusicVideo({
   workflow,
   sceneWorkflow,
   stitchWorkflow,
+  upscaleWorkflow,
   values,
   modes,
   jobs,
@@ -120,6 +141,11 @@ export function useMusicVideo({
   );
   const jobFor = useCallback(
     (scene: ProjectScene) => (scene.promptId ? byId.get(scene.promptId) : undefined),
+    [byId],
+  );
+  const upscaleFor = useCallback(
+    (scene: ProjectScene) =>
+      scene.upscalePromptId ? byId.get(scene.upscalePromptId) : undefined,
     [byId],
   );
 
@@ -147,6 +173,10 @@ export function useMusicVideo({
 
   const stitchJob = project?.stitchPromptId ? byId.get(project.stitchPromptId) : undefined;
   const final = stitchJob?.phase === "done" ? stitchJob : undefined;
+  const upscaledStitchJob = project?.upscaledStitchPromptId
+    ? byId.get(project.upscaledStitchPromptId)
+    : undefined;
+  const upscaledFinal = upscaledStitchJob?.phase === "done" ? upscaledStitchJob : undefined;
 
   const step: MusicVideoStep = useMemo(() => {
     if (busy) return busy;
@@ -168,6 +198,11 @@ export function useMusicVideo({
     setError(stitchJob.error ?? "The scenes could not be joined.");
     setProject({ ...project, stitchPromptId: undefined });
   }, [project, stitchJob]);
+  useEffect(() => {
+    if (!project || !upscaledStitchJob || !failed(upscaledStitchJob)) return;
+    setError(upscaledStitchJob.error ?? "The upscaled scenes could not be joined.");
+    setProject({ ...project, upscaledStitchPromptId: undefined });
+  }, [project, upscaledStitchJob]);
 
   const plan = useCallback(async () => {
     if (!workflow) return;
@@ -328,7 +363,11 @@ export function useMusicVideo({
           ? {
               ...previous,
               stitchPromptId: undefined,
-              scenes: previous.scenes.map((s, i) => (i === index ? { ...s, promptId } : s)),
+              upscaledStitchPromptId: undefined,
+              // Its upscale was of the take that is being thrown away.
+              scenes: previous.scenes.map((s, i) =>
+                i === index ? { ...s, promptId, upscalePromptId: undefined } : s,
+              ),
             }
           : previous,
       );
@@ -336,34 +375,121 @@ export function useMusicVideo({
     [project, jobFor, jobs, submitScene],
   );
 
-  const stitch = useCallback(async () => {
-    if (!project || !stitchWorkflow) return;
-    setError(null);
-    const clips = project.scenes.map((scene) => {
-      const output = jobFor(scene)?.outputs.find((file) => /\.(mp4|webm|mov)$/i.test(file.filename));
-      if (!output) return null;
-      // As LoadVideo names a file in another of ComfyUI's folders.
-      const path = output.subfolder ? `${output.subfolder}/${output.filename}` : output.filename;
-      return { file: `${path} [${output.type || "output"}]`, seconds: keptFrames(scene) / FPS };
-    });
-    if (clips.some((clip) => clip === null)) {
-      setError("Every scene needs a finished clip before they can be joined.");
-      return;
-    }
+  /**
+   * Join a set of clips, one per scene, under the song. The same graph for the
+   * original takes and for their upscales: each is trimmed to its scene's
+   * window by time, so a clip at another size or frame rate joins the same way.
+   */
+  const join = useCallback(
+    async (current: MusicVideoProject, pick: (scene: ProjectScene) => Job | undefined) => {
+      if (!stitchWorkflow) return null;
+      const clips = current.scenes.map((scene) => {
+        const output = savedVideo(pick(scene));
+        if (!output) return null;
+        // As LoadVideo names a file in another of ComfyUI's folders.
+        const path = output.subfolder ? `${output.subfolder}/${output.filename}` : output.filename;
+        return { file: `${path} [${output.type || "output"}]`, seconds: keptFrames(scene) / FPS };
+      });
+      if (clips.some((clip) => clip === null)) {
+        setError("Every scene needs a finished clip before they can be joined.");
+        return null;
+      }
+      return jobs.submit(
+        stitchWorkflow,
+        {
+          scenes: JSON.stringify(clips),
+          song: current.song,
+          song_seconds: Math.round(current.songSeconds * 1000) / 1000,
+          prompt: `Music video: ${String(current.values.prompt ?? "").trim()}`,
+        },
+        // Under the first scene in the history, with the rest of the video.
+        { derivedFrom: current.scenes[0]?.promptId },
+      );
+    },
+    [stitchWorkflow, jobs],
+  );
 
-    const promptId = await jobs.submit(
-      stitchWorkflow,
-      {
-        scenes: JSON.stringify(clips),
-        song: project.song,
-        song_seconds: Math.round(project.songSeconds * 1000) / 1000,
-        prompt: `Music video: ${String(project.values.prompt ?? "").trim()}`,
-      },
-      // Under the first scene in the history, with the rest of the video.
-      { derivedFrom: project.scenes[0]?.promptId },
-    );
+  const stitch = useCallback(async () => {
+    if (!project) return;
+    setError(null);
+    const promptId = await join(project, jobFor);
     if (promptId) setProject({ ...project, stitchPromptId: promptId });
-  }, [project, stitchWorkflow, jobFor, jobs]);
+  }, [project, join, jobFor]);
+
+  /**
+   * Upscale the video: every scene through the upscale workflow at its
+   * defaults, then a join of the upscaled clips — a second video beside the
+   * original rather than in place of it.
+   *
+   * Scene by scene rather than the joined file, for two reasons. The upscale
+   * takes a minute of video at most, and most songs are longer. And a scene is
+   * a job of a few minutes: a failure, or a reset of the box, costs that scene
+   * and not hours of work, and a redone scene needs only its own upscale again.
+   */
+  const upscaleAll = useCallback(async () => {
+    if (!project || !upscaleWorkflow) return;
+    setError(null);
+    let current: MusicVideoProject = { ...project, upscaleRequested: true };
+    setProject(current);
+    for (let index = 0; index < current.scenes.length; index += 1) {
+      const scene = current.scenes[index];
+      const existing = upscaleFor(scene);
+      if (scene.upscalePromptId && !failed(existing)) continue;
+      const output = savedVideo(jobFor(scene));
+      if (!output) {
+        setError(`Scene ${index + 1} has no finished clip to upscale yet.`);
+        return;
+      }
+      try {
+        // Into ComfyUI's input folder, where the upscale's loader reads — the
+        // same copy the Upscale button makes.
+        const { ref } = await api<{ ref: string }>("/api/remix", {
+          method: "POST",
+          body: JSON.stringify({
+            filename: output.filename,
+            subfolder: output.subfolder,
+            type: output.type,
+          }),
+        });
+        const promptId = await jobs.submit(
+          upscaleWorkflow,
+          { ...defaultValuesFor(upscaleWorkflow), source_video: ref },
+          { derivedFrom: scene.promptId },
+        );
+        if (!promptId) return;
+        current = {
+          ...current,
+          upscaledStitchPromptId: undefined,
+          scenes: current.scenes.map((s, i) =>
+            i === index ? { ...s, upscalePromptId: promptId } : s,
+          ),
+        };
+        setProject(current);
+      } catch (cause) {
+        setError(cause instanceof ApiError ? cause.message : `Scene ${index + 1} could not be sent to the upscale.`);
+        return;
+      }
+    }
+  }, [project, upscaleWorkflow, upscaleFor, jobFor, jobs]);
+
+  // Once every scene's upscale is done, join them — once. The person asked for
+  // an upscaled video, not for forty upscaled clips.
+  const joiningUpscaled = useRef(false);
+  const upscaleJobs = project?.scenes.map(upscaleFor) ?? [];
+  const upscalesDone = upscaleJobs.filter((job) => job?.phase === "done").length;
+  const allUpscaled =
+    project !== null && upscaleJobs.length > 0 && upscalesDone === upscaleJobs.length;
+  useEffect(() => {
+    if (!project?.upscaleRequested || !allUpscaled || project.upscaledStitchPromptId) return;
+    if (joiningUpscaled.current) return;
+    joiningUpscaled.current = true;
+    void join(project, upscaleFor).then((promptId) => {
+      joiningUpscaled.current = false;
+      if (promptId) {
+        setProject((previous) => (previous ? { ...previous, upscaledStitchPromptId: promptId } : previous));
+      }
+    });
+  }, [project, allUpscaled, join, upscaleFor]);
 
   const clear = useCallback(() => {
     setProject(null);
@@ -380,6 +506,14 @@ export function useMusicVideo({
     renderAll,
     redo,
     final,
+    upscaledFinal,
+    upscaleFor,
+    upscale: {
+      done: upscalesDone,
+      active: upscaleJobs.some((job) => job && (job.phase === "queued" || job.phase === "running")),
+      joining: Boolean(upscaledStitchJob && !upscaledFinal && !failed(upscaledStitchJob)),
+    },
+    upscaleAll,
     stitch,
     clear,
     dismissError: useCallback(() => setError(null), []),

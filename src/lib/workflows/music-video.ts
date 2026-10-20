@@ -191,6 +191,14 @@ const params: ParamDef[] = [
     }).map(
       (param): ParamDef => ({
         ...param,
+        // Every scene is its own run, so whatever a picture releases is
+        // decided again in each one — a costume left to the scene changes at
+        // every cut.
+        ...(param.type === "select"
+          ? {
+              help: "Keep Everything for one consistent character. Each scene is rendered separately, so anything else lets their look change at every cut — “Identity only” re-dresses them scene by scene.",
+            }
+          : {}),
         // The same pictures go under every scene, with what each one keeps.
         scope: "scenes",
       }),

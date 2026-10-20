@@ -30,12 +30,19 @@ const STEP_HINT: Record<MusicVideoController["step"], string> = {
 
 export function MusicVideoPanel({ video }: { video: MusicVideoController }) {
   const { project, step } = video;
+  const scenes = project?.scenes ?? [];
   // The saved file, not the previews of what it was made from: every scene's
   // loader and trim reports a video of its own in the same run.
-  const finalUrl = video.final?.outputs.find(
-    (file) => file.type === "output" && /^music_video.*\.(mp4|webm|mov)$/i.test(file.filename),
-  )?.url;
-  const scenes = project?.scenes ?? [];
+  const finalUrl = joinedUrl(video.final);
+  const upscaledUrl = joinedUrl(video.upscaledFinal);
+  const allRendered = step === "rendered" || step === "done";
+  const upscaleRemaining = scenes.filter((scene) => {
+    const job = video.upscaleFor(scene);
+    return !job || ["error", "cancelled", "unknown"].includes(job.phase);
+  }).length;
+  // About 80 seconds of work per second of clip at the upscale's default
+  // 800 px, measured on a 3090. See the upscale workflow.
+  const upscaleHours = ((project?.songSeconds ?? 0) * 80) / 3600;
   const jobs = scenes.map(video.jobFor);
   const finished = jobs.filter((job) => job?.phase === "done").length;
   const unrendered = scenes.filter((scene, index) => {
@@ -84,24 +91,20 @@ export function MusicVideoPanel({ video }: { video: MusicVideoController }) {
         </p>
       ) : null}
 
+      {upscaledUrl ? (
+        <FinishedVideo
+          url={upscaledUrl}
+          label="Upscaled"
+          download={`music_video_${project?.id ?? ""}_upscaled.mp4`}
+        />
+      ) : null}
       {finalUrl ? (
-        <div className="mb-5">
-          <video
-            src={withToken(finalUrl)}
-            controls
-            playsInline
-            className="w-full rounded-lg border border-border-default bg-black"
-          />
-          <div className="mt-2 flex gap-2">
-            <a
-              href={withToken(finalUrl)}
-              download={`music_video_${project?.id ?? ""}.mp4`}
-              className={buttonClasses({ variant: "secondary", size: "sm" })}
-            >
-              Download
-            </a>
-          </div>
-        </div>
+        <FinishedVideo
+          url={finalUrl}
+          label={upscaledUrl ? "Original" : undefined}
+          download={`music_video_${project?.id ?? ""}.mp4`}
+          compact={Boolean(upscaledUrl)}
+        />
       ) : null}
 
       {scenes.some((scene) => scene.shot) ? (
@@ -183,6 +186,24 @@ export function MusicVideoPanel({ video }: { video: MusicVideoController }) {
                 Join into the video
               </Button>
             ) : null}
+            {allRendered && !video.upscale.active && !video.upscale.joining && !upscaledUrl ? (
+              <Button
+                onClick={() => void video.upscaleAll()}
+                title={`Upscales every scene, then joins the upscaled scenes into a second video. Roughly ${upscaleHours < 1 ? `${Math.max(1, Math.round(upscaleHours * 60))} minutes` : `${upscaleHours.toFixed(1)} hours`} for this song.`}
+              >
+                {upscaleRemaining < scenes.length
+                  ? `Upscale the ${upscaleRemaining} remaining`
+                  : "Upscale the video"}
+              </Button>
+            ) : null}
+            {video.upscale.active || video.upscale.joining ? (
+              <span className="flex items-center gap-2 text-[13px] text-fg-muted">
+                <Spinner className="size-3.5" />
+                {video.upscale.joining
+                  ? "Joining the upscaled scenes"
+                  : `Upscaling: ${video.upscale.done} of ${scenes.length} scenes`}
+              </span>
+            ) : null}
             {step === "stitching" ? (
               <span className="flex items-center gap-2 text-[13px] text-fg-muted">
                 <Spinner className="size-3.5" /> Joining {scenes.length} scenes
@@ -220,4 +241,47 @@ function SceneStatus({ job }: { job: Job | undefined }) {
     default:
       return <Badge tone="danger">failed</Badge>;
   }
+}
+
+/** The joined file a stitch saved, not the scene previews it also reports. */
+function joinedUrl(job: Job | undefined): string | undefined {
+  return job?.outputs.find(
+    (file) => file.type === "output" && /^music_video.*\.(mp4|webm|mov)$/i.test(file.filename),
+  )?.url;
+}
+
+function FinishedVideo({
+  url,
+  label,
+  download,
+  compact = false,
+}: {
+  url: string;
+  label?: string;
+  download: string;
+  compact?: boolean;
+}) {
+  return (
+    <div className="mb-5">
+      {label ? <p className="mb-1.5 text-[12px] font-medium text-fg-muted">{label}</p> : null}
+      <video
+        src={withToken(url)}
+        controls
+        playsInline
+        preload="metadata"
+        // Held to the viewport: a portrait video at the panel's full width is
+        // taller than the screen, which puts its controls out of sight.
+        className={`mx-auto block rounded-lg border border-border-default bg-black object-contain ${compact ? "max-h-[40vh] w-full sm:w-64" : "max-h-[75vh] w-full"}`}
+      />
+      <div className="mt-2 flex gap-2">
+        <a
+          href={withToken(url)}
+          download={download}
+          className={buttonClasses({ variant: "secondary", size: "sm" })}
+        >
+          Download
+        </a>
+      </div>
+    </div>
+  );
 }
