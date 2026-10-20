@@ -3,8 +3,8 @@
  * Do not edit: run the script. The curation, and why it is these, is in
  * ../rewrite-catalog.ts.
  *
- * Synced 2026-10-18: 476 models in the catalog,
- * 15 families declared, 28 offered.
+ * Synced 2026-10-20: 477 models in the catalog,
+ * 15 families declared, 29 offered.
  */
 import type { OfferedModel } from "../rewrite-catalog";
 
@@ -52,6 +52,13 @@ export const REWRITE_MODELS: OfferedModel[] = [
     pricePerMillion: 1.2,
   },
   {
+    id: "minimax/minimax-m3.1-flash",
+    label: "MiniMax-M3.1-Flash — free",
+    vision: true,
+    free: true,
+    pricePerMillion: 0,
+  },
+  {
     id: "zai/glm-5.3-flashx",
     label: "GLM 5.3 FlashX — $1.25/M",
     vision: true,
@@ -81,10 +88,10 @@ export const REWRITE_MODELS: OfferedModel[] = [
   },
   {
     id: "deepseek/deepseek-v4.1-flash",
-    label: "DeepSeek V4.1 Flash — $1.20/M",
+    label: "DeepSeek V4.1 Flash — $0.30/M",
     vision: true,
     free: false,
-    pricePerMillion: 1.2,
+    pricePerMillion: 0.3,
   },
   {
     id: "deepseek/deepseek-v4-flash",
@@ -95,10 +102,10 @@ export const REWRITE_MODELS: OfferedModel[] = [
   },
   {
     id: "mistral/mistral-large-4",
-    label: "Mistral Large 4 — $2.09/M",
+    label: "Mistral Large 4 — $4.18/M",
     vision: true,
     free: false,
-    pricePerMillion: 2.09,
+    pricePerMillion: 4.18,
   },
   {
     id: "mistral/mistral-nemo",
