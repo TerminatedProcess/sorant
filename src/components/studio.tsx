@@ -15,6 +15,7 @@ import {
 } from "@/components/connection-pill";
 import { NotifyToggle } from "@/components/notify-toggle";
 import { RewriteKeyButton } from "@/components/rewrite-key";
+import { MusicVideoPanel } from "@/components/music-video-panel";
 import { GenerationStage } from "@/components/generation-stage";
 import { ParamForm } from "@/components/param-form";
 import { SettingsModal } from "@/components/settings-modal";
@@ -33,6 +34,7 @@ import { StatusPanel } from "@/components/status-panel";
 import { GenerationsPanel } from "@/components/generations-panel";
 import { SorantMark } from "@/components/sorant-logo";
 import { useJobs } from "@/hooks/use-jobs";
+import { useMusicVideo } from "@/hooks/use-music-video";
 import { useCompat } from "@/hooks/use-compat";
 import { isActive, isRerunnable, isRetryable, type Job } from "@/lib/jobs";
 import { restoreFrom } from "@/lib/restore";
@@ -96,6 +98,11 @@ interface ConfigPayload {
  * which of them happened.
  */
 const CLIP_NOTICE: Record<ClipAction, { verb: string; detail: string }> = {
+  musicvideo: {
+    verb: "Making a music video for",
+    detail:
+      "The whole track is loaded as the song below. Say what the video is, add a picture of who is in it, then plan it — the scenes come back for you to read before anything renders.",
+  },
   illustrate: {
     verb: "Scoring",
     detail:
@@ -414,10 +421,26 @@ function Workbench({
     [workflows, selectedId],
   );
 
-  const turboOn = Boolean(turboByWorkflow[selectedId]);
+  /**
+   * The workflow whose modes a run of this one uses. Itself, except for the
+   * music video, whose own graph only plans: its scenes are Reference to Video
+   * runs, so Turbo and the switches are that workflow's, offered here and kept
+   * under its id — the music video and Reference to Video share one setting,
+   * because they are the same runs.
+   */
+  const modesFor = useMemo(
+    () =>
+      picked?.scenes
+        ? workflows.find((workflow) => workflow.id === picked.scenes!.workflow)
+        : picked,
+    [picked, workflows],
+  );
+  const modeKey = modesFor?.id ?? selectedId;
+
+  const turboOn = Boolean(turboByWorkflow[modeKey]);
   const patchesOn = useMemo(
-    () => patchesByWorkflow[selectedId] ?? [],
-    [patchesByWorkflow, selectedId],
+    () => patchesByWorkflow[modeKey] ?? [],
+    [patchesByWorkflow, modeKey],
   );
   const modes = useMemo(
     () => ({
@@ -440,6 +463,11 @@ function Workbench({
   const selected = useMemo(
     () => (picked ? effectiveWorkflow(picked, turboOn) : undefined),
     [picked, turboOn],
+  );
+  /** `modesFor` as the switch has it, for everything that shows the modes. */
+  const modesWorkflow = useMemo(
+    () => (modesFor ? effectiveWorkflow(modesFor, turboOn) : undefined),
+    [modesFor, turboOn],
   );
 
   const values = valuesByWorkflow[selectedId] ?? {};
@@ -466,7 +494,7 @@ function Workbench({
     () => ({
       turbo: turboOn,
       patches: patchesOn.filter((id) => {
-        const patch = selected?.patches.find((candidate) => candidate.id === id);
+        const patch = modesWorkflow?.patches.find((candidate) => candidate.id === id);
         return !patch || !patchSuppressed(patch, runValues);
       }),
       lora,
@@ -477,7 +505,7 @@ function Workbench({
     [
       turboOn,
       patchesOn,
-      selected,
+      modesWorkflow,
       runValues,
       lora,
       tier,
@@ -493,17 +521,19 @@ function Workbench({
    */
   const setTurbo = useCallback(
     (on: boolean) => {
-      if (!picked?.turbo) return;
-      setTurboByWorkflow((previous) => ({ ...previous, [selectedId]: on }));
+      if (!modesFor?.turbo) return;
+      setTurboByWorkflow((previous) => ({ ...previous, [modeKey]: on }));
+      // The values whose ranges move are the ones of the workflow with the
+      // steps control — the music video has none of its own.
       setValuesByWorkflow((previous) => ({
         ...previous,
-        [selectedId]: clampValues(
-          effectiveWorkflow(picked, on),
-          previous[selectedId] ?? {},
+        [modeKey]: clampValues(
+          effectiveWorkflow(modesFor, on),
+          previous[modeKey] ?? {},
         ),
       }));
     },
-    [picked, selectedId],
+    [modesFor, modeKey],
   );
 
   /**
@@ -547,21 +577,21 @@ function Workbench({
    */
   const setPatch = useCallback(
     (id: string, on: boolean) => {
-      if (!picked) return;
+      if (!modesFor) return;
       setPatchesByWorkflow((previous) => {
-        const current = previous[selectedId] ?? [];
+        const current = previous[modeKey] ?? [];
         const wanted = on
           ? [...current, id]
           : current.filter((other) => other !== id);
         return {
           ...previous,
-          [selectedId]: picked.patches
+          [modeKey]: modesFor.patches
             .filter((patch) => wanted.includes(patch.id))
             .map((patch) => patch.id),
         };
       });
     },
-    [picked, selectedId],
+    [modesFor, modeKey],
   );
 
   /**
@@ -905,8 +935,46 @@ function Workbench({
     return { field: jobs.submitErrorField, message: jobs.submitError };
   }, [jobs.submitError, jobs.submitErrorField, submittedFor, selectedId]);
 
+  /**
+   * The music video's own state, when it is the workflow on screen. Always
+   * mounted, so a render in progress keeps its project while another workflow
+   * is being looked at.
+   */
+  // The stitch is a tool, so it is not in the list the browser is sent (see
+  // the workflows route); a run needs only its id and how to name it.
+  const stitchWorkflow = useMemo<WorkflowSummary | undefined>(
+    () =>
+      picked?.scenes
+        ? {
+            id: picked.scenes.stitch,
+            name: picked.name,
+            description: picked.description,
+            hasAudio: true,
+            tool: true,
+            params: [],
+            patches: [],
+          }
+        : undefined,
+    [picked],
+  );
+  const musicVideo = useMusicVideo({
+    workflow: picked?.scenes ? selected : undefined,
+    sceneWorkflow: picked?.scenes ? modesWorkflow : undefined,
+    stitchWorkflow,
+    values,
+    modes: { ...modes, lowVram, localDirector: runDirector },
+    jobs,
+  });
+
   const submit = useCallback(() => {
     if (!selected || jobs.submitting) return;
+    // The music video's button plans rather than generates; its renders are
+    // started from its own panel, once the plan has been read.
+    if (selected.scenes) {
+      setSubmittedFor(selected.id);
+      void musicVideo.plan();
+      return;
+    }
     setSubmittedFor(selected.id);
     void jobs.submit(selected, values, {
       ...modes,
@@ -930,7 +998,7 @@ function Workbench({
         stageRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
       );
     }
-  }, [selected, values, jobs, clipSource, modes, lowVram, runDirector]);
+  }, [selected, values, jobs, clipSource, modes, lowVram, runDirector, musicVideo]);
 
   /**
    * Run a failed generation again, exactly as it was.
@@ -1075,10 +1143,15 @@ function Workbench({
 
   // Named after what the selected workflow actually makes: pressing "Generate
   // video" and getting an mp3 is a small lie the app was telling.
-  const queueLabel =
-    jobs.activeCount > 0
+  const queueLabel = selected?.scenes
+    ? musicVideo.project
+      ? "Plan again"
+      : "Plan the video"
+    : jobs.activeCount > 0
       ? `Queue another (${jobs.activeCount} running)`
       : `Generate ${selected?.makes ?? "video"}`;
+  const planning =
+    musicVideo.step === "cutting" || musicVideo.step === "planning";
 
   return (
     /* At lg the shell is exactly the viewport and nothing outside a column
@@ -1213,7 +1286,11 @@ function Workbench({
               >
                 <PanelHeader
                   title="Settings"
-                  hint={workflowLabel(selected.name, runModes, selected.patches)}
+                  hint={workflowLabel(
+                    selected.name,
+                    runModes,
+                    modesWorkflow?.patches ?? selected.patches,
+                  )}
                   action={
                     <div className="flex shrink-0 items-center gap-2">
                       {tips ? (
@@ -1241,9 +1318,9 @@ function Workbench({
                     </div>
                   }
                 />
-                {selected.turbo ? (
+                {modesWorkflow?.turbo ? (
                   <TurboSwitch
-                    turbo={selected.turbo}
+                    turbo={modesWorkflow.turbo}
                     on={turboOn}
                     onChange={setTurbo}
                     strength={strengths[TURBO_STRENGTH]}
@@ -1254,11 +1331,11 @@ function Workbench({
                 ) : null}
 
                 <ModelOptions
-                  patches={selected.patches}
+                  patches={modesWorkflow?.patches ?? []}
                   on={patchesOn}
                   values={runValues}
                   onPatchChange={setPatch}
-                  turbo={selected.turbo}
+                  turbo={modesWorkflow?.turbo}
                   turboOn={turboOn}
                   lowVram={lowVram}
                   onLowVramChange={setLowVram}
@@ -1333,7 +1410,7 @@ function Workbench({
                 variant="primary"
                 size="lg"
                 onClick={submit}
-                loading={jobs.submitting}
+                loading={jobs.submitting || (Boolean(selected?.scenes) && planning)}
                 disabled={!selected}
                 className="flex-1 sm:flex-none sm:min-w-44"
               >
@@ -1388,6 +1465,8 @@ function Workbench({
                   </Button>
                 </div>
               ) : null}
+
+              {selected?.scenes ? <MusicVideoPanel video={musicVideo} /> : null}
 
               <GenerationStage
                 job={viewedJob}
@@ -1459,7 +1538,7 @@ function Workbench({
           variant="primary"
           size="lg"
           onClick={submit}
-          loading={jobs.submitting}
+          loading={jobs.submitting || (Boolean(selected?.scenes) && planning)}
           disabled={!selected}
           className="w-full"
         >

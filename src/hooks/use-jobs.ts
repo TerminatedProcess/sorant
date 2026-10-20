@@ -84,7 +84,7 @@ export interface JobsController {
       /** The generation whose clip this one was made from, if any. */
       derivedFrom?: string;
     },
-  ) => Promise<void>;
+  ) => Promise<string | null>;
   cancel: (promptId: string) => Promise<void>;
   remove: (promptId: string) => void;
   /** Drop several at once, so a day's worth is one state write. */
@@ -408,6 +408,7 @@ export function useJobs(): JobsController {
         };
 
         setJobs((previous) => [job, ...previous]);
+        return job.promptId;
       } catch (cause) {
         setSubmitError(
           cause instanceof ApiError ? cause.message : "Could not submit the job.",
@@ -415,6 +416,7 @@ export function useJobs(): JobsController {
         setSubmitErrorField(
           cause instanceof ApiError ? (cause.field ?? null) : null,
         );
+        return null;
       } finally {
         setSubmitting(false);
       }

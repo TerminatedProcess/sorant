@@ -153,6 +153,19 @@ async function statusFor(
       };
     }
 
+    // A graph whose only product is text — the music video's planner — is
+    // finished when its director has written. Told apart by what was queued:
+    // no node in it saves a file, so nothing was ever going to come back but
+    // the brief.
+    if (
+      entry.status?.completed &&
+      outputs.length === 0 &&
+      Object.keys(briefs).length > 0 &&
+      !savesAFile(entry)
+    ) {
+      return { state: "done", queuePosition: null, outputs: [], briefs };
+    }
+
     // A completed prompt with nothing to show means the graph has no save
     // node wired to an output, which is a workflow bug worth naming.
     if (entry.status?.completed && outputs.length === 0) {
@@ -180,9 +193,14 @@ async function statusFor(
     return { state: "running", queuePosition: null, outputs: [] };
   }
 
+  // In run order. ComfyUI hands the pending list back in its heap's order,
+  // which is not the order it will run them in — with a dozen music video
+  // scenes queued, the seventh read as twelfth. Each item leads with the number
+  // it runs by.
   const pendingIndex =
-    queue.queue_pending?.findIndex((item) => promptIdOf(item) === promptId) ??
-    -1;
+    [...(queue.queue_pending ?? [])]
+      .sort((a, b) => Number(a[0]) - Number(b[0]))
+      .findIndex((item) => promptIdOf(item) === promptId);
 
   if (pendingIndex >= 0) {
     return { state: "queued", queuePosition: pendingIndex, outputs: [] };
@@ -227,4 +245,17 @@ export async function GET(request: Request) {
   } catch (error) {
     return errorResponse(error);
   }
+}
+
+/** Node classes that write a file: every core Save*, and VHS's combine. */
+const SAVES = /^Save|^VHS_VideoCombine$/;
+
+/** Whether the graph a history entry ran has anything in it that saves a file. */
+function savesAFile(entry: ComfyHistoryEntry): boolean {
+  const queued = Array.isArray(entry.prompt)
+    ? (entry.prompt[2] as Record<string, { class_type?: string }> | undefined)
+    : undefined;
+  // Unknown is treated as "it does", which keeps the old, stricter answer.
+  if (!queued) return true;
+  return Object.values(queued).some((node) => SAVES.test(node.class_type ?? ""));
 }

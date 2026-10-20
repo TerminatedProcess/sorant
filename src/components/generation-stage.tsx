@@ -199,7 +199,11 @@ function InFlight({
   // Only queued and running reach here now, so the lookup cannot miss — but a
   // fallback that says "Generating" about an unknown state is how the branch
   // above went wrong, so this one names what it actually has.
-  const copy = PHASE_COPY[job.phase] ?? PHASE_COPY.queued;
+  const copy =
+    // The music video's planning run writes text and samples nothing.
+    job.workflowId === "music-video" && job.phase === "running"
+      ? { label: "Planning", detail: "Writing a scene for every cut in the song." }
+      : (PHASE_COPY[job.phase] ?? PHASE_COPY.queued);
   // Waiting time while it waits, render time once it renders — the clock
   // restarts at the seam rather than running on from submit. See `clockMs`.
   const elapsedMs = clockMs(job, now);
@@ -434,6 +438,17 @@ const CLIP_BUTTONS: Record<
           strokeLinecap="round"
           strokeLinejoin="round"
         />
+      </svg>
+    ),
+  },
+  musicvideo: {
+    label: "Music video",
+    title: "Make a whole music video to this track, scene by scene",
+    icon: (
+      // A strip of three frames.
+      <svg viewBox="0 0 16 16" className="size-3.5" fill="none" aria-hidden="true">
+        <rect x="1.5" y="4" width="13" height="8" rx="1.2" stroke="currentColor" strokeWidth="1.4" />
+        <path d="M6 4v8M10 4v8" stroke="currentColor" strokeWidth="1.4" />
       </svg>
     ),
   },

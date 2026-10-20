@@ -533,7 +533,13 @@ export function collectOutputs(entry: ComfyHistoryEntry): ComfyFileRef[] {
         const looksLikeVideo = VIDEO_EXTENSIONS.test(ref.filename);
         files.push({
           ref,
-          rank: (looksLikeVideo ? 0 : 100) + (keyRank === -1 ? 50 : keyRank),
+          rank:
+            // What the run saved ahead of what it only previewed: a graph that
+            // loads clips — the music video's stitch loads one per scene —
+            // reports each loader's input and each trim's temp file too.
+            (ref.type && ref.type !== "output" ? 1000 : 0) +
+            (looksLikeVideo ? 0 : 100) +
+            (keyRank === -1 ? 50 : keyRank),
         });
       }
     }

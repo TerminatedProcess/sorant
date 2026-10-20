@@ -47,6 +47,35 @@ for (const workflow of WORKFLOWS) {
   for (const problem of problems) console.error(`       ${problem}`);
 }
 
+// A workflow that runs another one hands it values by id, so every control it
+// scopes to the scenes has to be one the scene workflow has, of the same kind —
+// a renamed control there would otherwise drop the value without a word.
+for (const workflow of WORKFLOWS) {
+  if (!workflow.scenes) continue;
+  const target = WORKFLOWS.find((other) => other.id === workflow.scenes!.workflow);
+  const problems: string[] = [];
+  if (!target) {
+    problems.push(`scenes names workflow "${workflow.scenes.workflow}", which is not registered`);
+  } else {
+    for (const param of workflow.params) {
+      if (param.scope !== "scenes") continue;
+      const there = target.params.find((other) => other.id === param.id);
+      if (!there) {
+        problems.push(`"${param.id}" is scoped to the scenes, but ${target.id} has no such control`);
+      } else if (there.type !== param.type && !(there.type === "select" && param.type === "select")) {
+        problems.push(`"${param.id}" is a ${param.type} here and a ${there.type} on ${target.id}`);
+      }
+    }
+  }
+  if (problems.length > 0) {
+    failed = true;
+    console.error(`  FAIL ${workflow.id} scenes`);
+    for (const problem of problems) console.error(`       ${problem}`);
+  } else {
+    console.log(`  ok   ${workflow.id} — every scene-scoped control is one ${target!.id} has`);
+  }
+}
+
 // Every file a graph can name has to say where it comes from, or
 // `models:download` cannot fetch it and a new workflow ships with a download
 // nobody can find.

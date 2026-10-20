@@ -338,6 +338,25 @@ const TRIM_START_PARAM = "reference_trim_start";
 const TRACK_SECONDS_PARAM = "reference_track_seconds";
 const LYRICS_PARAM = "reference_lyrics";
 
+/**
+ * Whether the track is the video's soundtrack rather than a reference for one.
+ *
+ * Off, the track goes in as `ref_audio_0` and H3 generates audio of its own
+ * alongside it — a score it was shown, which it may follow loosely, and a
+ * vocal it writes itself. On, the same window is also encoded into the audio
+ * half of the latent being sampled, under a zero noise mask, so the sampler
+ * generates only the picture against the actual song: the performance lands
+ * on the real vocal, and the finished file carries the window untouched.
+ *
+ * The approach the vrgamedevgirl node pack's music videos are made with
+ * (their `VRGDG_MiniMaxH3AudioDrive`), rebuilt from three stock nodes. The
+ * reference input stays wired beside it, as theirs does.
+ *
+ * A locked window has to be exactly as long as the video, so the trim is
+ * pinned to "as much as the video is long" while it is on.
+ */
+const LOCK_PARAM = "reference_track_lock";
+
 /** What the trim select offers, and what each answer means in seconds. */
 const TRIM_WHOLE = "whole";
 const TRIM_MATCH = "match";
@@ -347,8 +366,12 @@ const TRIM_SET = "set";
 const trackAttached = (values: Record<string, ParamValue>): boolean =>
   String(values[AUDIO_PARAM] ?? "").trim() !== "";
 
+/** Whether the track is locked in as the soundtrack. Only with a track. */
+const trackLocked = (values: Record<string, ParamValue>): boolean =>
+  trackAttached(values) && isSet(values[LOCK_PARAM]);
+
 /** Whether this run has a reference clip. */
-const videoAttached = (values: Record<string, ParamValue>): boolean =>
+const videoAttached =(values: Record<string, ParamValue>): boolean =>
   String(values[VIDEO_PARAM] ?? "").trim() !== "";
 
 /** Whether this run has a voice reference. */
@@ -936,10 +959,39 @@ const graph: ComfyGraph = {
     _meta: { title: "Trim Audio Duration (Second voice)" },
   },
 
+  // The track locked in as the soundtrack. See LOCK_PARAM.
+  //
+  // 175 encodes the same window the reference node is given into H3's audio
+  // latent, 176 sets its noise mask to zero so the sampler leaves it as it is,
+  // and 177 swaps it in for the empty audio half of the latent 136 made. The
+  // concat pads or cuts nothing that matters: the window is the snapped length
+  // of the video, which is the length of the audio half it replaces.
+  //
+  // Present in every stored graph and deleted by `finalize` on a run without
+  // the lock, so check:nodes and the requirements see the classes.
+  "175": {
+    class_type: "VAEEncodeAudio",
+    inputs: { audio: ["167", 0], vae: ["120", 0] },
+    _meta: { title: "VAE Encode Audio (locked track)" },
+  },
+  "176": {
+    class_type: "LTXVFreezeLatent",
+    inputs: { latent: ["175", 0] },
+    _meta: { title: "LTXV Freeze Latent (locked track)" },
+  },
+  "177": {
+    class_type: "LTXVConcatAVLatent",
+    inputs: { video_latent: ["136", 1], audio_latent: ["176", 0] },
+    _meta: { title: "Concat AV Latent (locked track)" },
+  },
+
   // The run's last 0.9 s of latents, for Extend to carry on from. See
   // latent-tail.ts.
   ...latentTailNodes("125"),
 };
+
+/** The nodes only the lock uses, deleted when it is off. */
+const LOCK_NODES = ["175", "176", "177"];
 
 /**
  * Everything that shapes the director's instructions writes this one target,
@@ -993,7 +1045,7 @@ const director = directorTarget(ids, REFERENCE_DIRECTOR, [
   }),
   // Then the two standalone recordings, in the order the node numbers them, so
   // the brief reads in the same order as the references it describes.
-  referenceTrack(AUDIO_PARAM, labelsFor),
+  referenceTrack(AUDIO_PARAM, labelsFor, trackLocked),
   referenceVoice({
     voices: [
       {
@@ -1193,6 +1245,19 @@ const params: ParamDef[] = [
     ],
   },
   {
+    id: LOCK_PARAM,
+    label: "Use the track as the soundtrack",
+    type: "toggle",
+    default: false,
+    help: "The video is made to the song itself: the model generates only the picture, timed to the music and the vocal, and the finished file has the track exactly as it is. Off, the track is a reference and the model writes its own audio.",
+    group: "References",
+    revealedBy: AUDIO_PARAM,
+    // What it decides is graph wiring, which is `finalize`'s; the director
+    // targets it because the brief for a soundtrack the model cannot change is
+    // a different brief. See lockedTrack.
+    targets: [director],
+  },
+  {
     id: TRACK_SECONDS_PARAM,
     label: "Track length",
     type: "measured",
@@ -1223,6 +1288,11 @@ const params: ParamDef[] = [
     group: "References",
     // Only a question about a track that is there.
     revealedBy: AUDIO_PARAM,
+    pinnedBy: {
+      whenSet: LOCK_PARAM,
+      value: TRIM_MATCH,
+      note: "Locked to the track, so it takes exactly as much as the video is long.",
+    },
     targets: [
       { node: TRIM_NODE, input: "duration", transform: (_value, values) => trimSeconds(values) },
     ],
@@ -1723,6 +1793,44 @@ export const minimaxH3Reference: WorkflowDef = {
     },
 
     /**
+     * The lock, which rewires the sampler's latent and the file's audio and
+     * deletes the decode it replaces. "All of it" alongside is the case the pin
+     * exists for: the trim node has to survive it, since the lock reads it.
+     */
+    {
+      name: "a picture and a locked track",
+      values: {
+        reference_image_1: "a.png",
+        [AUDIO_PARAM]: "song.mp3",
+        [LOCK_PARAM]: true,
+      },
+      mode: { turbo: true },
+    },
+    {
+      name: "a locked track asked for whole",
+      values: {
+        reference_image_1: "a.png",
+        [AUDIO_PARAM]: "song.mp3",
+        [LOCK_PARAM]: true,
+        [TRIM_PARAM]: TRIM_WHOLE,
+      },
+    },
+    {
+      name: "a locked track beside a voice",
+      values: {
+        reference_image_1: "a.png",
+        [AUDIO_PARAM]: "song.mp3",
+        [LOCK_PARAM]: true,
+        [VOICE_PARAM]: "voice.wav",
+      },
+      mode: { turbo: true },
+    },
+    {
+      name: "the lock left on with no track",
+      values: { reference_image_1: "a.png", [LOCK_PARAM]: true },
+    },
+
+    /**
      * The voice slot, and the pair that matters most for it.
      *
      * A voice with no track is the case the compaction exists for: the voice is
@@ -1977,6 +2085,18 @@ export const minimaxH3Reference: WorkflowDef = {
     standalone.forEach((source, index) => {
       graph[REFERENCE_NODE].inputs[audioInput(index)] = [source, 0];
     });
+
+    // The lock. The sampler starts from the latent with the track in its audio
+    // half, and the finished file takes the trimmed window itself rather than a
+    // decode of it — the VAE round trip is only for the model to read. The
+    // trim is always there when the lock is on: "all of it" is pinned away.
+    if (trackLocked(values)) {
+      graph["125"].inputs.latent_image = ["177", 0];
+      graph["130"].inputs.audio = [TRIM_NODE, 0];
+      delete graph["121"];
+    } else {
+      for (const id of LOCK_NODES) delete graph[id];
+    }
 
     /**
      * The check that `required` cannot make, because it is about two controls

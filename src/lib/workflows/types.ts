@@ -146,6 +146,21 @@ interface ParamBase {
    * control straight back with the number that was in it.
    */
   pinnedBy?: ParamPin;
+  /**
+   * Where the value goes, on a workflow that runs other workflows rather than
+   * only its own graph — the music video, whose own graph only plans and whose
+   * scenes are Reference to Video runs. See `WorkflowDef.scenes`.
+   *
+   * "scenes" — handed to every scene run under the same id, as the scene
+   *   workflow's own control of that name. `pnpm check:workflows` holds the id
+   *   to one the scene workflow declares, of the same type.
+   * "browser" — read by the page itself and sent nowhere: how long a scene may
+   *   be decides where the song is cut, which happens before anything runs.
+   *
+   * Either one may have no targets, since its job is not this graph's; one
+   * with targets as well writes them too.
+   */
+  scope?: "scenes" | "browser";
 }
 
 /**
@@ -434,6 +449,7 @@ export const CLIP_ACTIONS = [
   "extend",
   "upscale",
   "illustrate",
+  "musicvideo",
 ] as const;
 export type ClipAction = (typeof CLIP_ACTIONS)[number];
 
@@ -529,6 +545,15 @@ export interface WorkflowDef {
    * still answers after a workflow has been renamed or removed. See isAudioOnly.
    */
   makes?: "video" | "music";
+  /**
+   * Set on a workflow whose graph plans rather than renders: the music video,
+   * which runs once to write a scene list and then submits one run of
+   * `workflow` per scene, and a run of `stitch` to join them once they are all
+   * done. The browser does the submitting, each a job like any other, so
+   * history, retries and cancelling all work on a scene the way they do on a
+   * clip. See src/lib/music-video/.
+   */
+  scenes?: { workflow: string; stitch: string };
   graph: ComfyGraph;
   params: ParamDef[];
   /**

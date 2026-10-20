@@ -1317,10 +1317,18 @@ export function referenceTrack(
    * the number — see `audioLabels`.
    */
   labelsFor: AudioLabelsFor,
+  /**
+   * Whether the track is locked in as the soundtrack this run, on a graph that
+   * offers that. A locked track is a different brief rather than an addendum to
+   * this one: nothing about the sound is the model's to write. See
+   * `lockedTrackBlock`.
+   */
+  locked?: (values: Record<string, ParamValue>) => boolean,
 ): DirectorAppendix {
   return (values) => {
     if (!String(values[paramId] ?? "").trim()) return "";
     const label = labelsFor(values).track ?? "<Audio 1>";
+    if (locked?.(values)) return lockedTrackBlock(label);
 
     return `A MUSIC TRACK HAS BEEN ATTACHED
 
@@ -1597,6 +1605,44 @@ Speaker IDs are the exception to the paragraph before this one, and this directo
  * fine in both files and leaves the director looking for something that is not
  * there.
  */
+/**
+ * The brief for a track locked in as the video's soundtrack.
+ *
+ * The audio half of the latent is the track itself under a zero noise mask, so
+ * the sampler generates the picture and nothing else. That settles every audio
+ * question the format asks — it is MiniMax's own `fully_copy`, "the complete
+ * source audio serves as the target video's complete final audio track" — and
+ * turns the two audio fields into statements of fact rather than requests:
+ * an ambience written into overall_soundscape is a sound the model is asked
+ * for and cannot make.
+ *
+ * What is left for the director is the picture, and the one thing in it the
+ * track decides: whoever is singing is singing *this* vocal, at the times it
+ * is sung. The director has not heard it, so it cannot place the words; the
+ * model can, because it is reading the audio it is generating against.
+ */
+export function lockedTrackBlock(label: string): string {
+  return `THE TRACK IS THE SOUNDTRACK
+
+The music track ${label} is not only a reference this time. It has been laid into the video as its finished audio, exactly as it is, and the model generates the picture to go with it and no sound at all. Nothing you write can change, add to or remove a note of it.
+
+So the audio parts of the format are settled, and you state them rather than design them:
+
+In subject_definitions: "${label} is the supplied music track, reused 1:1 as the target video's complete final audio track."
+In summary, the task-type prefix includes audio reuse: "[reference generation + audio reuse]".
+In retention_analysis: "${label}: fully_copy - reused 1:1 as the target video's complete final audio track."
+overall_soundscape is one sentence: the complete soundtrack is ${label}, and nothing is added to it. Describe no ambience, footsteps, rain or room tone — there is no audio being generated to carry them.
+non_diegetic_music is one sentence: ${label} plays throughout. Name no genre, tempo, key or instrument.
+
+You have not heard ${label}, so you do not know when its vocal comes in, what it says, or where its beats fall. The model does: it is generating against the audio itself. So time nothing to the music by the clock.
+
+If anyone on screen performs the song, they perform ${label}'s own vocal. Give the performer a speaker ID, say they sing in sync with ${label}, and direct the performance — breath, effort, posture, the way they move with the music, where they look. Write no lyric of your own: words in the prompt that are not the ones in the track ask the model for a vocal it is not going to hear. The words block below, when there is one, is the exception, and says what to do with them.
+
+If nobody on screen performs it, the song plays over the picture and no one's lips move to it — say so in the opening exclusion: "No one on screen sings or speaks."
+
+Whatever is on screen should belong to music: movement that rides the rhythm and energy that rises and falls with it. Since you cannot know where a beat falls, prefer one continuous shot with a camera move to a cut you would be placing blind; a cut still takes its time, as the grammar requires.`;
+}
+
 export function wordsBlocks({
   sourceParam,
   wordsParam,
@@ -2436,6 +2482,8 @@ A cut has to introduce new information — a different subject, space, state, vi
 
 Prefer a single shot unless the idea genuinely needs more.
 
+When a cut moves to another view of the same continuous moment — one performance or one action seen from somewhere else — the new shot opens on the state the last one ended in: the same position, posture, facing and eyeline, the same hold on the same prop, and the movement already underway carrying on at its pace and in its direction. Say so in a full sentence at the start of that shot, from the actual ending state: "Continuing directly from the previous shot's final moment, she is still seated on the curb, her torso angled toward the doorway, and carries on singing." Do not restart an action, reset a pose, or swap the performance for an unrelated beauty shot at a cut. Only the angle, the framing and the camera move change, unless the user asks for something to happen there.
+
 A timestamp is not only for cuts. Beats inside a shot take the same form, written into the sentence where they happen:
 
 [Shot 1] Live-action, cinematic, a woman steps onto the spinning log, arms out. At 00:03.500, she crosses to the rotating platforms, timing each step to their rotation. At 00:08.000, the platform under her begins to sink and she jumps clear.
@@ -2467,6 +2515,8 @@ The two children (S1,S2) shout together, <d>[English] Wait for us!</d>
 
 Preserve the user's words inside <d> verbatim. Never translate or rewrite them.
 
+How a line is delivered is written outside the tag, in the attribution, and it is worth writing: the emotion, the intensity, the pace, a breath or a pause before it. "exclaims with light annoyance," "says quietly after a long pause," "sings the line with rising anger, breathing hard." Inside the tag there is only the language tag and the words — no emotion words in the brackets, and no stage directions, pause markers or breath markers among the words.
+
 The language tag and the text have to agree. A line tagged [Japanese] is written in Japanese, in Japanese script — not romanised, not transliterated, and not in English with a Japanese label on it. The same holds for every language: write it as it is written.
 
 Punctuation inside <d> is standardised to the marks that carry the sentence — , . ? ! — and a complete statement, question or exclamation ends with one before the closing tag. Repeated tildes, ellipsis runs, emoji, bullets and decorative marks come out. They are not speakable, and what is in there is going to be spoken.
@@ -2484,6 +2534,12 @@ When one line carries across a cut, mark <scenetrans> at both connecting points 
 ON-SCREEN TEXT
 
 Any sign, banner, label, subtitle or screen text actually visible in frame goes in double quotation marks, verbatim, in its own language, untranslated.
+
+Add none the user did not ask for. No captions, subtitles, titles, credits, logos or watermarks, and no readable sign invented to decorate a set.
+
+WRITING IT SO IT CAN BE FOLLOWED LITERALLY
+
+H3 does what the sentences say, so every sentence has to be one it can follow as written. Lead each action with whoever does it. Give a body part or a worn item its owner's possessive — "her boot crosses the foreground," not "a boot crosses the foreground." Describe how the camera films that same action rather than placing a body part in the foreground and its owner somewhere else. Establish a prop and where it is before referring to it as "the table," and keep people, props and the camera where you put them unless an action moves them. Before you return it, read each shot on its own: every action has an actor, every item has an owner or a place, and the camera move fits the action it is filming.
 
 NAMING THE STYLE
 

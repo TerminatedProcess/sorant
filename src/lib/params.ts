@@ -515,7 +515,10 @@ export function validateWorkflow(workflow: WorkflowDef): string[] {
     // Anything else with no targets is a control that does nothing at all.
     if (
       param.targets.length === 0 &&
-      param.id !== workflow.directorBypass?.param
+      param.id !== workflow.directorBypass?.param &&
+      // Read by the scene runs or the page rather than by this graph. See
+      // `scope`, and check-workflows for what holds a "scenes" one honest.
+      !param.scope
     ) {
       problems.push(`Param "${param.id}" has no targets.`);
     }
@@ -1065,7 +1068,9 @@ function directorProblems(workflow: WorkflowDef): string[] {
         ),
     ),
   );
-  if (!drivesDirector) return [];
+  // A planner writes for many clips, each told its own length in the scene list
+  // it is given. See `WorkflowDef.scenes`.
+  if (!drivesDirector || workflow.scenes) return [];
 
   const hasLength = workflow.params.some(
     (param) => param.id === "duration" || param.id === "source_seconds",
