@@ -1,5 +1,4 @@
 import type { ComfyGraph } from "@/lib/comfy";
-import { ParamError } from "@/lib/params";
 import { hideDirectorOnly } from "./director";
 import {
   latentTailNodes,
@@ -8,12 +7,11 @@ import {
   tailFileFor,
 } from "./latent-tail";
 import { rewriteModelParam, rewriteNode } from "./rewrite-model";
-import { isSet, type ParamDef, type ParamTarget, type ParamValue, type WorkflowDef } from "./types";
+import type { ParamDef, ParamValue, WorkflowDef } from "./types";
 import {
   directorBypassFor,
   directorTarget,
   FRAME_EXPRESSION,
-  frameCountFor,
   durationParam,
   EXTEND_DIRECTOR,
   h3Patches,
@@ -426,104 +424,9 @@ const graph: ComfyGraph = {
     _meta: { title: "Save Video" },
   },
 
-  // The song, continued. When the clip was made with its track locked in, the
-  // next stretch of the same song is locked under the new segment the same way
-  // — encoded, frozen, and swapped in for the audio the sampler would
-  // otherwise generate — and the join takes the song itself for the new part.
-  // See SONG_PARAM. Deleted by `finalize` on every other run.
-  "160": {
-    class_type: "LoadAudio",
-    inputs: { audio: "" },
-    _meta: { title: "Load Audio (song)" },
-  },
-  // The window under the whole new segment, carried frames included: on the
-  // latent seam those are the source's last 22 frames, whose sound is the same
-  // stretch of song the source already ends on.
-  "161": {
-    class_type: "TrimAudioDuration",
-    inputs: { audio: ["160", 0], start_index: 0, duration: 5 },
-    _meta: { title: "Trim Audio Duration (song under the segment)" },
-  },
-  "162": {
-    class_type: "VAEEncodeAudio",
-    inputs: { audio: ["161", 0], vae: ["105:24", 0] },
-    _meta: { title: "VAE Encode Audio (song)" },
-  },
-  "163": {
-    class_type: "LTXVFreezeLatent",
-    inputs: { latent: ["162", 0] },
-    _meta: { title: "LTXV Freeze Latent (song)" },
-  },
-  // From a frame there is no seam latent to carry the song in, so it goes in
-  // over the image-to-video node's own.
-  "164": {
-    class_type: "LTXVConcatAVLatent",
-    inputs: { video_latent: ["105:104", 1], audio_latent: ["163", 0] },
-    _meta: { title: "Concat AV Latent (song)" },
-  },
-  // What the join appends: the song itself from where the source ends, rather
-  // than a decode of it.
-  "165": {
-    class_type: "TrimAudioDuration",
-    inputs: { audio: ["160", 0], start_index: 0, duration: 5 },
-    _meta: { title: "Trim Audio Duration (song for the join)" },
-  },
-
   // This run's own tail, so the extension can itself be extended the same way.
   ...latentTailNodes("105:14"),
 };
-
-/** The nodes only the song uses, deleted when it is not being continued. */
-const SONG_NODES = ["160", "161", "162", "163", "164", "165"];
-
-/**
- * The song a locked Reference to Video run was made to, carried by the hand-off
- * under the same ids that workflow uses, so an extension knows which song and
- * where in it the clip began. See `clipTarget.carry`.
- *
- * The lock is carried with them rather than assumed from there being a song:
- * a track used only as a reference is not one the source's sound is, and
- * continuing it would lay music under a clip that never had any.
- */
-const SONG_PARAM = "reference_audio";
-const SONG_START_PARAM = "reference_trim_start";
-const SONG_LOCK_PARAM = "reference_track_lock";
-const SOURCE_LENGTH_PARAM = "source_length";
-
-/** Whether this run continues a locked song. */
-const continuesSong = (values: Record<string, ParamValue>): boolean =>
-  isSet(values[SONG_LOCK_PARAM]) && String(values[SONG_PARAM] ?? "").trim() !== "";
-
-/** Whether the run takes the latent seam rather than the last frame. */
-const takesSeam = (values: Record<string, ParamValue>): boolean => {
-  const source = String(values.source_video ?? "");
-  return source !== "" && String(values[TAIL_PARAM] ?? "") === source;
-};
-
-/**
- * Where in the song the new segment's window starts, and how long it runs.
- *
- * The clip began at the song's `reference_trim_start` — through every pass of
- * Extend, since each output is the whole clip from its first frame — and runs
- * for its measured length. On the seam the segment's first 22 frames are the
- * clip's last 22, so its window starts that much earlier.
- */
-function songWindow(values: Record<string, ParamValue>): {
-  start: number;
-  seconds: number;
-  carried: number;
-} {
-  const seam = takesSeam(values);
-  const carried = seam ? TAIL_FRAMES / SOURCE_FPS : 0;
-  const frames = frameCountFor(Number(values.duration ?? 5)) + (seam ? 17 : 0);
-  const clipStart = Math.max(0, Number(values[SONG_START_PARAM] ?? 0));
-  const clipLength = Math.max(0, Number(values[SOURCE_LENGTH_PARAM] ?? 0));
-  return {
-    start: clipStart + clipLength - carried,
-    seconds: frames / SOURCE_FPS,
-    carried,
-  };
-}
 
 /** The nodes only the latent seam uses, deleted when it is not taken. */
 const LATENT_SEAM = [
@@ -582,51 +485,20 @@ ${story}`;
  * would start the extension on frames that are not there.
  */
 function finalize(graph: ComfyGraph, values: Record<string, ParamValue>) {
-  const seam = takesSeam(values);
+  const source = String(values.source_video ?? "");
+  const tail = String(values[TAIL_PARAM] ?? "");
 
-  if (!seam) {
+  if (!source || tail !== source) {
     for (const id of LATENT_SEAM) delete graph[id];
-  } else {
-    const i2v = graph["105:104"].inputs;
-    delete i2v.first_frame;
-    i2v.length = ["143", 1];
-    graph["105:14"].inputs.latent_image = ["150", 0];
-    graph["131"].inputs["images.image1"] = ["151", 0];
-    graph["135"].inputs.audio2 = ["152", 0];
-  }
-
-  if (!continuesSong(values)) {
-    for (const id of SONG_NODES) delete graph[id];
     return;
   }
 
-  // A song with no measured clip length would be continued from the start of
-  // the clip rather than its end, which is a different part of the song. The
-  // browser measures the clip as it loads, so this only catches a submission
-  // made before it had.
-  if (!(Number(values[SOURCE_LENGTH_PARAM] ?? 0) > 0)) {
-    throw new ParamError(
-      "The clip's length has not been measured yet, so where the song carries on from is unknown. Wait for the clip to load and try again.",
-      "source_video",
-    );
-  }
-
-  // The song under the segment instead of the frozen tail or the generated
-  // audio: on the seam it replaces the tail in the second concat — its first
-  // 22 frames are the same stretch of song — and from a frame it goes in over
-  // the image-to-video node's latent.
-  if (seam) {
-    graph["150"].inputs.audio_latent = ["163", 0];
-    delete graph["148"];
-    delete graph["164"];
-  } else {
-    graph["105:14"].inputs.latent_image = ["164", 0];
-  }
-
-  // The join appends the song from where the source's own sound ends, not a
-  // decode of what the sampler was given.
-  graph["135"].inputs.audio2 = ["165", 0];
-  delete graph["152"];
+  const i2v = graph["105:104"].inputs;
+  delete i2v.first_frame;
+  i2v.length = ["143", 1];
+  graph["105:14"].inputs.latent_image = ["150", 0];
+  graph["131"].inputs["images.image1"] = ["151", 0];
+  graph["135"].inputs.audio2 = ["152", 0];
 }
 
 /**
@@ -635,45 +507,7 @@ function finalize(graph: ComfyGraph, values: Record<string, ParamValue>) {
  * graph so that adding a second contributor is a matter of passing this along
  * rather than of noticing that it needed to be.
  */
-/**
- * The brief for a segment laid over the song, in this graph's three-field
- * format. The same facts as the reference graph's `lockedTrackBlock`: the
- * sound is settled, so the audio fields say so and the body is picture.
- */
-function songBlock(values: Record<string, ParamValue>): string {
-  if (!continuesSong(values)) return "";
-  return `THE SONG CARRIES ON UNDER THIS SEGMENT
-
-The clip was made to a song, and the next stretch of that same song has been laid into this segment as its finished audio, exactly as it is. The model generates the picture and no sound. Nothing you write can change it.
-
-So write no sound: no dialogue, no lyrics, no sound effects and no ambience in the body. overall_soundscape is one sentence saying the soundtrack is the song carrying on from the clip, with nothing added. non_diegetic_music is one sentence saying the song continues throughout. Name no instrument, tempo or genre — you have not heard it.
-
-If someone in the clip is performing the song, they carry on performing it, in sync with the vocal, without a reset at the seam: same delivery, same energy, moving with the music. You do not know when the vocal comes in or stops, so do not time it.`;
-}
-
-const director = directorTarget(ids, EXTEND_DIRECTOR, [storyBlock, songBlock]);
-
-/** The two trims under the song, both written in full by every control that moves them. */
-const songTargets: ParamTarget[] = [
-  { node: "161", input: "start_index", transform: (_v, values) => songWindow(values).start },
-  { node: "161", input: "duration", transform: (_v, values) => songWindow(values).seconds },
-  {
-    node: "165",
-    input: "start_index",
-    transform: (_v, values) => {
-      const window = songWindow(values);
-      return window.start + window.carried;
-    },
-  },
-  {
-    node: "165",
-    input: "duration",
-    transform: (_v, values) => {
-      const window = songWindow(values);
-      return window.seconds - window.carried;
-    },
-  },
-];
+const director = directorTarget(ids, EXTEND_DIRECTOR, [storyBlock]);
 
 const bypass = directorBypassFor(ids);
 
@@ -686,52 +520,7 @@ const params: ParamDef[] = [
     required: true,
     help: "A clip made here carries on from its own latents; an upload, from its last frame. Up to 768×1344, 20s, 100 MB.",
     group: "Source",
-    // How long it runs is where a continued song picks up. See songWindow.
-    measures: SOURCE_LENGTH_PARAM,
     targets: [{ node: VIDEO_NODE, input: "video" }],
-  },
-  {
-    id: SOURCE_LENGTH_PARAM,
-    label: "Clip length",
-    type: "measured",
-    default: 0,
-    group: "Source",
-    targets: songTargets,
-  },
-  {
-    id: SONG_LOCK_PARAM,
-    label: "Continue the song",
-    type: "toggle",
-    default: false,
-    help: "Lays the next stretch of the clip's song under the new footage, so a performance carries on in sync. Set by Extend on a clip made with its track as the soundtrack.",
-    group: "Source",
-    revealedBy: SONG_PARAM,
-    targets: [director],
-  },
-  {
-    id: SONG_PARAM,
-    label: "Song",
-    type: "audio",
-    default: "",
-    compact: true,
-    help: "Optional. The song the clip was made to — Extend brings it over from a clip made with its track as the soundtrack.",
-    group: "Source",
-    targets: [{ node: "160", input: "audio" }],
-  },
-  {
-    id: SONG_START_PARAM,
-    label: "Song position at the clip's start",
-    type: "number",
-    default: 0,
-    min: 0,
-    max: 3600,
-    step: 0.01,
-    unit: "sec",
-    help: "Where in the song the clip's first frame falls. Carried over by Extend; the new footage picks up where the clip ends.",
-    group: "Source",
-    advanced: true,
-    revealedBy: [SONG_PARAM, SONG_LOCK_PARAM],
-    targets: songTargets,
   },
   {
     id: TAIL_PARAM,
@@ -770,13 +559,11 @@ const params: ParamDef[] = [
   // already was, and the two are concatenated afterwards. Worth saying on the
   // control itself, because every other workflow's duration is the duration of
   // the file that comes back.
-  ((param) => ({ ...param, targets: [...param.targets, ...songTargets] }))(
-    durationParam(ids, director, {
-      label: "Added time",
-      help: "How much new footage to generate. The result is the source clip plus this.",
-      default: 5,
-    }),
-  ),
+  durationParam(ids, director, {
+    label: "Added time",
+    help: "How much new footage to generate. The result is the source clip plus this.",
+    default: 5,
+  }),
 
   ...samplingParams(ids),
 ];
@@ -812,10 +599,6 @@ export const minimaxH3Extend: WorkflowDef = {
     sourceParam: "source_video",
     carriedParam: TAIL_PARAM,
     storyParam: STORY_PARAM,
-    // The song a locked clip was made to, where in it the clip began, and
-    // whether it was locked — under the reference graph's own ids, so they
-    // come across from it and from an earlier pass of this one alike.
-    carry: [SONG_PARAM, SONG_START_PARAM, SONG_LOCK_PARAM],
   },
   finalize,
   finalizeCases: [
@@ -831,44 +614,6 @@ export const minimaxH3Extend: WorkflowDef = {
     {
       name: "a tail left over from another clip",
       values: { source_video: "upload.mp4", [TAIL_PARAM]: "clip.mp4" },
-    },
-    {
-      name: "a locked song continued on the seam",
-      values: {
-        source_video: "clip.mp4",
-        [TAIL_PARAM]: "clip.mp4",
-        [SOURCE_LENGTH_PARAM]: 8,
-        [SONG_PARAM]: "song.mp3",
-        [SONG_START_PARAM]: 10,
-        [SONG_LOCK_PARAM]: true,
-      },
-    },
-    {
-      name: "a locked song continued from an upload's last frame",
-      values: {
-        source_video: "clip.mp4",
-        [SOURCE_LENGTH_PARAM]: 8,
-        [SONG_PARAM]: "song.mp3",
-        [SONG_LOCK_PARAM]: true,
-      },
-    },
-    {
-      name: "a song carried over without the lock",
-      values: {
-        source_video: "clip.mp4",
-        [TAIL_PARAM]: "clip.mp4",
-        [SONG_PARAM]: "song.mp3",
-        [SONG_LOCK_PARAM]: false,
-      },
-    },
-    {
-      name: "a locked song before the clip was measured",
-      values: {
-        source_video: "clip.mp4",
-        [SONG_PARAM]: "song.mp3",
-        [SONG_LOCK_PARAM]: true,
-      },
-      rejects: "has not been measured yet",
     },
     {
       name: "a generation with its latent tail, turbo",
