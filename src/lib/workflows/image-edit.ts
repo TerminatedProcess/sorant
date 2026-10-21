@@ -15,26 +15,29 @@ import type { ParamDef, WorkflowDef } from "./types";
  * Comfy-Org's Kontext template wires them, with these choices measured on the
  * 3090 before they went in:
  *
- * 1. **8 steps, not the template's 20.** About 2.2 s a step at 1 MP, so 20 is
- *    44 s warm and 8 is 18 s; 12 and 8 were indistinguishable from 20 on a
- *    portrait and a car, and 6 began to smear fine texture like a beard.
- *    Cold — straight after a free, or after an H3 run evicted it — is 25 to
- *    32 s. An H3 run straight after an edit took about 18 s longer than a warm
- *    one, which is the swap, and nothing worse: the box stayed up.
+ * 1. **20 steps of ER-SDE on the Beta schedule, guidance 2.5.** Chosen from a
+ *    same-seed grid on a portrait (2026-10-21): the template's Euler/Simple —
+ *    at 8 steps or 20, guidance 1.5 to 2.5 — redrew the man as somebody else,
+ *    darker-skinned and bearded, with Kontext's smooth, contrasty polish.
+ *    ER-SDE kept his face, skin tone and stubble, with pores and freckles
+ *    rather than plastic. About a minute a run where 8 Euler steps took 18 s
+ *    warm. Cold — straight after a free, or after an H3 run evicted it — adds
+ *    10 to 15 s. An H3 run straight after an edit took about 18 s longer than
+ *    a warm one, which is the swap, and nothing worse: the box stayed up.
  * 2. **fp8 weights.** The file is bf16 and would not leave the T5 room on a
  *    24 GB card; cast on load, it does.
  * 3. **The picture's own shape.** `ImageScaleToTotalPixels` to 1 MP on a 16 px
  *    grid, rather than the template's `FluxKontextImageScale`, which snaps to
  *    Kontext's preferred sizes and would change the frame an image-to-video run
  *    inherits. 1 MP is also where H3 stops, so nothing past it would be used.
- * 4. **No identity suffix.** "Give him a cowboy hat" kept the face, beard and
- *    glasses as they were without being told to, so the instruction goes in as
- *    typed — no rewrite, no boilerplate.
+ * 4. **No identity suffix.** The instruction goes in as typed — no rewrite, no
+ *    boilerplate. At the defaults above an outfit change kept the face without
+ *    being told to.
  *
- * Those are the defaults. Guidance, steps, sampler, schedule and how much of
- * the picture is redrawn are the user's from the gear on the edit bar — see
- * image-edit-settings.ts — because Kontext's polished, plastic look at these
- * values is a matter of taste to tune rather than one setting to fix.
+ * Guidance, steps, sampler, schedule and how much of the picture is redrawn
+ * are the user's from the settings button on the edit bar — see
+ * image-edit-settings.ts, which holds the defaults. The graph's own values
+ * below are the template's and are always overwritten.
  */
 
 const IMAGE_NODE = "10";
@@ -155,7 +158,7 @@ export const imageEdit: WorkflowDef = {
   id: "image-edit",
   name: "Edit image",
   description: "Changes a reference picture by a sentence.",
-  estimatedSeconds: 25,
+  estimatedSeconds: 60,
   graph,
   params,
   tool: true,

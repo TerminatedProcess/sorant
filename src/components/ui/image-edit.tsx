@@ -328,7 +328,7 @@ export function ImageEditBar({
           <span className="min-w-0 flex-1" aria-live="polite">
             {stage === "waiting"
               ? `Waiting for the video that is rendering to finish — your edit is next. ${seconds}s`
-              : `Editing… ${seconds}s — usually 20 to 30`}
+              : `Editing… ${seconds}s — usually about a minute`}
           </span>
           <Button variant="quiet" size="xs" onClick={() => void cancel()}>
             Cancel

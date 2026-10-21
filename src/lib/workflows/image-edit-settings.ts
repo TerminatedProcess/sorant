@@ -29,7 +29,7 @@ export const IMAGE_EDIT_SETTINGS: ParamDef[] = [
     label: "Steps",
     help: "More steps keep finer texture such as skin and hair, and take about 2 s each.",
     type: "slider",
-    default: 8,
+    default: 20,
     min: 4,
     max: 40,
     step: 1,
@@ -50,9 +50,13 @@ export const IMAGE_EDIT_SETTINGS: ParamDef[] = [
     id: "sampler",
     label: "Sampler",
     type: "select",
-    default: "euler",
+    default: "er_sde",
     options: [
-      { value: "euler", label: "Euler", help: "Kontext's own. Clean and smooth." },
+      {
+        value: "euler",
+        label: "Euler",
+        help: "Kontext's template. Smooth, and apt to redraw a face as someone else.",
+      },
       {
         value: "dpmpp_2m",
         label: "DPM++ 2M",
@@ -66,7 +70,7 @@ export const IMAGE_EDIT_SETTINGS: ParamDef[] = [
       {
         value: "er_sde",
         label: "ER-SDE",
-        help: "Adds noise as it goes, which reads as grain rather than polish. Wants 16 steps or more.",
+        help: "The default. Keeps faces and skin texture; wants 16 steps or more.",
       },
       {
         value: "res_multistep",
@@ -80,14 +84,14 @@ export const IMAGE_EDIT_SETTINGS: ParamDef[] = [
     id: "scheduler",
     label: "Schedule",
     type: "select",
-    default: "simple",
+    default: "beta",
     options: [
-      { value: "simple", label: "Simple", help: "Kontext's own." },
       {
         value: "beta",
         label: "Beta",
-        help: "Spends more steps on fine detail at the end.",
+        help: "The default. Spends more steps on fine detail at the end.",
       },
+      { value: "simple", label: "Simple", help: "Kontext's template." },
       { value: "sgm_uniform", label: "SGM uniform" },
       { value: "normal", label: "Normal" },
     ],
