@@ -1069,8 +1069,8 @@ function directorProblems(workflow: WorkflowDef): string[] {
     ),
   );
   // A planner writes for many clips, each told its own length in the scene list
-  // it is given. See `WorkflowDef.scenes`.
-  if (!drivesDirector || workflow.scenes) return [];
+  // it is given. See `WorkflowDef.scenes`. A still has no length to tell.
+  if (!drivesDirector || workflow.scenes || workflow.makes === "image") return [];
 
   const hasLength = workflow.params.some(
     (param) => param.id === "duration" || param.id === "source_seconds",

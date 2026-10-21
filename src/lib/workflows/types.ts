@@ -450,6 +450,7 @@ export const CLIP_ACTIONS = [
   "upscale",
   "illustrate",
   "musicvideo",
+  "animate",
 ] as const;
 export type ClipAction = (typeof CLIP_ACTIONS)[number];
 
@@ -470,7 +471,7 @@ export interface ClipTarget {
    * the file that actually came back rather than the workflow that made it —
    * the same rule `isAudioOnly` follows in the history list.
    */
-  accepts: "video" | "audio";
+  accepts: "video" | "audio" | "image";
   /** The param the copied file's reference is written into. */
   sourceParam: string;
   /**
@@ -544,7 +545,7 @@ export interface WorkflowDef {
    * The history list does not use this: it reads the file that came back, which
    * still answers after a workflow has been renamed or removed. See isAudioOnly.
    */
-  makes?: "video" | "music";
+  makes?: "video" | "music" | "image";
   /**
    * Set on a workflow whose graph plans rather than renders: the music video,
    * which runs once to write a scene list and then submits one run of

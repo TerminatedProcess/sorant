@@ -8,6 +8,7 @@ import {
   clockMs,
   formatDuration,
   isAudioOnly,
+  isImageOnly,
   isFavorite,
   type Job,
 } from "@/lib/jobs";
@@ -352,7 +353,8 @@ function Closed({ job }: { job: Job }) {
 }
 
 /**
- * What can be fed back into another workflow as a clip; a still cannot.
+ * What can be fed back into another workflow as a clip. A still goes to the
+ * hand-offs that take one — see `isImageOnly` — and never to these.
  *
  * There is no audio twin of this: `isAudioOnly` already answers that question
  * off the same filename, and two lists of extensions that had to agree would
@@ -452,6 +454,17 @@ const CLIP_BUTTONS: Record<
       </svg>
     ),
   },
+  animate: {
+    label: "Animate",
+    title: "Make a video that starts on this picture",
+    icon: (
+      // A frame, and the play mark it is set going by.
+      <svg viewBox="0 0 16 16" className="size-3.5" fill="none" aria-hidden="true">
+        <rect x="1.5" y="3" width="13" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
+        <path d="M6.5 6v4l3.5-2-3.5-2Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
   illustrate: {
     label: "Create video",
     title: "Build a video around this track",
@@ -518,7 +531,9 @@ function Result({
     ? (clipActions ?? []).filter(({ accepts }) =>
         accepts === "audio"
           ? isAudioOnly(job)
-          : REUSABLE_VIDEO.test(primary.filename),
+          : accepts === "image"
+            ? isImageOnly(job)
+            : REUSABLE_VIDEO.test(primary.filename),
       )
     : [];
   const favorite = isFavorite(job);
@@ -668,6 +683,16 @@ function Result({
             {primary.filename}
           </p>
           <audio key={src} src={src} controls className="w-full" />
+        </div>
+      ) : isImageOnly(job) ? (
+        <div className="overflow-hidden rounded-xl border border-border-default bg-black">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            key={src}
+            src={src}
+            alt={job.prompt.trim() || job.workflowName}
+            className="mx-auto block max-h-[60vh] w-auto max-w-full bg-black object-contain"
+          />
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-border-default bg-black">

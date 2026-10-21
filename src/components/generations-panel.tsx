@@ -12,6 +12,7 @@ import {
   groupByDay,
   isActive,
   isAudioOnly,
+  isImageOnly,
   isFavorite,
   lineageOrder,
   partitionFavorites,
@@ -506,7 +507,7 @@ function Row({
           </span>
           <span className="mt-0.5 flex items-center gap-1 text-[11px] text-fg-subtle">
             {/* Which kind of file this row leads to, for a list that now holds
-                two. Deliberately small and in the muted colour the line it sits
+                three. Deliberately small and in the muted colour the line it sits
                 on already uses: it is a distinction worth being able to see at
                 a glance and not worth a badge. Nothing marks a video — the
                 absence is the other half of the signal, and marking both would
@@ -528,6 +529,17 @@ function Row({
                 />
                 <circle cx="4.5" cy="11.5" r="1.7" stroke="currentColor" strokeWidth="1.4" />
                 <circle cx="10.5" cy="10.3" r="1.7" stroke="currentColor" strokeWidth="1.4" />
+              </svg>
+            ) : isImageOnly(job) ? (
+              <svg
+                viewBox="0 0 16 16"
+                className="size-2.5 shrink-0"
+                fill="none"
+                role="img"
+                aria-label="Image"
+              >
+                <rect x="2" y="3" width="12" height="10" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
+                <path d="M2.5 11l3.5-3.5 3 3 1.5-1.5 3 3" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
               </svg>
             ) : null}
             <span className="min-w-0 truncate">

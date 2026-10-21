@@ -108,6 +108,11 @@ const CLIP_NOTICE: Record<ClipAction, { verb: string; detail: string }> = {
     detail:
       "The track is loaded as a reference below, and pins the run to 4 steps. Add a picture if you want one, say what should be on screen, then generate — the video is the length of its own control, not the track's.",
   },
+  animate: {
+    verb: "Animating",
+    detail:
+      "The picture is loaded as the first frame below. Say what happens from there, then generate.",
+  },
   remix: {
     verb: "Remixing",
     detail:

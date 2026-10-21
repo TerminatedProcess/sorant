@@ -1,6 +1,7 @@
 import { imageEdit } from "./image-edit";
 import { minimaxH3 } from "./minimax-h3";
 import { minimaxH3Extend } from "./minimax-h3-extend";
+import { minimaxH3Image } from "./minimax-h3-image";
 import { minimaxH3ImageToVideo } from "./minimax-h3-i2v";
 import { minimaxH3Reference } from "./minimax-h3-ref";
 import { minimaxH3ReferenceVideo } from "./minimax-h3-ref2v";
@@ -20,6 +21,8 @@ import { toSummary, type WorkflowDef, type WorkflowSummary } from "./types";
  */
 export const WORKFLOWS: WorkflowDef[] = [
   minimaxH3,
+  // The same graph stopped at its first frame. See the file for why.
+  minimaxH3Image,
   minimaxH3ImageToVideo,
   minimaxH3Reference,
   minimaxH3ReferenceVideo,

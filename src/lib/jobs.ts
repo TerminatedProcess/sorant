@@ -228,6 +228,18 @@ export function isAudioOnly(job: Job): boolean {
   return primary !== undefined && AUDIO_ONLY.test(primary.filename);
 }
 
+const IMAGE_ONLY = /\.(png|jpe?g)$/i;
+
+/**
+ * Whether this generation is a still. The same rule as `isAudioOnly`, for the
+ * same reason: the file answers it, not the workflow. Not webp, which ComfyUI
+ * also writes for animations.
+ */
+export function isImageOnly(job: Job): boolean {
+  const primary = job.outputs[0];
+  return primary !== undefined && IMAGE_ONLY.test(primary.filename);
+}
+
 export function readJobs(): Job[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);

@@ -290,4 +290,13 @@ export const minimaxH3ImageToVideo: WorkflowDef = {
   // its LoRAs are not made for.
   patches: [h3ContentLora(), ...h3Patches()],
   stepSampler: h3StepSampler(),
+  // Where a finished still goes to be set moving. Not the prompt: the one that
+  // made the picture describes what it already shows, and this one asks what
+  // happens next.
+  clipTarget: {
+    action: "animate",
+    accepts: "image",
+    sourceParam: "image",
+    carry: ["look"],
+  },
 };
