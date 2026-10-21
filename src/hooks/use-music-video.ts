@@ -65,8 +65,12 @@ export interface MusicVideoController {
   upscaleFor: (scene: ProjectScene) => Job | undefined;
   /** How far the upscale has got: scenes done, and whether it is running. */
   upscale: { done: number; active: boolean; joining: boolean };
-  /** Upscale every scene that has no upscale yet, then join the upscaled clips. */
-  upscaleAll: () => Promise<void>;
+  /**
+   * Upscale every scene that has no upscale yet, then join the upscaled clips.
+   * The size is the shorter side, and only the first call's counts: see
+   * `upscaleSize` on the project.
+   */
+  upscaleAll: (size: number) => Promise<void>;
   /** Throw a scene's take away and render it again, on a fresh seed. */
   redo: (index: number) => Promise<void>;
   stitch: () => Promise<void>;
@@ -418,7 +422,7 @@ export function useMusicVideo({
 
   /**
    * Upscale the video: every scene through the upscale workflow at its
-   * defaults, then a join of the upscaled clips — a second video beside the
+   * defaults bar the size, then a join of the upscaled clips — a second video beside the
    * original rather than in place of it.
    *
    * Scene by scene rather than the joined file, for two reasons. The upscale
@@ -426,10 +430,14 @@ export function useMusicVideo({
    * a job of a few minutes: a failure, or a reset of the box, costs that scene
    * and not hours of work, and a redone scene needs only its own upscale again.
    */
-  const upscaleAll = useCallback(async () => {
+  const upscaleAll = useCallback(async (size: number) => {
     if (!project || !upscaleWorkflow) return;
     setError(null);
-    let current: MusicVideoProject = { ...project, upscaleRequested: true };
+    let current: MusicVideoProject = {
+      ...project,
+      upscaleRequested: true,
+      upscaleSize: project.upscaleSize ?? size,
+    };
     setProject(current);
     for (let index = 0; index < current.scenes.length; index += 1) {
       const scene = current.scenes[index];
@@ -453,7 +461,11 @@ export function useMusicVideo({
         });
         const promptId = await jobs.submit(
           upscaleWorkflow,
-          { ...defaultValuesFor(upscaleWorkflow), source_video: ref },
+          {
+            ...defaultValuesFor(upscaleWorkflow),
+            source_video: ref,
+            shorter_side: current.upscaleSize ?? size,
+          },
           { derivedFrom: scene.promptId },
         );
         if (!promptId) return;

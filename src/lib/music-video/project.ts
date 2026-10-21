@@ -27,7 +27,24 @@ export interface MusicVideoProject {
   upscaleRequested?: boolean;
   /** The run that joins the upscaled scenes. */
   upscaledStitchPromptId?: string;
+  /**
+   * The shorter side the scenes are upscaled to. Fixed when the first one is
+   * sent, so a scene upscaled later — a redo, or one that failed — comes out
+   * the same size as the rest and the join has one size to work with.
+   */
+  upscaleSize?: number;
 }
+
+/**
+ * The sizes a music video can be upscaled to, and roughly what each costs:
+ * seconds of work per second of song on the 3090, from 15-second clips at
+ * 800 px (1234 s) and 1080 px (2700 s). The first is the default — a song is
+ * minutes long, and at 1080 a three-minute one is nine hours.
+ */
+export const MUSIC_VIDEO_UPSCALE_SIZES = [
+  { px: 800, secondsPerSecond: 82 },
+  { px: 1080, secondsPerSecond: 180 },
+] as const;
 
 export interface ProjectScene extends SceneWindow {
   /** What happens in it: the planner's, until someone edits it. */
