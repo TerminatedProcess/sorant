@@ -1,3 +1,4 @@
+import { isSilentClip } from "@/lib/audio-track";
 import type { ComfyGraph } from "@/lib/comfy";
 import { hideDirectorOnly } from "./director";
 import { latentTailNodes } from "./latent-tail";
@@ -72,6 +73,8 @@ const ids: Omit<MinimaxNodeIds, "duration"> = {
 };
 
 const VIDEO_NODE = "154";
+const REFERENCE_NODE = "136";
+const CLIP_AUDIO_INPUT = "ref_video_audios.ref_video_audio_0";
 
 /**
  * The rate the clip is read at, and the rate the result is written at.
@@ -100,7 +103,31 @@ const AUDIO_KEEP_DEFAULT = "exact" as const;
  * not being carried over.
  */
 const keepsClipSpeech = (values: Record<string, ParamValue>): boolean =>
+  clipHasAudio(values) &&
   audioKeepReusesWords(values, AUDIO_KEEP_PARAM, AUDIO_KEEP_DEFAULT);
+
+/**
+ * Whether the clip has a soundtrack to hand over. Every generation does; a
+ * silent film or a screen recording does not, and was stored under a name that
+ * says so. See storedClipName.
+ */
+const clipHasAudio = (values: Record<string, ParamValue>): boolean =>
+  !isSilentClip(values[VIDEO_PARAM]);
+
+/**
+ * What the director is told in place of the soundtrack it was promised.
+ *
+ * REMIX_DIRECTOR opens by saying there is always a source video and its own
+ * audio, because there always was. On a silent clip that sentence names a
+ * recording the model was never given, so this corrects it — last, so it
+ * lands after what it overrules.
+ */
+const silentClipBlock = (values: Record<string, ParamValue>): string =>
+  clipHasAudio(values)
+    ? ""
+    : `THE SOURCE IS SILENT
+
+This clip has no audio track, so there is no <Audio 1> this run, whatever is said above. Nothing about the sound carries over and nothing in it can be preserved. Write the soundtrack the new video should have — what is heard, and when — from the picture and the user's instruction, as you would for a video made from nothing.`;
 
 const graph: ComfyGraph = {
   "92": {
@@ -361,9 +388,11 @@ const director = directorTarget(ids, REMIX_DIRECTOR, [
     // A remix keeps the clip's sound unless told otherwise, which is what the
     // director already assumed before this control existed.
     fallback: AUDIO_KEEP_DEFAULT,
-    // The clip is required here, so its audio is always attached.
-    attached: () => true,
+    // The clip is required here, so its audio is attached whenever it has
+    // any.
+    attached: clipHasAudio,
   }),
+  silentClipBlock,
 ]);
 
 /** Written by the prompt and by the words below. See `promptTarget`. */
@@ -517,4 +546,28 @@ export const minimaxH3ReferenceVideo: WorkflowDef = {
     sourceParam: "reference_video",
     carry: ["prompt"],
   },
+  /**
+   * A silent clip goes in without its soundtrack input, rather than with one
+   * that fails: VHS decodes a clip's audio the first time something reads it,
+   * and on a file with no audio stream that decode raises and ends the run.
+   * Reference to Video sends a clip with no sound the same way, through the
+   * same node class, so this is a combination the model already takes.
+   */
+  finalize(graph, values) {
+    if (!clipHasAudio(values)) {
+      delete graph[REFERENCE_NODE].inputs[CLIP_AUDIO_INPUT];
+    }
+  },
+  finalizeCases: [
+    { name: "a clip with sound", values: { [VIDEO_PARAM]: "clip.mp4" } },
+    {
+      name: "a silent clip",
+      values: { [VIDEO_PARAM]: "noaudio--clip.mp4" },
+    },
+    {
+      name: "a silent clip, turbo",
+      values: { [VIDEO_PARAM]: "noaudio--clip.mp4" },
+      mode: { turbo: true },
+    },
+  ],
 };

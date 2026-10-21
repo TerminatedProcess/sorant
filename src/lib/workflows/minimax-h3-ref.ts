@@ -1,3 +1,4 @@
+import { isSilentClip } from "@/lib/audio-track";
 import type { ComfyGraph } from "@/lib/comfy";
 import { ParamError } from "@/lib/params";
 import { hideDirectorOnly } from "./director";
@@ -411,9 +412,15 @@ const keepsVoiceSpeech = (values: Record<string, ParamValue>): boolean =>
  * Only ever true alongside a clip: the toggle keeps its value while the video
  * control is empty, and a soundtrack input left wired to a loader that has been
  * deleted is a graph ComfyUI rejects.
+ *
+ * Nor for a clip stored as silent, whatever the toggle says. VHS decodes the
+ * soundtrack the first time something reads it, and on a file with no audio
+ * stream that decode raises and ends the run. See storedClipName.
  */
 const videoAudioAttached = (values: Record<string, ParamValue>): boolean =>
-  videoAttached(values) && isSet(values[VIDEO_AUDIO_PARAM]);
+  videoAttached(values) &&
+  isSet(values[VIDEO_AUDIO_PARAM]) &&
+  !isSilentClip(values[VIDEO_PARAM]);
 
 /**
  * What every piece of attached audio is called this run.
@@ -1784,6 +1791,14 @@ export const minimaxH3Reference: WorkflowDef = {
     {
       name: "a clip and no pictures",
       values: { [VIDEO_PARAM]: "clip.mp4", [VIDEO_AUDIO_PARAM]: true },
+      mode: { turbo: true },
+    },
+    {
+      name: "a silent clip with its sound asked for",
+      values: {
+        [VIDEO_PARAM]: "noaudio--clip.mp4",
+        [VIDEO_AUDIO_PARAM]: true,
+      },
       mode: { turbo: true },
     },
     {

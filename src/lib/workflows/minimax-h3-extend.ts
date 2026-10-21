@@ -1,3 +1,4 @@
+import { isSilentClip } from "@/lib/audio-track";
 import type { ComfyGraph } from "@/lib/comfy";
 import { hideDirectorOnly } from "./director";
 import {
@@ -424,9 +425,37 @@ const graph: ComfyGraph = {
     _meta: { title: "Save Video" },
   },
 
+  // Silence the length of the source, standing in for its soundtrack when it
+  // has none. Present in every stored graph and wired in or deleted by
+  // `finalize`, like the seam above.
+  //
+  // Needed because 135 joins the source's audio to the new audio, and VHS
+  // decodes a clip's soundtrack the first time something reads it — which on
+  // a file with no audio stream raises and ends the run. Leaving the input out
+  // is not an option the way it is on Remix: the join would then have nothing
+  // to put ahead of the new sound, which would start at the first frame of the
+  // source rather than the first frame of the extension.
+  //
+  // 32 kHz stereo because that is what H3's audio VAE writes, and 135 refuses
+  // two audios at different rates.
+  "153": {
+    class_type: "ComfyMathExpression",
+    // Output 0 is the FLOAT.
+    inputs: { expression: `a / ${SOURCE_FPS}`, "values.a": ["126", 1] },
+    _meta: { title: "Source seconds" },
+  },
+  "154": {
+    class_type: "EmptyAudio",
+    inputs: { duration: ["153", 0], sample_rate: 32000, channels: 2 },
+    _meta: { title: "Empty Audio (silent source)" },
+  },
+
   // This run's own tail, so the extension can itself be extended the same way.
   ...latentTailNodes("105:14"),
 };
+
+/** The nodes only a silent source uses, deleted when the source has sound. */
+const SILENT_SOURCE = ["153", "154"];
 
 /** The nodes only the latent seam uses, deleted when it is not taken. */
 const LATENT_SEAM = [
@@ -487,6 +516,10 @@ ${story}`;
 function finalize(graph: ComfyGraph, values: Record<string, ParamValue>) {
   const source = String(values.source_video ?? "");
   const tail = String(values[TAIL_PARAM] ?? "");
+
+  // A source stored as having no soundtrack. See storedClipName.
+  if (isSilentClip(source)) graph["135"].inputs.audio1 = ["154", 0];
+  else for (const id of SILENT_SOURCE) delete graph[id];
 
   if (!source || tail !== source) {
     for (const id of LATENT_SEAM) delete graph[id];
@@ -611,6 +644,10 @@ export const minimaxH3Extend: WorkflowDef = {
       },
     },
     { name: "an upload, no tail", values: { source_video: "clip.mp4" } },
+    {
+      name: "a silent upload",
+      values: { source_video: "noaudio--clip.mp4" },
+    },
     {
       name: "a tail left over from another clip",
       values: { source_video: "upload.mp4", [TAIL_PARAM]: "clip.mp4" },

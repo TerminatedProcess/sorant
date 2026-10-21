@@ -1,4 +1,5 @@
 import { del, get, list } from "@vercel/blob";
+import { storedClipName } from "@/lib/audio-track";
 import { unauthorized } from "@/lib/auth";
 import { inputFileRef, uploadInputFile } from "@/lib/comfy";
 import { errorResponse } from "@/lib/errors";
@@ -75,9 +76,11 @@ export async function POST(request: Request) {
       (body.name || pathname.slice(BLOB_UPLOAD_PREFIX.length))
         .split(/[\\/]/)
         .pop() || "upload";
+    const typed = new Blob([file], { type: contentType });
+    // A clip with no soundtrack is marked as such. See storedClipName.
     const uploaded = await uploadInputFile(
-      new Blob([file], { type: contentType }),
-      safeName,
+      typed,
+      await storedClipName(typed, safeName),
     );
 
     return Response.json({

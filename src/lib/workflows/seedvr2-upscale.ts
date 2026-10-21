@@ -1,3 +1,4 @@
+import { isSilentClip } from "@/lib/audio-track";
 import type { ComfyGraph } from "@/lib/comfy";
 import type { ParamDef, ParamValue, WorkflowDef } from "./types";
 
@@ -479,9 +480,18 @@ export const seedvr2Upscale: WorkflowDef = {
       graph[COMBINE_NODE].inputs.frame_rate = ["2", 0];
       for (const node of INTERP_NODES) delete graph[node];
     }
+
+    // A source with no soundtrack comes out without one, rather than failing:
+    // VHS decodes a clip's audio the first time something reads it, and on a
+    // file with no audio stream that decode raises. The combine's audio is
+    // optional. See storedClipName.
+    if (isSilentClip(values.source_video)) {
+      delete graph[COMBINE_NODE].inputs.audio;
+    }
   },
   finalizeCases: [
     { name: "frame rate kept", values: { source_video: "clip.mp4" } },
+    { name: "a silent source", values: { source_video: "noaudio--clip.mp4" } },
     {
       name: "frame rate doubled",
       values: { source_video: "clip.mp4", [RATE_PARAM]: "2" },

@@ -1,5 +1,5 @@
 {
-  "fingerprint": "68f37a12384b4f0e",
+  "fingerprint": "550dd209d0ab60c3",
   "classes": {
     "AudioConcatenate": {
       "inputs": [
@@ -335,6 +335,23 @@
       "optional": false,
       "workflows": [
         "image-edit"
+      ]
+    },
+    "EmptyAudio": {
+      "inputs": [
+        "channels",
+        "duration",
+        "sample_rate"
+      ],
+      "optional": false,
+      "workflows": [
+        "minimax-h3-extend",
+        "minimax-h3-extend (4-step)",
+        "minimax-h3-extend (sage)",
+        "minimax-h3-extend (spectrum)",
+        "minimax-h3-extend (style, vhs tape)",
+        "minimax-h3-extend (style, vhs tape, lighter base)",
+        "minimax-h3-extend (turbo)"
       ]
     },
     "EmptyMiniMaxH3LatentAV": {

@@ -1,3 +1,4 @@
+import { storedClipName } from "@/lib/audio-track";
 import { unauthorized } from "@/lib/auth";
 import {
   getHistoryEntry,
@@ -133,7 +134,14 @@ export async function POST(request: Request) {
     // Overwrite: the name comes from ComfyUI's own output directory and is
     // unique per generation, so remixing the same clip twice should land on
     // the one file rather than accumulating copies.
-    const uploaded = await uploadInputFile(blob, filename, { overwrite: true });
+    //
+    // Marked when it has no soundtrack, which a generation never lacks but an
+    // upscale of a silent upload does. See storedClipName.
+    const uploaded = await uploadInputFile(
+      blob,
+      await storedClipName(blob, filename),
+      { overwrite: true },
+    );
     const ref = inputFileRef(uploaded);
     const tailOf = body.tailOf?.trim();
 

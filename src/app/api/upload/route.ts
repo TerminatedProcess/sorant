@@ -1,3 +1,4 @@
+import { storedClipName } from "@/lib/audio-track";
 import { unauthorized } from "@/lib/auth";
 import { inputFileRef, uploadInputFile } from "@/lib/comfy";
 import { errorResponse } from "@/lib/errors";
@@ -60,7 +61,11 @@ export async function POST(request: Request) {
     // Strip any path the browser may have included; ComfyUI decides the final
     // name and hands it back.
     const safeName = (file.name || "upload.png").split(/[\\/]/).pop()!;
-    const uploaded = await uploadInputFile(file, safeName);
+    // A clip with no soundtrack is marked as such. See storedClipName.
+    const uploaded = await uploadInputFile(
+      file,
+      await storedClipName(file, safeName),
+    );
 
     return Response.json({
       ref: inputFileRef(uploaded),
