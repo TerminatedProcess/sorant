@@ -974,6 +974,19 @@ function Workbench({
     modes: { ...modes, lowVram, localDirector: runDirector },
     jobs,
   });
+  // The takes and upscales the music video is using, so its entry in the
+  // history lists those and leaves the rest to the panel's take picker.
+  const takesInUse = useMemo(
+    () =>
+      new Set(
+        (musicVideo.project?.scenes ?? []).flatMap((scene) =>
+          [scene.promptId, scene.upscalePromptId].filter(
+            (id): id is string => Boolean(id),
+          ),
+        ),
+      ),
+    [musicVideo.project],
+  );
 
   const submit = useCallback(() => {
     if (!selected || jobs.submitting) return;
@@ -1527,6 +1540,7 @@ function Workbench({
                   onRerun={rerun}
                   canRerun={rerunnable}
                   retrying={jobs.submitting}
+                  inUse={takesInUse}
                 />
               </Panel>
             </div>

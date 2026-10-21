@@ -85,6 +85,7 @@ export function GenerationsPanel({
   onRerun,
   canRerun,
   retrying,
+  inUse,
 }: {
   jobs: Job[];
   selectedId: string | null;
@@ -109,6 +110,11 @@ export function GenerationsPanel({
   canRerun?: (job: Job) => boolean;
   /** A submission is in flight, so every retry button waits its turn. */
   retrying?: boolean;
+  /**
+   * The scene takes and upscales the current music video is using. Its entry
+   * shows those, one per scene; the other takes are the panel's to pick from.
+   */
+  inUse?: ReadonlySet<string>;
 }) {
   /**
    * Per-day open state, but only where the user has said otherwise: the newest
@@ -363,6 +369,7 @@ export function GenerationsPanel({
                             }))
                           }
                           renderRow={(job, caption) => renderRow(job, caption)}
+                          inUse={inUse}
                         />
                       </li>
                     ) : (
@@ -787,11 +794,12 @@ const MUSIC_VIDEO_SECTIONS: Array<{
  * under it, when opened, its runs by what they are rather than by what they
  * were made from.
  *
- * The scenes and upscales are each one flat list in scene order. Where a scene
- * was redone, the take that counts is listed and what it replaced sits under
- * it, indented — the only nesting there is, because it is the only "this
- * instead of that" a video has. Closed by default: a video in progress is
- * dozens of queued runs, and the summary line is what is worth reading.
+ * The scenes and upscales are each one flat list in scene order, one row a
+ * scene: the take the video uses, with a count where there are others. The
+ * others are picked between in the music video panel, under each scene, so
+ * redoing a scene five times does not add five rows here. Closed by default: a
+ * video in progress is dozens of queued runs, and the summary line is what is
+ * worth reading.
  */
 function MusicVideoEntry({
   group,
@@ -800,6 +808,7 @@ function MusicVideoEntry({
   open,
   onToggle,
   renderRow,
+  inUse,
 }: {
   group: MusicVideoGroup;
   now: number;
@@ -807,9 +816,14 @@ function MusicVideoEntry({
   open: boolean;
   onToggle: (open: boolean) => void;
   renderRow: (job: Job, caption?: string) => ReactNode;
+  inUse?: ReadonlySet<string>;
 }) {
+  // The take a slot is showing: the one the video uses where it says, else the
+  // newest — which is all an older video, no longer in the panel, has to go on.
+  const shown = (slot: Job[]) =>
+    slot.find((job) => inUse?.has(job.promptId)) ?? slot[0];
   const current = (part: keyof MusicVideoGroup["parts"]) =>
-    group.parts[part].map((slot) => slot[0]);
+    group.parts[part].map(shown);
   const scenes = current("scene");
   const upscales = current("upscale");
   const count = (jobs: Job[], phase: Job["phase"]) =>
@@ -910,21 +924,16 @@ function MusicVideoEntry({
               )}
               <ul className="flex flex-col gap-1.5">
                 {section.slots.map((slot) => {
-                  const caption = section.caption(slot[0].musicVideo?.scene);
-                  return (
-                    <li key={slot[0].promptId} className="flex flex-col gap-1.5">
-                      {renderRow(slot[0], caption)}
-                      {slot.length > 1 ? (
-                        <ul className="ml-3 flex flex-col gap-1.5 border-l border-border-default pl-3">
-                          {slot.slice(1).map((job) => (
-                            <li key={job.promptId}>
-                              {renderRow(job, `${caption} · replaced`)}
-                            </li>
-                          ))}
-                        </ul>
-                      ) : null}
-                    </li>
-                  );
+                  const job = shown(slot);
+                  const takes = slot.filter((take) => take.phase === "done").length;
+                  // One row a slot. The other takes are counted, not listed:
+                  // choosing between them is the music video panel's job.
+                  const caption = `${section.caption(job.musicVideo?.scene)}${
+                    takes > 1 && (section.part === "scene" || section.part === "upscale")
+                      ? ` · ${takes} takes`
+                      : ""
+                  }`;
+                  return <li key={slot[0].promptId}>{renderRow(job, caption)}</li>;
                 })}
               </ul>
             </section>

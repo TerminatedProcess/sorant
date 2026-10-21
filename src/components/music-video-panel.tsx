@@ -168,7 +168,7 @@ export function MusicVideoPanel({ video }: { video: MusicVideoController }) {
                         size="xs"
                         className="ml-auto"
                         onClick={() => void video.redo(index)}
-                        title="Render this scene again on a fresh seed, with the shot as it reads now"
+                        title="Render another take on a fresh seed, with the shot as it reads now. The takes you have stay below to pick from."
                       >
                         Redo
                       </Button>
@@ -200,6 +200,11 @@ export function MusicVideoPanel({ video }: { video: MusicVideoController }) {
                       />
                     ) : null}
                   </div>
+                  <TakePicker
+                    takes={video.takesFor(index)}
+                    using={scene.promptId}
+                    onPick={(promptId) => video.pickTake(index, promptId)}
+                  />
                   {job?.phase === "error" && job.error ? (
                     <p className="mt-2 text-[12px] leading-relaxed text-danger">{job.error}</p>
                   ) : null}
@@ -331,6 +336,79 @@ function SceneStatus({ job }: { job: Job | undefined }) {
     default:
       return <Badge tone="danger">failed</Badge>;
   }
+}
+
+/**
+ * A scene's takes as thumbnails, the one in use ringed — the same strip the
+ * photo editor keeps its versions in. Clicking one uses it. Nothing is shown
+ * until there is a second take to choose.
+ */
+function TakePicker({
+  takes,
+  using,
+  onPick,
+}: {
+  takes: Job[];
+  using: string | undefined;
+  onPick: (promptId: string) => void;
+}) {
+  if (takes.length < 2) return null;
+  return (
+    <div className="mt-2 flex items-center gap-2">
+      <span className="shrink-0 text-[11px] text-fg-subtle">Takes</span>
+      <div
+        className="flex min-w-0 gap-1.5 overflow-x-auto"
+        role="group"
+        aria-label="Takes of this scene"
+      >
+        {takes.map((take, index) => {
+          const clip = sceneClip(take);
+          const selected = take.promptId === using;
+          const label = `Take ${index + 1}${take.prompt.trim() ? ` — ${take.prompt.trim()}` : ""}`;
+          return (
+            <button
+              key={take.promptId}
+              type="button"
+              aria-pressed={selected}
+              aria-label={`Take ${index + 1}`}
+              title={label}
+              // A take still in the queue has nothing to show yet, and using
+              // it is what Redo already did.
+              disabled={take.phase !== "done"}
+              onClick={() => onPick(take.promptId)}
+              className={`relative grid size-12 shrink-0 place-items-center overflow-hidden rounded border
+                bg-black transition-colors disabled:cursor-default ${
+                  selected
+                    ? "border-accent ring-2 ring-accent/30"
+                    : "border-border-default hover:border-border-strong"
+                }`}
+            >
+              {clip ? (
+                <video
+                  // A fraction in, so the frame is the shot rather than a
+                  // black first frame.
+                  src={`${withToken(clip.url)}#t=0.1`}
+                  muted
+                  playsInline
+                  preload="metadata"
+                  className="pointer-events-none size-full object-cover"
+                />
+              ) : take.phase === "queued" || take.phase === "running" ? (
+                <Spinner className="size-3.5 text-fg-subtle" />
+              ) : (
+                <span className="text-[12px] text-danger" aria-hidden="true">
+                  ✕
+                </span>
+              )}
+              <span className="absolute inset-x-0 bottom-0 bg-black/55 text-center font-mono text-[9px] leading-3 text-white">
+                {index + 1}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 /** A scene's rendered clip. */

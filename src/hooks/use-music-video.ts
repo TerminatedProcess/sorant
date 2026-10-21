@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { JobsController } from "@/hooks/use-jobs";
 import { api, ApiError, getToken } from "@/lib/client";
-import type { Job, MusicVideoPart, MusicVideoTag } from "@/lib/jobs";
+import { isActive, type Job, type MusicVideoPart, type MusicVideoTag } from "@/lib/jobs";
 import { analyseSong } from "@/lib/music-video/beats";
 import {
   parsePlan,
@@ -71,8 +71,18 @@ export interface MusicVideoController {
    * `upscaleSize` on the project.
    */
   upscaleAll: (size: number) => Promise<void>;
-  /** Throw a scene's take away and render it again, on a fresh seed. */
+  /**
+   * Render another take of a scene, on a fresh seed, and use it. The earlier
+   * takes are kept to pick from: see `takesFor`.
+   */
   redo: (index: number) => Promise<void>;
+  /**
+   * Every take of a scene worth offering, oldest first: the finished ones, and
+   * whichever the scene is using or still has in the queue.
+   */
+  takesFor: (index: number) => Job[];
+  /** Use an earlier (or later) take of a scene instead of the one it has. */
+  pickTake: (index: number, promptId: string) => void;
   stitch: () => Promise<void>;
   clear: () => void;
   dismissError: () => void;
@@ -185,6 +195,57 @@ export function useMusicVideo({
     (scene: ProjectScene) =>
       scene.upscalePromptId ? byId.get(scene.upscalePromptId) : undefined,
     [byId],
+  );
+
+  /** This project's runs of one part for one scene, oldest first. */
+  const partRuns = useCallback(
+    (part: MusicVideoPart, index: number) =>
+      project
+        ? jobs.jobs
+            .filter(
+              (job) =>
+                job.musicVideo?.projectId === project.id &&
+                job.musicVideo.part === part &&
+                job.musicVideo.scene === index,
+            )
+            .sort((a, b) => a.submittedAt - b.submittedAt)
+        : [],
+    [project, jobs.jobs],
+  );
+
+  // Read off the history rather than kept on the project: every scene run is
+  // tagged with its scene, so a take retried from the history is one too.
+  const takesFor = useCallback(
+    (index: number) => {
+      const using = project?.scenes[index]?.promptId;
+      return partRuns("scene", index).filter(
+        (job) => job.phase === "done" || job.promptId === using || isActive(job),
+      );
+    },
+    [project, partRuns],
+  );
+
+  const pickTake = useCallback(
+    (index: number, promptId: string) => {
+      if (!project || project.scenes[index]?.promptId === promptId) return;
+      // An upscale made of this take before, if one is still good, so going
+      // back to a take does not mean upscaling it again.
+      const upscale = partRuns("upscale", index)
+        .filter((job) => job.derivedFrom === promptId && !failed(job))
+        .at(-1);
+      setProject({
+        ...project,
+        // Both joins were of the take being put down.
+        stitchPromptId: undefined,
+        upscaledStitchPromptId: undefined,
+        scenes: project.scenes.map((scene, i) =>
+          i === index
+            ? { ...scene, promptId, upscalePromptId: upscale?.promptId }
+            : scene,
+        ),
+      });
+    },
+    [project, partRuns],
   );
 
   // The plan arriving. Read off the plan job's brief, which is the planner's
@@ -403,7 +464,8 @@ export function useMusicVideo({
               ...previous,
               stitchPromptId: undefined,
               upscaledStitchPromptId: undefined,
-              // Its upscale was of the take that is being thrown away.
+              // Its upscale was of the take being put down, which stays in
+              // `takesFor` with that upscale for picking back up.
               scenes: previous.scenes.map((s, i) =>
                 i === index ? { ...s, promptId, upscalePromptId: undefined } : s,
               ),
@@ -556,6 +618,8 @@ export function useMusicVideo({
     editShot,
     renderAll,
     redo,
+    takesFor,
+    pickTake,
     final,
     upscaledFinal,
     upscaleFor,
