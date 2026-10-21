@@ -40,9 +40,9 @@ export function MusicVideoPanel({ video }: { video: MusicVideoController }) {
     const job = video.upscaleFor(scene);
     return !job || ["error", "cancelled", "unknown"].includes(job.phase);
   }).length;
-  // About 80 seconds of work per second of clip at the upscale's default
-  // 800 px, measured on a 3090. See the upscale workflow.
-  const upscaleHours = ((project?.songSeconds ?? 0) * 80) / 3600;
+  // About 180 seconds of work per second of clip at the upscale's default
+  // 1080 px, measured on a 3090. See the upscale workflow.
+  const upscaleHours = ((project?.songSeconds ?? 0) * 180) / 3600;
   const jobs = scenes.map(video.jobFor);
   const finished = jobs.filter((job) => job?.phase === "done").length;
   const unrendered = scenes.filter((scene, index) => {

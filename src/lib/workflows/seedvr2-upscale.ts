@@ -116,7 +116,7 @@ const graph: ComfyGraph = {
     inputs: {
       input: ["1", 0],
       resize_type: "scale shorter dimension",
-      "resize_type.shorter_size": 800,
+      "resize_type.shorter_size": 1080,
       scale_method: "lanczos",
     },
     _meta: { title: "Resize Image/Mask" },
@@ -288,8 +288,8 @@ const params: ParamDef[] = [
     // be scaled down — and at 4K a batch of frames is ~10 GB of RAM.
     maxShortEdge: 1080,
     maxLongEdge: 1920,
-    // Batched, so length costs time, not memory: about 80 seconds of work per
-    // second of clip at 800 px. A minute is over an hour.
+    // Batched, so length costs time, not memory: about 180 seconds of work
+    // per second of clip at 1080 px. A minute is three hours.
     maxSeconds: 60,
     targets: [{ node: VIDEO_NODE, input: "video" }],
   },
@@ -297,7 +297,7 @@ const params: ParamDef[] = [
     id: "shorter_side",
     label: "Output size",
     type: "slider",
-    default: 800,
+    default: 1080,
     min: 720,
     max: 1080,
     step: 8,
@@ -440,9 +440,10 @@ export const seedvr2Upscale: WorkflowDef = {
   id: "seedvr2-upscale",
   name: "Upscale",
   description: "Makes a finished clip larger and sharper, keeping its sound.",
-  // A 15-second H3 clip at 800 px on the 3090, 7B sharp: 1258 s. The client
-  // replaces it with this machine's median once a run has finished.
-  estimatedSeconds: 1260,
+  // A 15-second H3 clip at 1080 px on the 3090, 7B sharp: 2700 s (1258 s at
+  // 800). The client replaces it with this machine's median once a run has
+  // finished.
+  estimatedSeconds: 2700,
   hasAudio: true,
   graph,
   params,
