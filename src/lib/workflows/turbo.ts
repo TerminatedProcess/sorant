@@ -210,16 +210,26 @@ export function turboParams<P extends Retunable>(
   );
 }
 
-/** The workflow as it behaves in the given mode. Identity when turbo is off. */
+/**
+ * The workflow as it behaves in the given mode. Identity when turbo is off.
+ *
+ * `modesFrom` is the workflow whose runs these modes are for, when that is not
+ * this one: the music video's scenes are Reference to Video runs, so its steps
+ * control is retuned by that graph's turbo, not by one of its own.
+ */
 export function effectiveWorkflow(
   workflow: WorkflowSummary,
   turbo: boolean | undefined,
+  modesFrom: WorkflowSummary = workflow,
 ): WorkflowSummary {
-  if (!turbo || !workflow.turbo) return workflow;
+  const spec = modesFrom.turbo;
+  if (!turbo || !spec) return workflow;
   return {
     ...workflow,
-    params: turboParams(workflow.params, workflow.turbo),
+    params: turboParams(workflow.params, spec),
     estimatedSeconds:
-      workflow.turbo.estimatedSeconds ?? workflow.estimatedSeconds,
+      modesFrom === workflow
+        ? (spec.estimatedSeconds ?? workflow.estimatedSeconds)
+        : workflow.estimatedSeconds,
   };
 }

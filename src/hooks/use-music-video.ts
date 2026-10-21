@@ -6,13 +6,20 @@ import { api, ApiError, getToken } from "@/lib/client";
 import { isActive, type Job, type MusicVideoPart, type MusicVideoTag } from "@/lib/jobs";
 import { analyseSong } from "@/lib/music-video/beats";
 import {
+  composeLook,
   parsePlan,
   planRequest,
   sceneValues,
   type MusicVideoProject,
   type ProjectScene,
 } from "@/lib/music-video/project";
-import { keptFrames, splitSong } from "@/lib/music-video/scenes";
+import {
+  CAST_BRIEF,
+  keptFrames,
+  MUSIC_VIDEO_PICTURES,
+  PLAN_BRIEF,
+  splitSong,
+} from "@/lib/music-video/scenes";
 import { FPS } from "@/lib/workflows/minimax-common";
 import type { RunModes } from "@/lib/workflows/modes";
 import { defaultValuesFor, type ParamValue, type WorkflowSummary } from "@/lib/workflows/types";
@@ -55,6 +62,7 @@ export interface MusicVideoController {
   /** Cut the song and ask for a plan. */
   plan: () => Promise<void>;
   editShot: (index: number, shot: string) => void;
+  editLook: (look: string) => void;
   /** Queue every scene that has no job, or whose job failed. */
   renderAll: () => Promise<void>;
   /** The finished video, once the stitch has run. */
@@ -255,10 +263,14 @@ export function useMusicVideo({
   useEffect(() => {
     if (!project || !planJob || project.scenes.some((scene) => scene.shot)) return;
     if (planJob.phase === "done") {
-      const reply = Object.values(planJob.briefs ?? {})[0] ?? "";
-      const shots = parsePlan(reply, project.scenes.length);
+      const briefs = planJob.briefs ?? {};
+      const reply = briefs[PLAN_BRIEF] ?? Object.values(briefs)[0] ?? "";
+      const plan = parsePlan(reply, project.scenes.length);
+      const look = composeLook(briefs[CAST_BRIEF], plan.look, project.values, MUSIC_VIDEO_PICTURES);
+      const shots = plan.shots;
       setProject({
         ...project,
+        look,
         scenes: project.scenes.map((scene, index) => ({ ...scene, shot: shots[index] })),
       });
       // The plan is a step, not a result: it has no file, and a history entry
@@ -365,6 +377,11 @@ export function useMusicVideo({
           }
         : previous,
     );
+  }, []);
+
+  /** How the subjects look in every scene. Read by each scene as it is sent. */
+  const editLook = useCallback((look: string) => {
+    setProject((previous) => (previous ? { ...previous, look } : previous));
   }, []);
 
   /** Which form ids every scene run inherits — the ones scoped to scenes. */
@@ -616,6 +633,7 @@ export function useMusicVideo({
     jobFor,
     plan,
     editShot,
+    editLook,
     renderAll,
     redo,
     takesFor,

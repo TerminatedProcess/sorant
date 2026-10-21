@@ -146,6 +146,32 @@ export function MusicVideoPanel({ video }: { video: MusicVideoController }) {
 
       {scenes.some((scene) => scene.shot) ? (
         <>
+          {/*
+            How the people in the pictures look, once for every scene. Only
+            when the planner wrote one: without pictures there is nobody to
+            hold, and a project planned before this existed has none.
+          */}
+          {project?.look !== undefined && project.values.reference_image_1 ? (
+            <div className="mb-3 rounded-lg border border-border-default p-3">
+              <label
+                htmlFor="music-video-look"
+                className="mb-1 block text-[12px] font-medium text-fg"
+              >
+                How they look in every scene
+              </label>
+              <TextArea
+                id="music-video-look"
+                value={project.look}
+                rows={3}
+                maxLength={2000}
+                onChange={(value) => video.editLook(value)}
+              />
+              <p className="mt-1 text-[12px] leading-snug text-fg-subtle">
+                Given word for word to every scene, so the costume holds across
+                the cuts. Edits apply to scenes rendered from now on.
+              </p>
+            </div>
+          ) : null}
           <ol className="flex flex-col gap-3">
             {scenes.map((scene, index) => {
               const job = jobs[index];

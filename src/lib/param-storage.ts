@@ -463,12 +463,18 @@ export function hydrateAll(
 ): Record<string, Record<string, ParamValue>> {
   const stored = readStoredParams();
   return Object.fromEntries(
-    workflows.map((workflow) => [
-      workflow.id,
-      mergeWithDefaults(
-        effectiveWorkflow(workflow, turbo[workflow.id]),
-        stored[workflow.id],
-      ),
-    ]),
+    workflows.map((workflow) => {
+      // The music video runs in its scene workflow's modes, stored under that
+      // workflow's id. See `effectiveWorkflow`.
+      const modesFrom =
+        workflows.find((other) => other.id === workflow.scenes?.workflow) ?? workflow;
+      return [
+        workflow.id,
+        mergeWithDefaults(
+          effectiveWorkflow(workflow, turbo[modesFrom.id], modesFrom),
+          stored[workflow.id],
+        ),
+      ];
+    }),
   );
 }

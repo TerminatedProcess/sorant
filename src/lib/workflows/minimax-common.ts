@@ -1049,6 +1049,15 @@ function keepMode(value: ParamValue | undefined): (typeof KEEP_MODES)[KeepMode] 
   return KEEP_MODES[key as KeepMode] ?? KEEP_MODES[DEFAULT_KEEP];
 }
 
+/** What a reference slot is set to keep, by key. See KEEP_MODES. */
+export function referenceKeep(
+  values: Record<string, ParamValue>,
+  index: number,
+): KeepMode {
+  const key = String(values[keepParamId(index)] ?? DEFAULT_KEEP);
+  return key in KEEP_MODES ? (key as KeepMode) : DEFAULT_KEEP;
+}
+
 /**
  * The "what to keep" control for one reference slot.
  *

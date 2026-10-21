@@ -466,8 +466,8 @@ function Workbench({
    * to know the mode exists.
    */
   const selected = useMemo(
-    () => (picked ? effectiveWorkflow(picked, turboOn) : undefined),
-    [picked, turboOn],
+    () => (picked ? effectiveWorkflow(picked, turboOn, modesFor ?? picked) : undefined),
+    [picked, turboOn, modesFor],
   );
   /** `modesFor` as the switch has it, for everything that shows the modes. */
   const modesWorkflow = useMemo(
@@ -529,16 +529,25 @@ function Workbench({
       if (!modesFor?.turbo) return;
       setTurboByWorkflow((previous) => ({ ...previous, [modeKey]: on }));
       // The values whose ranges move are the ones of the workflow with the
-      // steps control — the music video has none of its own.
+      // steps control — and the music video's, whose steps control is the
+      // scenes' and moves with it.
       setValuesByWorkflow((previous) => ({
         ...previous,
         [modeKey]: clampValues(
           effectiveWorkflow(modesFor, on),
           previous[modeKey] ?? {},
         ),
+        ...(picked && picked.id !== modeKey
+          ? {
+              [picked.id]: clampValues(
+                effectiveWorkflow(picked, on, modesFor),
+                previous[picked.id] ?? {},
+              ),
+            }
+          : {}),
       }));
     },
-    [modesFor, modeKey],
+    [modesFor, modeKey, picked],
   );
 
   /**

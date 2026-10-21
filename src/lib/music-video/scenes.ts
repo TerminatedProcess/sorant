@@ -23,6 +23,17 @@ import { effectiveSeconds, FPS } from "@/lib/workflows/minimax-common";
  */
 export const SCENES_HEADING = "THE SCENES";
 
+/**
+ * The titles the music video planner's two replies come back under: the scene
+ * plan, and how the people in the pictures look. See briefsFrom, which drops
+ * the "AI Gateway - " prefix off a node's title.
+ */
+export const PLAN_BRIEF = "Plan Scenes";
+export const CAST_BRIEF = "Describe Cast";
+
+/** How many reference pictures a music video takes. The plan graph has a loader per slot. */
+export const MUSIC_VIDEO_PICTURES = 4;
+
 /** A point in the song worth cutting on, from `analyseBeats`. */
 export interface Onset {
   /** Seconds from the start of the song. */

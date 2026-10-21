@@ -1,3 +1,4 @@
+import { leadingReferences, referenceKeep } from "@/lib/workflows/minimax-common";
 import type { ParamValue } from "@/lib/workflows/types";
 import { clock, renderSeconds, SCENES_HEADING, type SceneWindow } from "./scenes";
 
@@ -21,6 +22,12 @@ export interface MusicVideoProject {
   /** The planning run, while it is running and after. */
   planPromptId?: string;
   scenes: ProjectScene[];
+  /**
+   * How the referenced subjects look, fixed once for the whole video: the
+   * planner's, until someone edits it. Empty without pictures, and absent on a
+   * project planned before there was one. See `sceneValues`.
+   */
+  look?: string;
   /** The run that joins the scenes, once every one of them has a clip. */
   stitchPromptId?: string;
   /** Set once someone asks for the upscaled video; the join of it follows. */
@@ -95,17 +102,25 @@ function describeEnergy(energy: number): string {
  * refused, since every scene is editable before anything renders and an empty
  * one says plainly what is missing.
  */
-export function parsePlan(reply: string, count: number): string[] {
+export function parsePlan(
+  reply: string,
+  count: number,
+): { look: string; shots: string[] } {
   const start = reply.indexOf("{");
   const end = reply.lastIndexOf("}");
   let shots: string[] = [];
+  let look = "";
   if (start !== -1 && end > start) {
     const body = reply.slice(start, end + 1).replace(/,\s*([}\]])/g, "$1");
     try {
-      const parsed = JSON.parse(body) as { scenes?: Array<{ shot?: unknown } | string> };
+      const parsed = JSON.parse(body) as {
+        look?: unknown;
+        scenes?: Array<{ shot?: unknown } | string>;
+      };
       shots = (parsed.scenes ?? []).map((scene) =>
         typeof scene === "string" ? scene : String(scene?.shot ?? ""),
       );
+      look = typeof parsed.look === "string" ? parsed.look.trim() : "";
     } catch {
       shots = [];
     }
@@ -117,7 +132,10 @@ export function parsePlan(reply: string, count: number): string[] {
       .map((line) => line.match(/^\s*\d+[.)]\s*(.+)$/)?.[1] ?? "")
       .filter(Boolean);
   }
-  return Array.from({ length: count }, (_, index) => (shots[index] ?? "").trim());
+  return {
+    look,
+    shots: Array.from({ length: count }, (_, index) => (shots[index] ?? "").trim()),
+  };
 }
 
 /**
@@ -131,6 +149,13 @@ export function parsePlan(reply: string, count: number): string[] {
  * The prompt carries the whole video's idea as well as the scene, marked as
  * background, so each scene's director knows what it is a part of without
  * writing the whole video into one shot.
+ *
+ * And the look, word for word, ahead of that. Each scene's director describes
+ * the people in the pictures for itself, and given the pictures and an idea
+ * that described them differently, it settled the conflict a different way in
+ * nearly every scene: of one video's 41, 23 dressed the singer as the idea
+ * said, 6 as the picture showed, and 11 in both hats at once. One description
+ * for all of them is what holds the costume across the cuts.
  */
 export function sceneValues(
   project: MusicVideoProject,
@@ -145,6 +170,11 @@ export function sceneValues(
 
   const seed = Number(project.values.seed ?? -1);
   const idea = String(project.values.prompt ?? "").trim();
+  const look = project.look?.trim() ?? "";
+  const lookNote = look
+    ? `\n\n(How they look, in this scene and every other one in the video: ${look} — use these words as the observed detail in each subject's definition, and describe them no other way. They outrank anything below about anyone's appearance.)`
+    : "";
+  const shot = `${scene.shot}${lookNote}`;
   return {
     ...values,
     reference_audio: project.song,
@@ -154,12 +184,37 @@ export function sceneValues(
     reference_trim_start: scene.start,
     duration: renderSeconds(scene),
     prompt: idea
-      ? `${scene.shot}\n\n(This is scene ${index + 1} of ${project.scenes.length} in a music video. The video as a whole: ${idea} — background only; this scene shows only what is described above.)`
-      : scene.shot,
+      ? `${shot}\n\n(This is scene ${index + 1} of ${project.scenes.length} in a music video. The video as a whole: ${idea} — background only; this scene shows only what is described above${look ? ", and its people look only as described above" : ""}.)`
+      : shot,
     // A fixed offset per scene from one base, so a whole video can be made
     // again exactly; a random base stays random per scene.
     seed: seed >= 0 ? seed + index : -1,
   };
+}
+
+/**
+ * The look every scene is handed: what the describer saw in the pictures,
+ * then what the planner chose for anything they release.
+ *
+ * The planner's half is used only when a picture does release something — is
+ * set to keep the person and not their clothes, or the clothes and not the
+ * person. Told to leave it empty otherwise, the local model wrote the user's
+ * idea's outfit into it anyway, which handed the scenes the very conflict the
+ * describer exists to keep out.
+ */
+export function composeLook(
+  cast: string | undefined,
+  planned: string,
+  values: Record<string, ParamValue>,
+  pictures: number,
+): string {
+  const filled = leadingReferences(values, pictures);
+  let releases = false;
+  for (let index = 1; index <= filled; index += 1) {
+    const keep = referenceKeep(values, index);
+    if (keep === "identity" || keep === "costume") releases = true;
+  }
+  return [cast?.trim(), releases ? planned.trim() : ""].filter(Boolean).join("\n\n");
 }
 
 /** Whether a scene is still to be (re)submitted. */
