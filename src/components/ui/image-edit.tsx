@@ -1,9 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Control } from "@/components/param-form";
 import { Button, Spinner } from "@/components/ui/button";
 import { CONTROL_BASE } from "@/components/ui/inputs";
+import { Modal } from "@/components/ui/modal";
 import { api, ApiError } from "@/lib/client";
+import {
+  IMAGE_EDIT_DEFAULTS,
+  IMAGE_EDIT_SETTINGS,
+} from "@/lib/workflows/image-edit-settings";
+import type { ParamValue } from "@/lib/workflows/types";
 
 /** Must match the graph's id in src/lib/workflows/image-edit.ts. */
 const WORKFLOW_ID = "image-edit";
@@ -14,6 +21,39 @@ const POLL_MS = 1000;
  * long means ComfyUI restarted and forgot it.
  */
 const UNKNOWN_GRACE = 20;
+/**
+ * The edit settings, one set for the whole app: they describe how Kontext
+ * should draw, which is a taste rather than a fact about any one slot.
+ */
+const SETTINGS_KEY = "sorant-edit-settings";
+
+/**
+ * The stored settings, minus anything no longer declared or no longer the
+ * declared type — a renamed control must not send a stale value under an id
+ * the graph has stopped reading. Storage can be missing or throw (a private
+ * window, blocked site data); the defaults are a complete answer either way.
+ */
+function loadSettings(): Record<string, ParamValue> {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "{}");
+    const settings = { ...IMAGE_EDIT_DEFAULTS };
+    for (const param of IMAGE_EDIT_SETTINGS) {
+      const value = raw?.[param.id];
+      if (typeof value === typeof param.default) settings[param.id] = value;
+    }
+    return settings;
+  } catch {
+    return { ...IMAGE_EDIT_DEFAULTS };
+  }
+}
+
+function saveSettings(settings: Record<string, ParamValue>) {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch {
+    // Kept for this session only. Nothing to tell anyone.
+  }
+}
 
 interface StatusPayload {
   state: "queued" | "running" | "done" | "error" | "unknown";
@@ -69,6 +109,21 @@ export function ImageEditBar({
   const [last, setLast] = useState<{ source: string; instruction: string } | null>(
     null,
   );
+  // Defaults on the first render, stored values straight after: the server
+  // render has no storage, and the two must agree for hydration.
+  const [settings, setSettings] = useState(IMAGE_EDIT_DEFAULTS);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  useEffect(() => setSettings(loadSettings()), []);
+  const tuned = IMAGE_EDIT_SETTINGS.some(
+    (param) => settings[param.id] !== param.default,
+  );
+  const changeSetting = (id: string, value: ParamValue) => {
+    setSettings((current) => {
+      const next = { ...current, [id]: value };
+      saveSettings(next);
+      return next;
+    });
+  };
   // Read through a ref so the poll below does not restart whenever the parent
   // renders a new callback.
   const onEditedRef = useRef(onEdited);
@@ -161,7 +216,12 @@ export function ImageEditBar({
           method: "POST",
           body: JSON.stringify({
             workflowId: WORKFLOW_ID,
-            params: { image: from, instruction: trimmed, seed: -1 },
+            params: {
+              ...settings,
+              image: from,
+              instruction: trimmed,
+              seed: -1,
+            },
           }),
         },
       );
@@ -227,6 +287,32 @@ export function ImageEditBar({
         <Button
           variant="quiet"
           size="sm"
+          aria-label={tuned ? "Edit settings (changed)" : "Edit settings"}
+          title="Edit settings"
+          disabled={busy}
+          onClick={() => setSettingsOpen(true)}
+          className="relative"
+        >
+          <svg viewBox="0 0 16 16" className="size-3.5" fill="none" aria-hidden="true">
+            <path
+              d="M2.5 4.5h6M11.5 4.5h2M2.5 11.5h2M7.5 11.5h6"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+            <circle cx="10" cy="4.5" r="1.5" stroke="currentColor" strokeWidth="1.5" />
+            <circle cx="6" cy="11.5" r="1.5" stroke="currentColor" strokeWidth="1.5" />
+          </svg>
+          {tuned ? (
+            <span
+              className="absolute -right-0.5 -top-0.5 size-1.5 rounded-full bg-accent"
+              aria-hidden="true"
+            />
+          ) : null}
+        </Button>
+        <Button
+          variant="quiet"
+          size="sm"
           aria-label="Close editing"
           title="Close"
           disabled={busy}
@@ -273,6 +359,45 @@ export function ImageEditBar({
           Each edit starts from the picture shown.
         </p>
       )}
+
+      <Modal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        title="Edit settings"
+        subtitle="How FLUX Kontext redraws the picture. Kept for every edit."
+        footer={
+          <div className="flex items-center justify-between gap-3">
+            <Button
+              variant="quiet"
+              size="sm"
+              disabled={!tuned}
+              onClick={() => {
+                setSettings({ ...IMAGE_EDIT_DEFAULTS });
+                saveSettings(IMAGE_EDIT_DEFAULTS);
+              }}
+            >
+              Reset to defaults
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => setSettingsOpen(false)}
+            >
+              Done
+            </Button>
+          </div>
+        }
+      >
+        {IMAGE_EDIT_SETTINGS.map((param) => (
+          <Control
+            key={param.id}
+            param={param}
+            value={settings[param.id]}
+            onChange={changeSetting}
+            idPrefix={id}
+          />
+        ))}
+      </Modal>
     </div>
   );
 }

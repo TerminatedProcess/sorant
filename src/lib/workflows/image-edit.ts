@@ -1,5 +1,10 @@
 import type { ComfyGraph } from "@/lib/comfy";
 import { ParamError } from "@/lib/params";
+import {
+  EDIT_GUIDANCE_NODE,
+  EDIT_SAMPLER_NODE,
+  IMAGE_EDIT_SETTINGS,
+} from "./image-edit-settings";
 import type { ParamDef, WorkflowDef } from "./types";
 
 /**
@@ -25,11 +30,16 @@ import type { ParamDef, WorkflowDef } from "./types";
  * 4. **No identity suffix.** "Give him a cowboy hat" kept the face, beard and
  *    glasses as they were without being told to, so the instruction goes in as
  *    typed — no rewrite, no boilerplate.
+ *
+ * Those are the defaults. Guidance, steps, sampler, schedule and how much of
+ * the picture is redrawn are the user's from the gear on the edit bar — see
+ * image-edit-settings.ts — because Kontext's polished, plastic look at these
+ * values is a matter of taste to tune rather than one setting to fix.
  */
 
 const IMAGE_NODE = "10";
 const PROMPT_NODE = "4";
-const SAMPLER_NODE = "7";
+const SAMPLER_NODE = EDIT_SAMPLER_NODE;
 const SAVE_NODE = "9";
 const INSTRUCTION_PARAM = "instruction";
 
@@ -78,7 +88,7 @@ const graph: ComfyGraph = {
     class_type: "ReferenceLatent",
     inputs: { conditioning: [PROMPT_NODE, 0], latent: ["12", 0] },
   },
-  "14": {
+  [EDIT_GUIDANCE_NODE]: {
     class_type: "FluxGuidance",
     inputs: { conditioning: ["13", 0], guidance: 2.5 },
   },
@@ -97,8 +107,9 @@ const graph: ComfyGraph = {
       scheduler: "simple",
       positive: ["14", 0],
       negative: ["5", 0],
-      // The picture's own latent at full denoise: only its size survives,
-      // which is what sizes the output to match the input.
+      // The picture's own latent. At full denoise only its size survives,
+      // which is what sizes the output to match the input; below it, the
+      // picture itself is where sampling starts. See `redraw`.
       latent_image: ["12", 0],
       denoise: 1,
     },
@@ -137,6 +148,7 @@ const params: ParamDef[] = [
     default: -1,
     targets: [{ node: SAMPLER_NODE, input: "seed" }],
   },
+  ...IMAGE_EDIT_SETTINGS,
 ];
 
 export const imageEdit: WorkflowDef = {
@@ -164,6 +176,18 @@ export const imageEdit: WorkflowDef = {
     {
       name: "an instruction",
       values: { image: "example.png", [INSTRUCTION_PARAM]: "make it night" },
+    },
+    {
+      name: "tuned settings",
+      values: {
+        image: "example.png",
+        [INSTRUCTION_PARAM]: "make it night",
+        guidance: 1.8,
+        steps: 20,
+        redraw: 0.8,
+        sampler: "deis",
+        scheduler: "beta",
+      },
     },
     {
       name: "no instruction",

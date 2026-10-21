@@ -180,13 +180,18 @@ export function Disclosure({
   );
 }
 
-function Control({
+/**
+ * One control, drawn from its param. Exported for the edit bar's settings,
+ * which are params of a workflow that never gets a form of its own.
+ */
+export function Control({
   param,
   value: stored,
   pinned,
   onChange,
   disabled,
   error,
+  idPrefix = "param",
 }: {
   param: ClientParam;
   value: ParamValue | undefined;
@@ -195,8 +200,10 @@ function Control({
   onChange: (id: string, value: ParamValue) => void;
   disabled?: boolean;
   error?: string;
+  /** Keeps element ids unique where the same param id is drawn twice. */
+  idPrefix?: string;
 }) {
-  const id = `param-${param.id}`;
+  const id = `${idPrefix}-${param.id}`;
 
   /**
    * A pinned control shows what will run rather than what is stored, and cannot
