@@ -42,11 +42,36 @@ export function MusicVideoPanel({ video }: { video: MusicVideoController }) {
     const job = video.upscaleFor(scene);
     return !job || ["error", "cancelled", "unknown"].includes(job.phase);
   }).length;
+  const jobs = scenes.map(video.jobFor);
   const [chosenSize, setChosenSize] = useState<number>(
     MUSIC_VIDEO_UPSCALE_SIZES[0].px,
   );
+  /**
+   * Each scene clip's shorter side, by URL, read off the previews below as
+   * their metadata loads. By URL so a redone scene is measured afresh.
+   */
+  const [shorterSides, setShorterSides] = useState<Record<string, number>>({});
+  const measure = (url: string, element: HTMLVideoElement) => {
+    const side = Math.min(element.videoWidth, element.videoHeight);
+    if (side > 0 && shorterSides[url] !== side) {
+      setShorterSides((current) => ({ ...current, [url]: side }));
+    }
+  };
+  const clipUrls = scenes
+    .map((_, index) => sceneClip(jobs[index])?.url)
+    .filter((url): url is string => Boolean(url));
+  const measured = clipUrls
+    .map((url) => shorterSides[url])
+    .filter((side): side is number => side !== undefined);
+  // The smallest scene decides: a size is worth offering while it would make
+  // any scene bigger. Unknown until a preview has loaded, and then offered.
+  const smallestSide = measured.length > 0 ? Math.min(...measured) : undefined;
+  const enlarges = (px: number) => smallestSide === undefined || px > smallestSide;
+  const offered = MUSIC_VIDEO_UPSCALE_SIZES.filter(({ px }) => enlarges(px));
   // Once a scene has gone to the upscale, the rest follow it at its size.
-  const upscaleSize = project?.upscaleSize ?? chosenSize;
+  const upscaleSize =
+    project?.upscaleSize ??
+    (enlarges(chosenSize) ? chosenSize : (offered[0]?.px ?? chosenSize));
   const upscaleTime = (px: number) => {
     const rate =
       MUSIC_VIDEO_UPSCALE_SIZES.find((size) => size.px === px)?.secondsPerSecond ??
@@ -56,7 +81,6 @@ export function MusicVideoPanel({ video }: { video: MusicVideoController }) {
       ? `${Math.max(1, Math.round(hours * 60))} min`
       : `${hours.toFixed(1)} h`;
   };
-  const jobs = scenes.map(video.jobFor);
   const finished = jobs.filter((job) => job?.phase === "done").length;
   const unrendered = scenes.filter((scene, index) => {
     const job = jobs[index];
@@ -125,7 +149,7 @@ export function MusicVideoPanel({ video }: { video: MusicVideoController }) {
           <ol className="flex flex-col gap-3">
             {scenes.map((scene, index) => {
               const job = jobs[index];
-              const clip = job?.outputs.find((file) => /\.(mp4|webm|mov)$/i.test(file.filename));
+              const clip = sceneClip(job);
               return (
                 <li
                   key={`${scene.start}-${index}`}
@@ -166,6 +190,7 @@ export function MusicVideoPanel({ video }: { video: MusicVideoController }) {
                     {clip ? (
                       <video
                         src={withToken(clip.url)}
+                        onLoadedMetadata={(event) => measure(clip.url, event.currentTarget)}
                         muted
                         loop
                         playsInline
@@ -200,51 +225,66 @@ export function MusicVideoPanel({ video }: { video: MusicVideoController }) {
               </Button>
             ) : null}
             {allRendered && !video.upscale.active && !video.upscale.joining && !upscaledUrl ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  onClick={() => void video.upscaleAll(upscaleSize)}
-                  title={`Upscales every scene to ${upscaleSize} px, then joins the upscaled scenes into a second video. Roughly ${upscaleTime(upscaleSize)} for this song.`}
-                >
-                  {upscaleRemaining < scenes.length
-                    ? `Upscale the ${upscaleRemaining} remaining`
-                    : "Upscale the video"}
-                </Button>
-                {project?.upscaleSize ? (
-                  <span className="text-[12px] text-fg-subtle">
-                    at {project.upscaleSize} px, like the rest
-                  </span>
-                ) : (
-                  <div
-                    role="radiogroup"
-                    aria-label="Upscale size"
-                    className="flex rounded-md border border-border-default bg-bg p-0.5"
+              !project?.upscaleSize && offered.length === 0 ? (
+                <span className="text-[12px] text-fg-subtle">
+                  Already {smallestSide} px on its shorter side, so upscaling would not
+                  make it any bigger.
+                </span>
+              ) : (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    onClick={() => void video.upscaleAll(upscaleSize)}
+                    title={`Upscales every scene to ${upscaleSize} px, then joins the upscaled scenes into a second video. Roughly ${upscaleTime(upscaleSize)} for this song.`}
                   >
-                    {MUSIC_VIDEO_UPSCALE_SIZES.map(({ px }) => {
-                      const selected = px === upscaleSize;
-                      return (
-                        <button
-                          key={px}
-                          type="button"
-                          role="radio"
-                          aria-checked={selected}
-                          onClick={() => setChosenSize(px)}
-                          className={`rounded px-3 py-1 text-[12px] font-medium transition-colors duration-150
-                            ${
-                              selected
-                                ? "bg-accent-subtle text-fg"
-                                : "text-fg-subtle hover:text-fg"
-                            }`}
-                        >
-                          {px} px
-                          <span className="ml-1.5 font-normal text-fg-subtle">
-                            ~{upscaleTime(px)}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+                    {upscaleRemaining < scenes.length
+                      ? `Upscale the ${upscaleRemaining} remaining`
+                      : "Upscale the video"}
+                  </Button>
+                  {project?.upscaleSize ? (
+                    <span className="text-[12px] text-fg-subtle">
+                      at {project.upscaleSize} px, like the rest
+                    </span>
+                  ) : (
+                    <div
+                      role="radiogroup"
+                      aria-label="Upscale size"
+                      className="flex rounded-md border border-border-default bg-bg p-0.5"
+                    >
+                      {MUSIC_VIDEO_UPSCALE_SIZES.map(({ px }) => {
+                        const selected = px === upscaleSize;
+                        const useful = enlarges(px);
+                        return (
+                          <button
+                            key={px}
+                            type="button"
+                            role="radio"
+                            aria-checked={selected}
+                            disabled={!useful}
+                            title={
+                              useful
+                                ? undefined
+                                : `The scenes are already ${smallestSide} px on their shorter side`
+                            }
+                            onClick={() => setChosenSize(px)}
+                            className={`rounded px-3 py-1 text-[12px] font-medium transition-colors duration-150
+                              disabled:cursor-not-allowed disabled:opacity-40
+                              ${
+                                selected
+                                  ? "bg-accent-subtle text-fg"
+                                  : "text-fg-subtle enabled:hover:text-fg"
+                              }`}
+                          >
+                            {px} px
+                            <span className="ml-1.5 font-normal text-fg-subtle">
+                              ~{upscaleTime(px)}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
             ) : null}
             {video.upscale.active || video.upscale.joining ? (
               <span className="flex items-center gap-2 text-[13px] text-fg-muted">
@@ -291,6 +331,11 @@ function SceneStatus({ job }: { job: Job | undefined }) {
     default:
       return <Badge tone="danger">failed</Badge>;
   }
+}
+
+/** A scene's rendered clip. */
+function sceneClip(job: Job | undefined) {
+  return job?.outputs.find((file) => /\.(mp4|webm|mov)$/i.test(file.filename));
 }
 
 /** The joined file a stitch saved, not the scene previews it also reports. */
