@@ -13,6 +13,7 @@ import {
   sortJobs,
   writeJobs,
   type Job,
+  type MusicVideoTag,
 } from "@/lib/jobs";
 import { notify } from "@/lib/notifications";
 import { workflowLabel, type RunModes } from "@/lib/workflows/modes";
@@ -83,8 +84,16 @@ export interface JobsController {
       localDirector?: string;
       /** The generation whose clip this one was made from, if any. */
       derivedFrom?: string;
+      /** The music video this run is part of. See `Job.musicVideo`. */
+      musicVideo?: MusicVideoTag;
     },
   ) => Promise<string | null>;
+  /**
+   * Tag runs as parts of a music video after the fact, by prompt id. Only runs
+   * with no tag yet are touched: it is for runs submitted before the tag
+   * existed, which the project still knows by id.
+   */
+  tagMusicVideo: (tags: Record<string, MusicVideoTag>) => void;
   cancel: (promptId: string) => Promise<void>;
   remove: (promptId: string) => void;
   /** Drop several at once, so a day's worth is one state write. */
@@ -346,6 +355,7 @@ export function useJobs(): JobsController {
         lowVram?: boolean;
         localDirector?: string;
         derivedFrom?: string;
+        musicVideo?: MusicVideoTag;
       },
     ) => {
       const turbo = Boolean(options?.turbo);
@@ -398,6 +408,7 @@ export function useJobs(): JobsController {
           loras,
           localDirector: response.localDirector === true,
           derivedFrom: options?.derivedFrom,
+          musicVideo: options?.musicVideo,
           hasAudio: Boolean(workflow.hasAudio),
           submittedAt: Date.now(),
           phase: "queued",
@@ -476,6 +487,19 @@ export function useJobs(): JobsController {
     [jobs],
   );
 
+  const tagMusicVideo = useCallback((tags: Record<string, MusicVideoTag>) => {
+    setJobs((previous) => {
+      if (!previous.some((job) => !job.musicVideo && tags[job.promptId])) {
+        return previous;
+      }
+      return previous.map((job) =>
+        !job.musicVideo && tags[job.promptId]
+          ? { ...job, musicVideo: tags[job.promptId] }
+          : job,
+      );
+    });
+  }, []);
+
   return {
     jobs,
     activeCount: jobs.filter(isActive).length,
@@ -484,6 +508,7 @@ export function useJobs(): JobsController {
     submitError,
     submitErrorField,
     submit,
+    tagMusicVideo,
     cancel,
     remove,
     removeMany,

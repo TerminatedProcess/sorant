@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { JobsController } from "@/hooks/use-jobs";
 import { api, ApiError, getToken } from "@/lib/client";
-import type { Job } from "@/lib/jobs";
+import type { Job, MusicVideoPart, MusicVideoTag } from "@/lib/jobs";
 import { analyseSong } from "@/lib/music-video/beats";
 import {
   parsePlan,
@@ -121,6 +121,19 @@ const savedVideo = (job: Job | undefined) =>
       )
     : undefined;
 
+/** What a run of this project is tagged with in the history. See `Job.musicVideo`. */
+const tagFor = (
+  project: MusicVideoProject,
+  part: MusicVideoPart,
+  scene?: number,
+): MusicVideoTag => ({
+  projectId: project.id,
+  part,
+  scene,
+  title: String(project.values.prompt ?? "").trim() || undefined,
+  scenes: project.scenes.length,
+});
+
 const failed = (job: Job | undefined) =>
   job !== undefined && ["error", "cancelled", "unknown"].includes(job.phase);
 
@@ -138,6 +151,27 @@ export function useMusicVideo({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => writeProject(project), [project]);
+
+  // Runs this project submitted before runs were tagged with it, found by the
+  // ids it kept. A redo it has since replaced is no longer among them; the
+  // history still files that one with the video, through what it was made from.
+  const { tagMusicVideo } = jobs;
+  useEffect(() => {
+    if (!project) return;
+    const tags: Record<string, MusicVideoTag> = {};
+    if (project.planPromptId) tags[project.planPromptId] = tagFor(project, "plan");
+    if (project.stitchPromptId) tags[project.stitchPromptId] = tagFor(project, "join");
+    if (project.upscaledStitchPromptId) {
+      tags[project.upscaledStitchPromptId] = tagFor(project, "upscaled-join");
+    }
+    project.scenes.forEach((scene, index) => {
+      if (scene.promptId) tags[scene.promptId] = tagFor(project, "scene", index);
+      if (scene.upscalePromptId) {
+        tags[scene.upscalePromptId] = tagFor(project, "upscale", index);
+      }
+    });
+    tagMusicVideo(tags);
+  }, [project, tagMusicVideo]);
 
   const byId = useMemo(
     () => new Map(jobs.jobs.map((job) => [job.promptId, job])),
@@ -250,7 +284,7 @@ export function useMusicVideo({
       const promptId = await jobs.submit(
         workflow,
         { ...values, prompt: planRequest(String(values.prompt ?? ""), windows) },
-        { localDirector: modes.localDirector },
+        { localDirector: modes.localDirector, musicVideo: tagFor(next, "plan") },
       );
       if (!promptId) return;
       setProject({ ...next, planPromptId: promptId });
@@ -290,6 +324,7 @@ export function useMusicVideo({
       return jobs.submit(sceneWorkflow, values, {
         ...modes,
         derivedFrom: index > 0 ? first : undefined,
+        musicVideo: tagFor(current, "scene", index),
       });
     },
     [sceneWorkflow, scoped, jobs, modes],
@@ -385,7 +420,11 @@ export function useMusicVideo({
    * window by time, so a clip at another size or frame rate joins the same way.
    */
   const join = useCallback(
-    async (current: MusicVideoProject, pick: (scene: ProjectScene) => Job | undefined) => {
+    async (
+      current: MusicVideoProject,
+      pick: (scene: ProjectScene) => Job | undefined,
+      part: "join" | "upscaled-join",
+    ) => {
       if (!stitchWorkflow) return null;
       const clips = current.scenes.map((scene) => {
         const output = savedVideo(pick(scene));
@@ -407,7 +446,7 @@ export function useMusicVideo({
           prompt: `Music video: ${String(current.values.prompt ?? "").trim()}`,
         },
         // Under the first scene in the history, with the rest of the video.
-        { derivedFrom: current.scenes[0]?.promptId },
+        { derivedFrom: current.scenes[0]?.promptId, musicVideo: tagFor(current, part) },
       );
     },
     [stitchWorkflow, jobs],
@@ -416,7 +455,7 @@ export function useMusicVideo({
   const stitch = useCallback(async () => {
     if (!project) return;
     setError(null);
-    const promptId = await join(project, jobFor);
+    const promptId = await join(project, jobFor, "join");
     if (promptId) setProject({ ...project, stitchPromptId: promptId });
   }, [project, join, jobFor]);
 
@@ -466,7 +505,7 @@ export function useMusicVideo({
             source_video: ref,
             shorter_side: current.upscaleSize ?? size,
           },
-          { derivedFrom: scene.promptId },
+          { derivedFrom: scene.promptId, musicVideo: tagFor(current, "upscale", index) },
         );
         if (!promptId) return;
         current = {
@@ -495,7 +534,7 @@ export function useMusicVideo({
     if (!project?.upscaleRequested || !allUpscaled || project.upscaledStitchPromptId) return;
     if (joiningUpscaled.current) return;
     joiningUpscaled.current = true;
-    void join(project, upscaleFor).then((promptId) => {
+    void join(project, upscaleFor, "upscaled-join").then((promptId) => {
       joiningUpscaled.current = false;
       if (promptId) {
         setProject((previous) => (previous ? { ...previous, upscaledStitchPromptId: promptId } : previous));

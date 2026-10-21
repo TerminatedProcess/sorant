@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { Button } from "@/components/ui/button";
 import { Dot } from "@/components/ui/panel";
 import { withToken } from "@/lib/client";
@@ -14,9 +21,10 @@ import {
   isAudioOnly,
   isImageOnly,
   isFavorite,
-  lineageOrder,
+  historyEntries,
   partitionFavorites,
   type Job,
+  type MusicVideoGroup,
 } from "@/lib/jobs";
 import { RerunIcon } from "@/components/ui/rerun-icon";
 import { StarIcon } from "@/components/ui/star-icon";
@@ -203,6 +211,24 @@ export function GenerationsPanel({
   ).length;
   const firstDayIndex = groups.findIndex((group) => !group.pinned);
 
+  const renderRow = (job: Job, caption?: string) => (
+    <Row
+      job={job}
+      caption={caption}
+      now={now}
+      selected={job.promptId === selectedId}
+      playing={job.promptId === playingId}
+      onSelect={onSelect}
+      onCancel={onCancel}
+      onRemove={onRemove}
+      onRetry={onRetry && canRetry?.(job) ? onRetry : undefined}
+      onRerun={onRerun && canRerun?.(job) ? onRerun : undefined}
+      retrying={retrying}
+      onToggleFavorite={onToggleFavorite}
+      onToggleTrack={toggleTrack}
+    />
+  );
+
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-col gap-3">
@@ -317,43 +343,49 @@ export function GenerationsPanel({
 
               {open ? (
                 <ul className="flex flex-col gap-1.5">
-                  {lineageOrder(group.jobs).map(({ job, depth }) => (
-                    <li
-                      key={job.promptId}
-                      // Indented under whatever it was made from, with a
-                      // rule down the left so a source and its takes read as
-                      // one thing rather than as neighbours.
-                      className={
-                        depth > 0
-                          ? "ml-3 border-l border-border-default pl-3"
-                          : undefined
-                      }
-                      style={
-                        depth > 1
-                          ? { marginLeft: `${depth * 0.75}rem` }
-                          : undefined
-                      }
-                    >
-                      <Row
-                        job={job}
-                        now={now}
-                        selected={job.promptId === selectedId}
-                        playing={job.promptId === playingId}
-                        onSelect={onSelect}
-                        onCancel={onCancel}
-                        onRemove={onRemove}
-                        onRetry={
-                          onRetry && canRetry?.(job) ? onRetry : undefined
+                  {historyEntries(group.jobs).map((entry) =>
+                    entry.kind === "music-video" ? (
+                      <li key={`mv-${entry.group.projectId}`}>
+                        <MusicVideoEntry
+                          group={entry.group}
+                          now={now}
+                          selectedId={selectedId}
+                          // Closed until asked, even holding the selected run:
+                          // that is whatever was queued last, which during a
+                          // video is always one of its parts.
+                          open={
+                            openOverrides[`mv-${entry.group.projectId}`] ?? false
+                          }
+                          onToggle={(next) =>
+                            setOpenOverrides((current) => ({
+                              ...current,
+                              [`mv-${entry.group.projectId}`]: next,
+                            }))
+                          }
+                          renderRow={(job, caption) => renderRow(job, caption)}
+                        />
+                      </li>
+                    ) : (
+                      <li
+                        key={entry.job.promptId}
+                        // Indented under whatever it was made from, with a
+                        // rule down the left so a source and its takes read as
+                        // one thing rather than as neighbours.
+                        className={
+                          entry.depth > 0
+                            ? "ml-3 border-l border-border-default pl-3"
+                            : undefined
                         }
-                        onRerun={
-                          onRerun && canRerun?.(job) ? onRerun : undefined
+                        style={
+                          entry.depth > 1
+                            ? { marginLeft: `${entry.depth * 0.75}rem` }
+                            : undefined
                         }
-                        retrying={retrying}
-                        onToggleFavorite={onToggleFavorite}
-                        onToggleTrack={toggleTrack}
-                      />
-                    </li>
-                  ))}
+                      >
+                        {renderRow(entry.job)}
+                      </li>
+                    ),
+                  )}
                 </ul>
               ) : null}
             </section>
@@ -431,6 +463,7 @@ function ConfirmBar({
 
 function Row({
   job,
+  caption,
   now,
   selected,
   playing,
@@ -444,6 +477,8 @@ function Row({
   retrying,
 }: {
   job: Job;
+  /** What the row is within a music video — "Scene 3", "Upscaled video". */
+  caption?: string;
   now: number;
   selected: boolean;
   /** Whether the panel's player is on this row's track right now. */
@@ -542,9 +577,18 @@ function Row({
                 <path d="M2.5 11l3.5-3.5 3 3 1.5-1.5 3 3" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
               </svg>
             ) : null}
-            <span className="min-w-0 truncate">
-              {job.prompt.trim() || job.workflowName}
-            </span>
+            {caption ? (
+              <span className="shrink-0 font-medium text-fg-muted">{caption}</span>
+            ) : null}
+            {/* A captioned row with no prompt of its own — an upscale — says
+                enough with the caption; its workflow name would repeat the
+                section it sits in. */}
+            {caption && !job.prompt.trim() ? null : (
+              <span className="min-w-0 truncate">
+                {caption ? "· " : ""}
+                {job.prompt.trim() || job.workflowName}
+              </span>
+            )}
           </span>
         </span>
       </button>
@@ -723,4 +767,182 @@ function downloadAll(jobs: Job[]): void {
         anchor.remove();
       }, index * DOWNLOAD_STAGGER_MS);
     });
+}
+
+/** What a section of a music video is called, and what each row in it says. */
+const MUSIC_VIDEO_SECTIONS: Array<{
+  part: keyof MusicVideoGroup["parts"];
+  heading: string;
+  caption: (scene: number | undefined) => string;
+}> = [
+  { part: "upscaled-join", heading: "Video", caption: () => "Upscaled video" },
+  { part: "join", heading: "Video", caption: () => "Joined video" },
+  { part: "scene", heading: "Scenes", caption: (scene) => `Scene ${(scene ?? 0) + 1}` },
+  { part: "upscale", heading: "Upscales", caption: (scene) => `Scene ${(scene ?? 0) + 1}` },
+  { part: "plan", heading: "Plan", caption: () => "Scene plan" },
+];
+
+/**
+ * A whole music video as one entry: a line that says how far it has got, and
+ * under it, when opened, its runs by what they are rather than by what they
+ * were made from.
+ *
+ * The scenes and upscales are each one flat list in scene order. Where a scene
+ * was redone, the take that counts is listed and what it replaced sits under
+ * it, indented — the only nesting there is, because it is the only "this
+ * instead of that" a video has. Closed by default: a video in progress is
+ * dozens of queued runs, and the summary line is what is worth reading.
+ */
+function MusicVideoEntry({
+  group,
+  now,
+  selectedId,
+  open,
+  onToggle,
+  renderRow,
+}: {
+  group: MusicVideoGroup;
+  now: number;
+  selectedId: string | null;
+  open: boolean;
+  onToggle: (open: boolean) => void;
+  renderRow: (job: Job, caption?: string) => ReactNode;
+}) {
+  const current = (part: keyof MusicVideoGroup["parts"]) =>
+    group.parts[part].map((slot) => slot[0]);
+  const scenes = current("scene");
+  const upscales = current("upscale");
+  const count = (jobs: Job[], phase: Job["phase"]) =>
+    jobs.filter((job) => job.phase === phase).length;
+  // What still needs a retry: a scene or an upscale whose newest take failed.
+  const failed = [...scenes, ...upscales].filter((job) =>
+    ["error", "cancelled", "unknown"].includes(job.phase),
+  ).length;
+  const total = group.sceneCount ?? scenes.length;
+  const joined = current("join")[0]?.phase === "done";
+  const upscaledJoined = current("upscaled-join")[0]?.phase === "done";
+  const active = group.jobs.filter(isActive);
+  const running = active.find((job) => job.phase === "running");
+  const containsSelected = group.jobs.some((job) => job.promptId === selectedId);
+
+  const summary = [
+    total > 0 ? `${count(scenes, "done")} of ${total} scenes` : "planning",
+    running ? "1 generating" : null,
+    count(active, "queued") > 0 ? `${count(active, "queued")} queued` : null,
+    failed > 0 ? `${failed} failed` : null,
+    upscales.length > 0 && !upscaledJoined
+      ? `${count(upscales, "done")} of ${total} upscaled`
+      : null,
+    upscaledJoined ? "upscaled" : joined ? "joined" : null,
+  ].filter(Boolean);
+
+  const tone = active.length > 0
+    ? "accent"
+    : failed > 0
+      ? "danger"
+      : joined
+        ? "success"
+        : "neutral";
+
+  // Both joins sit under one "Video" heading, the upscaled one first.
+  const sections = MUSIC_VIDEO_SECTIONS.map((section) => ({
+    ...section,
+    slots: group.parts[section.part],
+  })).filter((section) => section.slots.length > 0);
+
+  return (
+    <div
+      className={`rounded-lg border transition-colors ${
+        containsSelected && !open
+          ? "border-accent"
+          : "border-border-default"
+      } bg-bg-subtle`}
+    >
+      <button
+        type="button"
+        onClick={() => onToggle(!open)}
+        aria-expanded={open}
+        className="flex w-full min-w-0 items-center gap-2.5 p-2 text-left"
+      >
+        <Dot tone={tone} pulse={active.length > 0} />
+        <span className="min-w-0 flex-1">
+          <span className="flex items-baseline gap-2">
+            <span className="shrink-0 text-[12px] font-medium text-fg">
+              Music video
+            </span>
+            <span className="min-w-0 truncate text-[11px] text-fg-subtle">
+              {group.title}
+            </span>
+            <span className="ml-auto shrink-0 text-[11px] text-fg-subtle">
+              {formatWhen(group.newest, now)}
+            </span>
+          </span>
+          <span className="mt-0.5 block truncate text-[11px] text-fg-muted">
+            {summary.join(" · ")}
+          </span>
+        </span>
+        <svg
+          viewBox="0 0 16 16"
+          className={`size-3 shrink-0 text-fg-subtle transition-transform duration-150 ${
+            open ? "rotate-90" : ""
+          }`}
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M6 4l4 4-4 4"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+
+      {open ? (
+        <div className="flex flex-col gap-3 border-t border-border-default p-2">
+          {sections.map((section, index) => (
+            <section key={section.part} className="flex flex-col gap-1.5">
+              {sections[index - 1]?.heading === section.heading ? null : (
+                <h4 className="px-0.5 text-[10px] font-medium uppercase tracking-[0.06em] text-fg-subtle">
+                  {section.heading}
+                </h4>
+              )}
+              <ul className="flex flex-col gap-1.5">
+                {section.slots.map((slot) => {
+                  const caption = section.caption(slot[0].musicVideo?.scene);
+                  return (
+                    <li key={slot[0].promptId} className="flex flex-col gap-1.5">
+                      {renderRow(slot[0], caption)}
+                      {slot.length > 1 ? (
+                        <ul className="ml-3 flex flex-col gap-1.5 border-l border-border-default pl-3">
+                          {slot.slice(1).map((job) => (
+                            <li key={job.promptId}>
+                              {renderRow(job, `${caption} · replaced`)}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+          {group.untagged.length > 0 ? (
+            <section className="flex flex-col gap-1.5">
+              <h4 className="px-0.5 text-[10px] font-medium uppercase tracking-[0.06em] text-fg-subtle">
+                Also made from this video
+              </h4>
+              <ul className="flex flex-col gap-1.5">
+                {group.untagged.map((job) => (
+                  <li key={job.promptId}>{renderRow(job)}</li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
 }

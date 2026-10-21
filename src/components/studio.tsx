@@ -1055,6 +1055,7 @@ function Workbench({
         lowVram,
         localDirector: runDirector,
         derivedFrom: job.derivedFrom,
+        musicVideo: job.musicVideo,
       });
 
       // On mobile the stage sits below the whole settings panel, so a retry
@@ -1102,6 +1103,7 @@ function Workbench({
         lowVram,
         localDirector: runDirector,
         derivedFrom: job.derivedFrom,
+        musicVideo: job.musicVideo,
       });
       setClipNotice(null);
 

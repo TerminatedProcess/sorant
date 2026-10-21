@@ -94,6 +94,15 @@ export interface Job {
   >;
   hasAudio: boolean;
   /**
+   * The music video this run is a part of, and which part. A music video is
+   * dozens of runs — a plan, a take per scene and any redos, a join, an
+   * upscale per scene and a join of those — and the history shows them as one
+   * entry with sections rather than as a tree of "made from" links, which
+   * nested upscales two levels under scenes and scattered queued runs across
+   * every level of it.
+   */
+  musicVideo?: MusicVideoTag;
+  /**
    * Marked by the user as worth keeping. Purely an organising flag — it sorts
    * the entry into its own section at the top of the history and protects it
    * from the bulk clears and from eviction, but changes nothing about the file
@@ -115,6 +124,20 @@ export interface Job {
   resolved: Record<string, ParamValue>;
   estimatedSeconds: number | null;
 }
+
+/** See `Job.musicVideo`. */
+export interface MusicVideoTag {
+  projectId: string;
+  part: MusicVideoPart;
+  /** Which scene, from 0, for a scene take or a scene's upscale. */
+  scene?: number;
+  /** The idea the video was planned from, as the entry's heading. */
+  title?: string;
+  /** How many scenes the video has, so the entry can say how far it has got. */
+  scenes?: number;
+}
+
+export type MusicVideoPart = "plan" | "scene" | "join" | "upscale" | "upscaled-join";
 
 const STORAGE_KEY = "sorant-jobs";
 
@@ -494,14 +517,25 @@ export function dayLabel(timestamp: number, now = Date.now()): string {
   });
 }
 
-/** Newest day first, and newest job first within each — as `sortJobs` leaves them. */
+/**
+ * Newest day first, and newest job first within each — as `sortJobs` leaves them.
+ *
+ * Every part of a music video goes under the day of its newest part, so one
+ * that renders past midnight stays one entry rather than being cut in two.
+ */
 export function groupByDay(
   jobs: Job[],
   now = Date.now(),
 ): Array<{ key: string; label: string; jobs: Job[] }> {
+  const newestOf = new Map<string, number>();
+  for (const job of jobs) {
+    const id = job.musicVideo?.projectId;
+    if (id) newestOf.set(id, Math.max(newestOf.get(id) ?? 0, job.submittedAt));
+  }
   const groups = new Map<string, Job[]>();
   for (const job of jobs) {
-    const key = dayKey(job.submittedAt);
+    const id = job.musicVideo?.projectId;
+    const key = dayKey(id ? newestOf.get(id)! : job.submittedAt);
     const existing = groups.get(key);
     if (existing) existing.push(job);
     else groups.set(key, [job]);
@@ -610,6 +644,130 @@ export function lineageOrder(jobs: Job[]): LineageRow[] {
     }
   }
   return rows;
+}
+
+/** One line of a day in the history: a run, or a whole music video. */
+export type HistoryEntry =
+  | { kind: "job"; job: Job; depth: number }
+  | { kind: "music-video"; group: MusicVideoGroup };
+
+export interface MusicVideoGroup {
+  projectId: string;
+  title: string;
+  /** Every run in it, newest first. */
+  jobs: Job[];
+  /** How many scenes the video has, where its runs say. */
+  sceneCount?: number;
+  /**
+   * Its runs by part, each a list of slots in scene order (one slot for the
+   * parts that have no scene). A slot is the takes of that one thing, newest
+   * first: the first is the one that counts, the rest are what it replaced.
+   */
+  parts: Record<MusicVideoPart, Job[][]>;
+  /**
+   * Runs made from one of its parts that carry no tag — scene redos from before
+   * the tag existed. Kept in the entry, after the rest, rather than set loose.
+   */
+  untagged: Job[];
+  newest: number;
+}
+
+/**
+ * A day's runs as the history lists them: each music video as one entry, and
+ * everything else in `lineageOrder`, both placed by their newest run.
+ */
+export function historyEntries(jobs: Job[]): HistoryEntry[] {
+  const byId = new Map(jobs.map((job) => [job.promptId, job]));
+  /** The project a run belongs to: its own tag, or the nearest tagged ancestor's. */
+  const projectOf = (job: Job): string | undefined => {
+    const seen = new Set<string>();
+    for (let current: Job | undefined = job; current && !seen.has(current.promptId); ) {
+      if (current.musicVideo) return current.musicVideo.projectId;
+      seen.add(current.promptId);
+      current = current.derivedFrom ? byId.get(current.derivedFrom) : undefined;
+    }
+    return undefined;
+  };
+
+  const projects = new Map<string, Job[]>();
+  const loose: Job[] = [];
+  for (const job of jobs) {
+    const id = projectOf(job);
+    if (!id) {
+      loose.push(job);
+      continue;
+    }
+    const members = projects.get(id);
+    if (members) members.push(job);
+    else projects.set(id, [job]);
+  }
+
+  const placed: Array<{ newest: number; entries: HistoryEntry[] }> = [];
+  for (const [projectId, members] of projects) {
+    placed.push({
+      newest: Math.max(...members.map((job) => job.submittedAt)),
+      entries: [{ kind: "music-video", group: musicVideoGroup(projectId, members) }],
+    });
+  }
+  // A family is a root and the rows under it, as `lineageOrder` emits them.
+  for (const row of lineageOrder(loose)) {
+    const family = row.depth === 0 ? undefined : placed.at(-1);
+    if (family && family.entries[0]?.kind === "job") {
+      family.entries.push({ kind: "job", ...row });
+      family.newest = Math.max(family.newest, row.job.submittedAt);
+    } else {
+      placed.push({ newest: row.job.submittedAt, entries: [{ kind: "job", ...row }] });
+    }
+  }
+  // Stable, so families keep `lineageOrder`'s order among themselves.
+  return placed
+    .map((family, index) => ({ family, index }))
+    .sort((a, b) => b.family.newest - a.family.newest || a.index - b.index)
+    .flatMap(({ family }) => family.entries);
+}
+
+function musicVideoGroup(projectId: string, members: Job[]): MusicVideoGroup {
+  const newestFirst = [...members].sort((a, b) => b.submittedAt - a.submittedAt);
+  const parts: MusicVideoGroup["parts"] = {
+    plan: [],
+    scene: [],
+    join: [],
+    upscale: [],
+    "upscaled-join": [],
+  };
+  const slots = new Map<string, Job[]>();
+  const untagged: Job[] = [];
+  for (const job of newestFirst) {
+    const tag = job.musicVideo;
+    if (!tag || tag.projectId !== projectId) {
+      untagged.push(job);
+      continue;
+    }
+    const key = `${tag.part}:${tag.scene ?? ""}`;
+    const slot = slots.get(key);
+    if (slot) slot.push(job);
+    else {
+      const fresh = [job];
+      slots.set(key, fresh);
+      parts[tag.part].push(fresh);
+    }
+  }
+  const sceneOf = (slot: Job[]) => slot[0].musicVideo?.scene ?? 0;
+  parts.scene.sort((a, b) => sceneOf(a) - sceneOf(b));
+  parts.upscale.sort((a, b) => sceneOf(a) - sceneOf(b));
+  const title =
+    newestFirst.find((job) => job.musicVideo?.title)?.musicVideo?.title?.trim() ||
+    "Music video";
+  const sceneCount = newestFirst.find((job) => job.musicVideo?.scenes)?.musicVideo?.scenes;
+  return {
+    projectId,
+    title,
+    sceneCount,
+    jobs: newestFirst,
+    parts,
+    untagged,
+    newest: newestFirst[0]?.submittedAt ?? 0,
+  };
 }
 
 export function formatWhen(timestamp: number, now = Date.now()): string {
