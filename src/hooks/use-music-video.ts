@@ -78,7 +78,7 @@ export interface MusicVideoController {
    * The size is the shorter side, and only the first call's counts: see
    * `upscaleSize` on the project.
    */
-  upscaleAll: (size: number) => Promise<void>;
+  upscaleAll: (size: number, frameRate: number) => Promise<void>;
   /**
    * Render another take of a scene, on a fresh seed, and use it. The earlier
    * takes are kept to pick from: see `takesFor`.
@@ -548,13 +548,16 @@ export function useMusicVideo({
    * a job of a few minutes: a failure, or a reset of the box, costs that scene
    * and not hours of work, and a redone scene needs only its own upscale again.
    */
-  const upscaleAll = useCallback(async (size: number) => {
+  const upscaleAll = useCallback(async (size: number, frameRate: number) => {
     if (!project || !upscaleWorkflow) return;
     setError(null);
     let current: MusicVideoProject = {
       ...project,
       upscaleRequested: true,
       upscaleSize: project.upscaleSize ?? size,
+      // A project upscaled before the choice existed kept the clip's own rate.
+      upscaleFrameRate:
+        project.upscaleFrameRate ?? (project.upscaleSize ? 1 : frameRate),
     };
     setProject(current);
     for (let index = 0; index < current.scenes.length; index += 1) {
@@ -583,6 +586,7 @@ export function useMusicVideo({
             ...defaultValuesFor(upscaleWorkflow),
             source_video: ref,
             shorter_side: current.upscaleSize ?? size,
+            frame_rate: String(current.upscaleFrameRate ?? 1),
           },
           { derivedFrom: scene.promptId, musicVideo: tagFor(current, "upscale", index) },
         );

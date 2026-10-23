@@ -448,7 +448,6 @@ export const CLIP_ACTIONS = [
   "remix",
   "extend",
   "upscale",
-  "detail",
   "illustrate",
   "musicvideo",
   "animate",
@@ -613,7 +612,21 @@ export interface WorkflowDef {
    * Only ever done with the queue empty: a free also drops ComfyUI's cached
    * node instances, which is where a batched run in progress keeps its place.
    */
-  freesMemory?: boolean;
+  freesMemory?: boolean | ((values: Record<string, ParamValue>) => boolean);
+  /**
+   * A control whose choice changes how long a run takes by orders of
+   * magnitude — Upscale's upscaler, seconds against most of an hour. The first
+   * estimate is taken from `seconds` by its value, and the one learned from
+   * this machine's history is kept per value too, the way it is per mode.
+   */
+  estimateBy?: { param: string; seconds: Record<string, number> };
+  /**
+   * Nodes in the graph that only a choice other than the default keeps —
+   * `finalize` deletes them otherwise. The classes and model files they name
+   * are reported optional, so a machine without them still counts as able to
+   * run the workflow at its defaults: Upscale without SeedVR2's 9 GB.
+   */
+  optionalNodes?: string[];
   /**
    * Structural adjustment after the params are written in, on the cloned graph.
    *

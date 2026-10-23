@@ -407,6 +407,9 @@ export function useJobs(): JobsController {
           patches,
           loras,
           localDirector: response.localDirector === true,
+          variant: workflow.estimateBy
+            ? String(response.resolved?.[workflow.estimateBy.param] ?? "")
+            : undefined,
           derivedFrom: options?.derivedFrom,
           musicVideo: options?.musicVideo,
           hasAudio: Boolean(workflow.hasAudio),

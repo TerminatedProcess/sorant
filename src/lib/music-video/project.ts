@@ -40,6 +40,12 @@ export interface MusicVideoProject {
    * the same size as the rest and the join has one size to work with.
    */
   upscaleSize?: number;
+  /**
+   * The frame-rate multiplier the scenes are upscaled with — 1 keeps H3's 24
+   * fps, 2 makes 48 with RIFE in-betweens. Fixed with the size, for the same
+   * reason: one scene at a different rate would stutter against the rest.
+   */
+  upscaleFrameRate?: number;
 }
 
 /**
@@ -55,6 +61,17 @@ export interface MusicVideoProject {
 export const MUSIC_VIDEO_UPSCALE_SIZES = [
   { px: 1080, secondsPerSecond: 4 },
   { px: 2160, secondsPerSecond: 13 },
+] as const;
+
+/**
+ * The frame rates a music video can be upscaled to: H3's own 24 fps, or 48
+ * with a RIFE frame made between every pair. `timeFactor` is what the
+ * in-betweens add to the upscale's time; RIFE's cost grows with the picture,
+ * so it is measured per size.
+ */
+export const MUSIC_VIDEO_FRAME_RATES = [
+  { multiplier: 1, label: "24 fps", timeFactor: { 1080: 1, 2160: 1 } },
+  { multiplier: 2, label: "48 fps", timeFactor: { 1080: 1.7, 2160: 1.6 } },
 ] as const;
 
 export interface ProjectScene extends SceneWindow {

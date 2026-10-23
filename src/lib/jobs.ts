@@ -60,6 +60,12 @@ export interface Job {
    */
   localDirector?: boolean;
   /**
+   * The value of the workflow's `estimateBy` control, where it has one —
+   * Upscale's upscaler. In `modeKey` for the same reason: the same workflow at
+   * seconds and at most of an hour, pooled, describes neither.
+   */
+  variant?: string;
+  /**
    * What the director wrote, by what it was writing — the brief the video model
    * was actually given, which nothing else on the job records. Absent on a run
    * written as typed, and on anything from before it was kept.
@@ -465,6 +471,7 @@ function modeKey(job: Job): string {
   return [
     job.turbo ? "turbo" : "",
     job.localDirector ? "local-director" : "",
+    job.variant ? `variant:${job.variant}` : "",
     ...(job.patches ?? []),
   ]
     .sort()

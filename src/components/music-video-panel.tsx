@@ -4,7 +4,10 @@ import { useState } from "react";
 import type { MusicVideoController } from "@/hooks/use-music-video";
 import { withToken } from "@/lib/client";
 import type { Job } from "@/lib/jobs";
-import { MUSIC_VIDEO_UPSCALE_SIZES } from "@/lib/music-video/project";
+import {
+  MUSIC_VIDEO_FRAME_RATES,
+  MUSIC_VIDEO_UPSCALE_SIZES,
+} from "@/lib/music-video/project";
 import { clock } from "@/lib/music-video/scenes";
 import { Badge, Dot, Panel, PanelHeader } from "./ui/panel";
 import { Button, buttonClasses, Spinner } from "./ui/button";
@@ -72,10 +75,19 @@ export function MusicVideoPanel({ video }: { video: MusicVideoController }) {
   const upscaleSize =
     project?.upscaleSize ??
     (enlarges(chosenSize) ? chosenSize : (offered[0]?.px ?? chosenSize));
-  const upscaleTime = (px: number) => {
-    const rate =
-      MUSIC_VIDEO_UPSCALE_SIZES.find((size) => size.px === px)?.secondsPerSecond ??
-      MUSIC_VIDEO_UPSCALE_SIZES[0].secondsPerSecond;
+  const [chosenRate, setChosenRate] = useState<number>(
+    MUSIC_VIDEO_FRAME_RATES[0].multiplier,
+  );
+  // Fixed with the size once a scene has gone, so the rest match it.
+  const upscaleRate = project?.upscaleFrameRate ?? (project?.upscaleSize ? 1 : chosenRate);
+  const upscaleTime = (px: number, multiplier = upscaleRate) => {
+    const size =
+      MUSIC_VIDEO_UPSCALE_SIZES.find((option) => option.px === px) ??
+      MUSIC_VIDEO_UPSCALE_SIZES[0];
+    const frameRate =
+      MUSIC_VIDEO_FRAME_RATES.find((option) => option.multiplier === multiplier) ??
+      MUSIC_VIDEO_FRAME_RATES[0];
+    const rate = size.secondsPerSecond * frameRate.timeFactor[size.px];
     const hours = ((project?.songSeconds ?? 0) * rate) / 3600;
     return hours < 1
       ? `${Math.max(1, Math.round(hours * 60))} min`
@@ -264,8 +276,8 @@ export function MusicVideoPanel({ video }: { video: MusicVideoController }) {
               ) : (
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
-                    onClick={() => void video.upscaleAll(upscaleSize)}
-                    title={`Upscales every scene to ${upscaleSize} px, then joins the upscaled scenes into a second video. Roughly ${upscaleTime(upscaleSize)} for this song.`}
+                    onClick={() => void video.upscaleAll(upscaleSize, upscaleRate)}
+                    title={`Upscales every scene to ${upscaleSize} px${upscaleRate > 1 ? ` at ${24 * upscaleRate} fps` : ""}, then joins the upscaled scenes into a second video. Roughly ${upscaleTime(upscaleSize)} for this song.`}
                   >
                     {upscaleRemaining < scenes.length
                       ? `Upscale the ${upscaleRemaining} remaining`
@@ -273,9 +285,11 @@ export function MusicVideoPanel({ video }: { video: MusicVideoController }) {
                   </Button>
                   {project?.upscaleSize ? (
                     <span className="text-[12px] text-fg-subtle">
-                      at {project.upscaleSize} px, like the rest
+                      at {project.upscaleSize} px
+                      {upscaleRate > 1 ? `, ${24 * upscaleRate} fps` : ""}, like the rest
                     </span>
                   ) : (
+                    <>
                     <div
                       role="radiogroup"
                       aria-label="Upscale size"
@@ -313,6 +327,38 @@ export function MusicVideoPanel({ video }: { video: MusicVideoController }) {
                         );
                       })}
                     </div>
+                    <div
+                      role="radiogroup"
+                      aria-label="Upscale frame rate"
+                      className="flex rounded-md border border-border-default bg-bg p-0.5"
+                    >
+                      {MUSIC_VIDEO_FRAME_RATES.map(({ multiplier, label }) => {
+                        const selected = multiplier === upscaleRate;
+                        return (
+                          <button
+                            key={multiplier}
+                            type="button"
+                            role="radio"
+                            aria-checked={selected}
+                            title={
+                              multiplier > 1
+                                ? "Makes a new frame between every pair with RIFE, for smoother motion. The song is unchanged."
+                                : "Keeps H3's own frames."
+                            }
+                            onClick={() => setChosenRate(multiplier)}
+                            className={`rounded px-3 py-1 text-[12px] font-medium transition-colors duration-150
+                              ${
+                                selected
+                                  ? "bg-accent-subtle text-fg"
+                                  : "text-fg-subtle hover:text-fg"
+                              }`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    </>
                   )}
                 </div>
               )

@@ -36,8 +36,7 @@ soundtrack:
 
 Plus **Music** (MiniMax Music 3, a song from a description), **Upscale**
 (NVIDIA RTX Video Super Resolution: a sharper copy of a finished clip, up to 4K,
-in seconds), **Add detail** (SeedVR2: slower, and invents fine texture) and an
-**Edit** button on every picture you attach, which changes it by a sentence with
+in seconds, or SeedVR2 if you have the time) and an **Edit** button on every picture you attach, which changes it by a sentence with
 FLUX Kontext.
 
 ![Reference to Video: the workflow picker and a reference photo on the left, the
@@ -54,7 +53,7 @@ A few things make it more than a form over a graph:
 - **Runs queue and keep going.** Queue several and walk away: they finish on
   your machine even if you close the tab, and the history picks them back up.
   Every result can be replayed, downloaded, rerun, or handed straight to Remix,
-  Extend, Upscale or Add detail.
+  Extend or Upscale.
 
 It is only a front end: no model weights, no database, nothing expensive.
 
@@ -78,10 +77,9 @@ Disk space by what you want to run — download only what you will use:
 | + a song, voice or clip as a reference, or Remix at 4 steps | +118 GB |
 | + Music | +14 GB |
 | + Upscale (needs an NVIDIA RTX card) | +0.1 GB |
-| + Add detail | +9 GB |
 | + the Edit button | +29 GB |
-| **Every workflow** | **234.5 GB** |
-| Optional extras (local prompt rewriting, the VHS tape look, Add detail's alternatives) | +102.9 GB |
+| **Every workflow** | **225.7 GB** |
+| Optional extras (local prompt rewriting, the VHS tape look, SeedVR2 for Upscale) | +111.7 GB |
 | **Everything, extras included** | **337.4 GB** |
 
 Each file and where it comes from is listed in the

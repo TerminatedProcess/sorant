@@ -78,9 +78,13 @@ export const EXTRAS: Record<string, { files: string[]; what: string }> = {
     files: ["vh5tape-comfyui.safetensors", "minimax_h3_fl2va_pruned_fp8_scaled.safetensors"],
     what: "the VHS tape look on the fp8 Lighter base, a third the size of bf16",
   },
+  seedvr2: {
+    files: ["seedvr2_7b_sharp_int8_convrot.safetensors", "seedvr2_ema_vae_fp16.safetensors"],
+    what: "Upscale's SeedVR2 7B upscaler, the slow one that invents detail",
+  },
   "upscale-3b": {
-    files: ["seedvr2_3b_int8_convrot.safetensors"],
-    what: "Upscale's lighter 3B model",
+    files: ["seedvr2_3b_int8_convrot.safetensors", "seedvr2_ema_vae_fp16.safetensors"],
+    what: "Upscale's lighter SeedVR2 3B upscaler",
   },
   film: {
     files: ["film_net_fp16.safetensors"],

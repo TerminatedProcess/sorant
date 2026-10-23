@@ -142,7 +142,7 @@ needs 0.38's `TextGenerate`. Ask before updating a working install.
 1. **Which workflows they want.** Text to Video, Image to Video and Extend share
    one 43 GB set; Reference to Video and Remix add 21 GB, and 118 GB more for a
    song, voice or clip as a reference; Music 14 GB; Upscale nothing to speak of
-   (but an NVIDIA RTX card); Add detail 9 GB; the Edit button
+   (but an NVIDIA RTX card), or 9 GB more with SeedVR2; the Edit button
    29 GB. Phase 3 checks these against what is already on disk. Recommend
    starting with Text to Video if disk or time is short: a narrower first pass
    that works beats a complete one that takes a day.
@@ -184,7 +184,7 @@ present; `git pull` updates one. Some packs have no `requirements.txt`.
 | --- | --- | --- |
 | Vercel AI Gateway | `https://github.com/pwillia7/comfyui-vercel-ai-gateway` | every generating workflow — the five video ones and Music |
 | KJNodes | `https://github.com/kijai/ComfyUI-KJNodes` | Remix, Extend, the SageAttention switch |
-| VideoHelperSuite | `https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite` | Remix, Extend, a reference clip, Upscale, Add detail |
+| VideoHelperSuite | `https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite` | Remix, Extend, a reference clip, Upscale |
 | Nvidia VFX Nodes | `https://github.com/Comfy-Org/ComfyUI_Nvidia_VFX_Nodes` | Upscale — **see below for its pip install** |
 | MiniMax-H3 Turbo | `https://github.com/Larryvrh/ComfyUI-MiniMax-H3-Turbo` | the Turbo switch, and any run at 4 steps |
 | Spectrum | `https://github.com/xmarre/ComfyUI-Spectrum-MiniMax-H3` | the Spectrum switch |
@@ -202,8 +202,9 @@ PyPI has a placeholder that fails with `BackendUnavailable` — so install its
 requirements with
 `<python> -m pip install -r requirements.txt --extra-index-url https://pypi.nvidia.com`.
 Wheels exist for Windows and Linux x86-64. Without an RTX card or with an older
-PyTorch, skip the pack and tell them: Upscale will not run, and Add detail
-(SeedVR2) does the same job, much more slowly. Do not upgrade PyTorch for it
+PyTorch, skip the pack, download the `seedvr2` extra instead, and tell them:
+Upscale's default upscaler will not run, and its SeedVR2 choice does the same
+job, much more slowly. Do not upgrade PyTorch for it
 without asking.
 
 **SageAttention also needs the `sageattention` Python package** in ComfyUI's
@@ -263,7 +264,7 @@ The script counts a file as present wherever ComfyUI would find it: the
 install's own `models/`, every folder its `extra_model_paths.yaml` adds, and
 any further `--models-dir <path>`. New files go into the install's own
 `models/`. `--workflows all` takes everything required; `--extras` adds optional
-sets (`local-director`, `vhs-tape`, `vhs-tape-lighter`, `upscale-3b`, `film`);
+sets (`local-director`, `vhs-tape`, `vhs-tape-lighter`, `seedvr2`, `upscale-3b`, `film`);
 `--skip <file>` leaves one out — the usual one is the bf16 pair,
 `minimax_h3_ref2va_bf16.safetensors,qwen3vl_32b_minimax_h3_bf16.safetensors`, if
 they will use only pictures as references. Lists take commas or spaces.
@@ -309,8 +310,12 @@ it.
   limbs, no error), so the switch swaps to a non-rotated checkpoint while on:
   bf16 (66 GB) or the fp8 **Lighter base** (21 GB). One of the two, not both.
   Reference to Video and Remix use the `ref2va` bf16 file for it.
-- **`upscale-3b`**, **`film`** — Add detail's lighter SeedVR2 model, and the
-  slower FILM interpolation either upscale can pick in its controls.
+- **`seedvr2`** (9 GB), **`upscale-3b`** (4 GB) — Upscale's SeedVR2 choices,
+  which invent fine texture where the default only sharpens, and take about a
+  hundred times as long. Offer `seedvr2` only if they ask for it, or the
+  machine cannot run the Nvidia VFX pack.
+- **`film`** — the slower FILM frame interpolation, picked in Upscale's
+  controls.
 
 Music 3 also has an `int8_convrot` DiT for short-VRAM cards; using it means
 changing `unet_name` in `minimax-music3.ts`.

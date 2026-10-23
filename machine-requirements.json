@@ -1,5 +1,5 @@
 {
-  "fingerprint": "59f841cc697735fb",
+  "fingerprint": "b553801bc6e6acb1",
   "classes": {
     "AudioConcatenate": {
       "inputs": [
@@ -248,8 +248,7 @@
         "minimax-h3-ref2v (spectrum)",
         "minimax-h3-ref2v (style, vhs tape)",
         "minimax-h3-ref2v (turbo)",
-        "rtx-upscale",
-        "seedvr2-upscale"
+        "upscale"
       ]
     },
     "ComfySwitchNode": {
@@ -401,8 +400,7 @@
       ],
       "optional": false,
       "workflows": [
-        "rtx-upscale",
-        "seedvr2-upscale"
+        "upscale"
       ]
     },
     "FrameInterpolationModelLoader": {
@@ -411,8 +409,7 @@
       ],
       "optional": false,
       "workflows": [
-        "rtx-upscale",
-        "seedvr2-upscale"
+        "upscale"
       ]
     },
     "GetImageSize": {
@@ -473,8 +470,7 @@
       ],
       "optional": false,
       "workflows": [
-        "rtx-upscale",
-        "seedvr2-upscale"
+        "upscale"
       ]
     },
     "ImageFromBatch": {
@@ -498,8 +494,7 @@
         "minimax-h3-image (style, vhs tape)",
         "minimax-h3-image (style, vhs tape, lighter base)",
         "minimax-h3-image (turbo)",
-        "rtx-upscale",
-        "seedvr2-upscale"
+        "upscale"
       ]
     },
     "ImageScaleToTotalPixels": {
@@ -545,7 +540,7 @@
       "workflows": [
         "image-edit",
         "minimax-music3",
-        "seedvr2-upscale"
+        "upscale"
       ]
     },
     "KSamplerSelect": {
@@ -1055,7 +1050,7 @@
       ],
       "optional": false,
       "workflows": [
-        "rtx-upscale"
+        "upscale"
       ]
     },
     "RandomImageFromBatch": {
@@ -1160,8 +1155,7 @@
       ],
       "optional": false,
       "workflows": [
-        "rtx-upscale",
-        "seedvr2-upscale"
+        "upscale"
       ]
     },
     "ResizeImageMaskNode": {
@@ -1173,8 +1167,7 @@
       ],
       "optional": false,
       "workflows": [
-        "rtx-upscale",
-        "seedvr2-upscale"
+        "upscale"
       ]
     },
     "ResolutionSelector": {
@@ -1391,9 +1384,9 @@
         "model",
         "vae_conditioning"
       ],
-      "optional": false,
+      "optional": true,
       "workflows": [
-        "seedvr2-upscale"
+        "upscale"
       ]
     },
     "SeedVR2PostProcessing": {
@@ -1402,18 +1395,18 @@
         "images",
         "original_resized_images"
       ],
-      "optional": false,
+      "optional": true,
       "workflows": [
-        "seedvr2-upscale"
+        "upscale"
       ]
     },
     "SeedVR2Preprocess": {
       "inputs": [
         "resized_images"
       ],
-      "optional": false,
+      "optional": true,
       "workflows": [
-        "seedvr2-upscale"
+        "upscale"
       ]
     },
     "SeedVR2TemporalChunk": {
@@ -1423,9 +1416,9 @@
         "latent",
         "temporal_overlap"
       ],
-      "optional": false,
+      "optional": true,
       "workflows": [
-        "seedvr2-upscale"
+        "upscale"
       ]
     },
     "SeedVR2TemporalMerge": {
@@ -1433,9 +1426,9 @@
         "latents",
         "temporal_overlap"
       ],
-      "optional": false,
+      "optional": true,
       "workflows": [
-        "seedvr2-upscale"
+        "upscale"
       ]
     },
     "SpectrumApplyMiniMaxH3": {
@@ -1567,7 +1560,7 @@
         "minimax-h3-ref2v (style, vhs tape)",
         "minimax-h3-ref2v (turbo)",
         "minimax-music3",
-        "seedvr2-upscale"
+        "upscale"
       ]
     },
     "VAEDecode": {
@@ -1685,9 +1678,9 @@
         "tile_size",
         "vae"
       ],
-      "optional": false,
+      "optional": true,
       "workflows": [
-        "seedvr2-upscale"
+        "upscale"
       ]
     },
     "VAEEncode": {
@@ -1725,9 +1718,9 @@
         "tile_size",
         "vae"
       ],
-      "optional": false,
+      "optional": true,
       "workflows": [
-        "seedvr2-upscale"
+        "upscale"
       ]
     },
     "VAELoader": {
@@ -1778,7 +1771,7 @@
         "minimax-h3-ref2v (style, vhs tape)",
         "minimax-h3-ref2v (turbo)",
         "minimax-music3",
-        "seedvr2-upscale"
+        "upscale"
       ]
     },
     "VHS_BatchManager": {
@@ -1787,8 +1780,7 @@
       ],
       "optional": false,
       "workflows": [
-        "rtx-upscale",
-        "seedvr2-upscale"
+        "upscale"
       ]
     },
     "VHS_LoadVideo": {
@@ -1824,8 +1816,7 @@
         "minimax-h3-ref2v (spectrum)",
         "minimax-h3-ref2v (style, vhs tape)",
         "minimax-h3-ref2v (turbo)",
-        "rtx-upscale",
-        "seedvr2-upscale"
+        "upscale"
       ]
     },
     "VHS_SelectEveryNthImage": {
@@ -1869,8 +1860,7 @@
       ],
       "optional": false,
       "workflows": [
-        "rtx-upscale",
-        "seedvr2-upscale"
+        "upscale"
       ]
     },
     "VHS_VideoInfoLoaded": {
@@ -1879,8 +1869,7 @@
       ],
       "optional": false,
       "workflows": [
-        "rtx-upscale",
-        "seedvr2-upscale"
+        "upscale"
       ]
     },
     "VercelAIGatewayDescribeImage": {
@@ -2241,24 +2230,23 @@
       "input": "model_name",
       "optional": false,
       "workflows": [
-        "rtx-upscale",
-        "seedvr2-upscale"
+        "upscale"
       ]
     },
     "seedvr2_7b_sharp_int8_convrot.safetensors": {
       "loader": "UNETLoader",
       "input": "unet_name",
-      "optional": false,
+      "optional": true,
       "workflows": [
-        "seedvr2-upscale"
+        "upscale"
       ]
     },
     "seedvr2_ema_vae_fp16.safetensors": {
       "loader": "VAELoader",
       "input": "vae_name",
-      "optional": false,
+      "optional": true,
       "workflows": [
-        "seedvr2-upscale"
+        "upscale"
       ]
     },
     "t5xxl_fp8_e4m3fn.safetensors": {

@@ -21,7 +21,7 @@ with the overview table, then jump to the one you are using.
   - [Length is a target, and the sampler decides the rest](#length-is-a-target-and-the-sampler-decides-the-rest)
   - [The two guidance scales](#the-two-guidance-scales)
 - [Upscale](#upscale)
-  - [Add detail](#add-detail)
+  - [SeedVR2](#seedvr2)
 - [Edit image](#edit-image)
 
 ## Overview
@@ -36,8 +36,7 @@ They share sampling, timing and encoding controls via `minimax-common.ts`.
 | `minimax-h3-ref` — reference to video | Aspect ratio + megapixels (`ResolutionSelector`) |
 | `minimax-h3-ref2v` — remix | The source clip's frames, measured by `GetImageSizeAndCount` — length included |
 | `minimax-h3-extend` — extend | The source clip's **last frame**, measured by `GetImageSize` |
-| `rtx-upscale` — upscale | The **Output size** control, applied to the clip's short side |
-| `seedvr2-upscale` — add detail | The **Output size** control, applied to the clip's short side |
+| `upscale` — upscale | The **Output size** control, applied to the clip's short side |
 | `image-edit` — the Edit button | The picture's own shape, at 1 MP |
 
 The sixth, `minimax-music3`, is a different model family and the only one that
@@ -871,30 +870,36 @@ alongside a lower `top_k`; Sampler CFG is the one to leave alone.
 
 Makes a finished clip larger and sharper, up to 4K, and keeps its sound. Open
 it from a result's **Upscale** button, or pick it in the workflow list and
-attach any clip up to 1080×1920 and a minute long. It is NVIDIA's RTX Video
-Super Resolution, through Comfy-Org's Nvidia VFX node pack, so it needs an RTX
-card.
+attach any clip up to 1080×1920 and a minute long. **Upscaler** picks how: RTX
+Video, the default, or SeedVR2's 7B or 3B, which are labelled very slow. The
+graph holds both, and `finalize` deletes whichever was not chosen. The time
+estimate is learned per upscaler (`estimateBy`), since one takes seconds and
+the other most of an hour, and SeedVR2's files are an optional download
+(`optionalNodes`, `--extras seedvr2`).
+
+RTX Video is NVIDIA's RTX Video Super Resolution, through Comfy-Org's Nvidia
+VFX node pack, so it needs an RTX card.
 
 It replaced SeedVR2 as the Upscale after an A/B on a 3090 (2026-10-23): a
 5-second clip to 1080 px took 8.9 seconds against SeedVR2's 14 minutes, and
 4K took 23 seconds. It sharpens what is there and keeps the clip's colour and
 shading; SeedVR2 adds more fine texture but warms the colour, raises the
-contrast and reshades faces. Neither adds flicker. SeedVR2 stays, as
-[Add detail](#add-detail).
+contrast and reshades faces. Neither adds flicker. SeedVR2 stays as a
+[choice](#seedvr2).
 
 The node scales by a multiplier, so the graph works one out from the clip's
 own size and then resizes to the exact **Output size** — the node rounds to a
-multiple of 8. It runs in 49-frame passes of the same Meta Batch Manager as Add
-detail, so a 4K clip never holds more than a couple of seconds of frames in
+multiple of 8. It runs in 49-frame passes of the same Meta Batch Manager as
+SeedVR2, so a 4K clip never holds more than a couple of seconds of frames in
 RAM. **Mode** is NVIDIA's `ULTRA` (for compressed video, which every H3 clip
-is) or `HIGHBITRATE_ULTRA` (for a clean source). **Frame rate** works as in Add
-detail. Expect well under a minute for a 15-second clip at 1080 px.
+is) or `HIGHBITRATE_ULTRA` (for a clean source). **Frame rate** works as below. Expect well under a minute for a 15-second clip at 1080 px.
 
-### Add detail
+A music video's upscale uses RTX Video, at 1080 or 4K and 24 or 48 fps.
 
-The **Add detail** button upscales with SeedVR2 instead: slow, and it invents
-fine texture rather than only sharpening — the one to try on a soft source.
-It is Comfy-Org's SeedVR2 template with four changes, each measured on a 3090
+### SeedVR2
+
+SeedVR2 is slow, and invents fine texture rather than only sharpening — the
+one to try on a soft source. It goes up to 1080 px. It is Comfy-Org's SeedVR2 template with four changes, each measured on a 3090
 before it went in:
 
 - **It runs in batches** of 97 frames (about four seconds) through
@@ -909,7 +914,7 @@ before it went in:
 - **The clip's own frame rate and soundtrack** go back on at the end, so the
   result plays exactly as long as the source.
 
-**Model** picks the 7B sharp build (the default, more natural) or the 3B (less
+**Upscaler** picks the 7B sharp build (the more natural) or the 3B (less
 VRAM, harsher edges). **Colour match** defaults to LAB, which stops colour
 wandering between frames — SeedVR2 on its own does, and it shows as blips.
 **Frame rate: Double it** adds a RIFE in-between frame for 48 fps; FILM is the

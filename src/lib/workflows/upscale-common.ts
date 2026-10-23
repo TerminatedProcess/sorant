@@ -8,9 +8,9 @@ import type { ParamDef, ParamValue, WorkflowDef } from "./types";
  * Both run in VHS Meta Batch Manager passes (node 0) over a VHS-loaded clip
  * (nodes 1 and 2), may put RIFE or FILM frames between the upscaled ones
  * (nodes 15–20), and write one file at the clip's own rate with its own sound
- * (node 14). See seedvr2-upscale.ts for why each of those is the way it is;
- * the upscaler in the middle is all that differs, and each graph names the
- * node whose frames come out of it.
+ * (node 14). See upscale.ts for why each of those is the way it is; the
+ * upscaler in the middle is all that differs, and `finalizeUpscale` is told
+ * which node's frames come out of the one a run kept.
  */
 
 export const MANAGER_NODE = "0";
@@ -237,6 +237,9 @@ export function finalizeUpscale(upscaled: string): NonNullable<WorkflowDef["fina
       graph[COMBINE_NODE].inputs.images = [upscaled, 0];
       graph[COMBINE_NODE].inputs.frame_rate = [INFO_NODE, 0];
       for (const node of INTERP_NODES) delete graph[node];
+    } else {
+      graph[INTERP_NODE].inputs.images = [upscaled, 0];
+      graph["17"].inputs.image = [upscaled, 0];
     }
 
     // A source with no soundtrack comes out without one, rather than failing:

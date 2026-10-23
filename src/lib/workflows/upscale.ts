@@ -1,8 +1,11 @@
 import type { ComfyGraph } from "@/lib/comfy";
-import type { ParamDef, WorkflowDef } from "./types";
+import { ParamError } from "@/lib/params";
+import type { ParamDef, ParamValue, WorkflowDef } from "./types";
 import {
   finalizeUpscale,
   frameRateParams,
+  INFO_NODE,
+  MANAGER_NODE,
   sourceVideoParam,
   upscaleFinalizeCases,
   upscaleGraph,
@@ -10,11 +13,27 @@ import {
 } from "./upscale-common";
 
 /**
- * SeedVR2 upscale: a finished clip, made larger and given new fine detail,
- * sound untouched. The slow one — Upscale itself is RTX Video Super
- * Resolution, in rtx-upscale.ts; this is what the Add detail button runs.
+ * Upscale: a finished clip, made larger and sharper, sound untouched — by one
+ * of two upscalers, chosen in the form. `finalize` keeps the chosen one's
+ * nodes and deletes the other's.
  *
- * Flattened from Comfy-Org's "SeedVR2 3B Int8: Upscale Video" template — core
+ * **RTX Video Super Resolution** is the default (nodes vsr_*). It replaced
+ * SeedVR2 after an A/B on the 3090, 2026-10-23, on a 5-second H3 clip to
+ * 1080 px: 8.9 s against SeedVR2 7B sharp's 14 min 23 s, and 22.8 s all the way
+ * to 4K, in about 1.4 GB of VRAM with no model download. It sharpens what is
+ * there and keeps the source's colour and shading. The pack is Comfy-Org's
+ * ComfyUI_Nvidia_VFX_Nodes; it needs an RTX card and CUDA 13 PyTorch, and its
+ * `nvidia-vfx` dependency comes from NVIDIA's own package index. The node
+ * scales by a multiplier (1–4) where the form asks for a shorter side, so
+ * vsr_scale works the multiplier out from the clip's own size and vsr_size
+ * resizes to the exact shorter side afterwards — the node rounds its output to
+ * a multiple of 8, and a source already larger than asked is scaled down there
+ * rather than refused.
+ *
+ * **SeedVR2** (nodes 3–13) measured more fine detail (2.74 against 2.50 on a
+ * gradient-energy measure, the source 2.07) but warmed the colour, raised the
+ * contrast and reshaded the face — and takes about a hundred times as long.
+ * It stays for a soft source that wants detail invented. Flattened from Comfy-Org's "SeedVR2 3B Int8: Upscale Video" template — core
  * nodes for the model, VHS for the video either side of it — with changes
  * each of which was measured on the 3090 before it went in:
  *
@@ -59,21 +78,70 @@ import {
  * `force_rate: 0` leaves the rate as it is.
  */
 
+const UPSCALER_PARAM = "upscaler";
+const VSR = "vsr";
+const SEEDVR2_7B = "seedvr2_7b_sharp_int8_convrot.safetensors";
+const SEEDVR2_3B = "seedvr2_3b_int8_convrot.safetensors";
+
+const VSR_SCALE_NODE = "vsr_scale";
+const VSR_NODE = "vsr";
+const VSR_SIZE_NODE = "vsr_size";
+const VSR_NODES = [VSR_SCALE_NODE, VSR_NODE, VSR_SIZE_NODE];
+
 const SIZE_NODE = "3";
-const POST_NODE = "13";
+const SEEDVR2_POST = "13";
+const SEEDVR2_NODES = ["3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13"];
+/** SeedVR2 holds every frame at the output size in RAM several times over. */
+const SEEDVR2_MAX_SIDE = 1080;
+
+const isSeedVR2 = (values: Record<string, ParamValue>) => values[UPSCALER_PARAM] !== VSR;
 
 /**
- * Frames per batch: about four seconds of a 24 fps clip, so a 15-second H3
- * clip is four passes.
- *
- * 4n+1, which is the length SeedVR2's VAE takes without padding. Larger
- * batches mean fewer joins between independently upscaled stretches; smaller
- * ones mean less RAM per pass. At 1080 px a batch of this size is about 2.5 GB
- * per copy, which leaves room for every copy the graph makes and then some.
+ * Frames per pass. SeedVR2's is about four seconds of a 24 fps clip and 4n+1,
+ * the length its VAE takes without padding; at 1080 px that is about 2.5 GB
+ * per copy, which leaves room for every copy the graph makes. VSR's is half
+ * that, because its output can be 4K, where a frame is about 100 MB as fp32 —
+ * and it costs nothing to load, so more passes cost little.
  */
-const BATCH_FRAMES = 97;
+const SEEDVR2_BATCH_FRAMES = 97;
+const VSR_BATCH_FRAMES = 49;
 
-const graph: ComfyGraph = upscaleGraph(BATCH_FRAMES, POST_NODE, {
+const graph: ComfyGraph = upscaleGraph(VSR_BATCH_FRAMES, VSR_SIZE_NODE, {
+  // The shorter side asked for over the clip's own, held to what the node
+  // takes. Below 1 the node is skipped in effect, and vsr_size scales down.
+  [VSR_SCALE_NODE]: {
+    class_type: "ComfyMathExpression",
+    inputs: {
+      expression: "min(4, max(1, c / min(a, b)))",
+      "values.a": [INFO_NODE, 3],
+      "values.b": [INFO_NODE, 4],
+      "values.c": 1080,
+    },
+    _meta: { title: "Scale Factor" },
+  },
+  [VSR_NODE]: {
+    class_type: "RTXVideoSuperResolution",
+    inputs: {
+      images: [VIDEO_NODE, 0],
+      resize_type: "scale by multiplier",
+      "resize_type.scale": [VSR_SCALE_NODE, 0],
+      quality: "ULTRA",
+      strength: 1,
+      image_encoding: "8-bit RGB",
+    },
+    _meta: { title: "RTX Video Super Resolution" },
+  },
+  [VSR_SIZE_NODE]: {
+    class_type: "ResizeImageMaskNode",
+    inputs: {
+      input: [VSR_NODE, 0],
+      resize_type: "scale shorter dimension",
+      "resize_type.shorter_size": 1080,
+      scale_method: "lanczos",
+    },
+    _meta: { title: "Resize Image/Mask" },
+  },
+
   // The size is set here, in pixels, before the model sees anything: SeedVR2
   // restores detail at whatever size it is given rather than choosing one. The
   // same resized frames are the reference the colour correction matches.
@@ -182,43 +250,86 @@ const graph: ComfyGraph = upscaleGraph(BATCH_FRAMES, POST_NODE, {
 
 const params: ParamDef[] = [
   sourceVideoParam(
-    // About 180 seconds of work per second of clip at 1080 px. A minute is
-    // three hours.
-    "Its frame rate and soundtrack carry straight through. Up to 1080×1920 and a minute — which takes about three hours here.",
+    // VSR: about two seconds of work per second of clip at 1080 px, and ten at
+    // 4K, on the 3090. SeedVR2: about 180 at 1080 px, so a minute is three
+    // hours.
+    "Its frame rate and soundtrack carry straight through. Up to 1080×1920 and a minute.",
   ),
+  {
+    id: UPSCALER_PARAM,
+    label: "Upscaler",
+    type: "select",
+    default: VSR,
+    options: [
+      {
+        value: VSR,
+        label: "RTX Video",
+        help: "Sharpens what is there and keeps the clip's colour and faces. Seconds, up to 4K. Needs an NVIDIA RTX card.",
+      },
+      {
+        value: SEEDVR2_7B,
+        label: "SeedVR2 7B — very slow",
+        help: "Invents fine texture, and shifts colour and faces a little. About 45 minutes for a 15-second clip at 1080 px. Up to 1080 px.",
+      },
+      {
+        value: SEEDVR2_3B,
+        label: "SeedVR2 3B — very slow",
+        help: "Less VRAM than 7B, harsher contrast and halos around edges. Nearly as slow: tens of minutes a clip. Up to 1080 px.",
+      },
+    ],
+    help: "RTX Video for almost everything. SeedVR2 for a soft clip that needs detail made up — and expect to wait a long time.",
+    group: "Output",
+    // The loader's file when SeedVR2 is chosen. VSR keeps 7B's in a node
+    // `finalize` deletes.
+    targets: [
+      {
+        node: "6",
+        input: "unet_name",
+        transform: (value) => (value === VSR ? SEEDVR2_7B : value),
+      },
+    ],
+  },
   {
     id: "shorter_side",
     label: "Output size",
     type: "slider",
     default: 1080,
     min: 720,
-    max: 1080,
+    max: 2160,
     step: 8,
     unit: "px",
     // The shorter side, so one number means the same thing in any aspect.
-    help: "Height of a landscape clip, width of a portrait one. Time grows with the pixels: 1080 has 1.8× as many as 800.",
+    help: "Height of a landscape clip, width of a portrait one: 1080 is HD, 2160 is 4K. SeedVR2 goes up to 1080.",
     group: "Output",
-    targets: [{ node: SIZE_NODE, input: "resize_type.shorter_size" }],
+    targets: [
+      { node: VSR_SCALE_NODE, input: "values.c" },
+      { node: VSR_SIZE_NODE, input: "resize_type.shorter_size" },
+      { node: SIZE_NODE, input: "resize_type.shorter_size" },
+    ],
   },
   {
-    id: "upscale_model",
-    label: "Model",
+    id: "quality",
+    label: "Mode",
     type: "select",
-    default: "seedvr2_7b_sharp_int8_convrot.safetensors",
+    default: "ULTRA",
     options: [
       {
-        value: "seedvr2_7b_sharp_int8_convrot.safetensors",
-        label: "7B sharp",
-        help: "The more natural of the two: finer text, no halos.",
+        value: "ULTRA",
+        label: "Standard",
+        help: "For compressed video, which every H3 clip is: cleans up the compression as it sharpens.",
       },
       {
-        value: "seedvr2_3b_int8_convrot.safetensors",
-        label: "3B",
-        help: "Less VRAM. Crisper, but harsher contrast and halos around edges.",
+        value: "HIGHBITRATE_ULTRA",
+        label: "Clean source",
+        help: "For a clean, high-bitrate source: leaves the picture alone apart from the sharpening. A little softer on an H3 clip.",
       },
     ],
     group: "Output",
-    targets: [{ node: "6", input: "unet_name" }],
+    hiddenBy: [
+      { param: UPSCALER_PARAM, is: SEEDVR2_7B },
+      { param: UPSCALER_PARAM, is: SEEDVR2_3B },
+    ],
+    targets: [{ node: VSR_NODE, input: "quality" }],
   },
   {
     id: "color_correction",
@@ -256,7 +367,8 @@ const params: ParamDef[] = [
     ],
     help: "Re-matches the upscale's colours to the source's, frame by frame, after upscaling.",
     group: "Output",
-    targets: [{ node: POST_NODE, input: "color_correction_method" }],
+    hiddenBy: { param: UPSCALER_PARAM, is: VSR },
+    targets: [{ node: SEEDVR2_POST, input: "color_correction_method" }],
   },
   ...frameRateParams,
   {
@@ -267,37 +379,62 @@ const params: ParamDef[] = [
     help: "One step from the clip itself, so this changes very little.",
     group: "Output",
     advanced: true,
+    hiddenBy: { param: UPSCALER_PARAM, is: VSR },
     targets: [{ node: "10", input: "seed" }],
   },
 ];
 
-export const seedvr2Upscale: WorkflowDef = {
-  id: "seedvr2-upscale",
-  name: "Add detail",
-  description:
-    "Upscales a finished clip with SeedVR2, which adds fine texture of its own — and shifts colour and faces a little. Slow.",
-  // A 15-second H3 clip at 1080 px on the 3090, 7B sharp: 2700 s (1258 s at
-  // 800). The client replaces it with this machine's median once a run has
-  // finished.
-  estimatedSeconds: 2700,
+export const upscale: WorkflowDef = {
+  id: "upscale",
+  name: "Upscale",
+  description: "Makes a finished clip larger and sharper, up to 4K, keeping its sound.",
+  // A 15-second H3 clip at 1080 px on the 3090: about 40 s with RTX Video,
+  // 2700 s with SeedVR2 7B sharp (1258 s at 800). The client replaces these
+  // with this machine's median, per upscaler, once a run has finished.
+  estimatedSeconds: 40,
+  estimateBy: {
+    param: UPSCALER_PARAM,
+    seconds: { [VSR]: 40, [SEEDVR2_7B]: 2700, [SEEDVR2_3B]: 2700 },
+  },
   hasAudio: true,
   graph,
   params,
+  optionalNodes: SEEDVR2_NODES,
   // No turbo, patches or director: there is no prompt and no H3 anywhere in
-  // this graph, and the sampler is already a single step.
+  // this graph.
   //
-  // RAM is what this graph runs short of, and an earlier H3 run leaves about
+  // RAM is what SeedVR2 runs short of, and an earlier H3 run leaves about
   // 23 GB of it holding models and cached results: 24.5 GB free on the box
   // before a free, 47.4 GB after. Batching bounds what a pass needs; this
-  // gives the pass everything else.
-  freesMemory: true,
+  // gives the pass everything else. VSR fits in under 2 GB beside whatever is
+  // cached, and freeing would only make the next run reload its models.
+  freesMemory: isSeedVR2,
   clipTarget: {
-    action: "detail",
+    action: "upscale",
     accepts: "video",
     sourceParam: "source_video",
-    // Every press starts at the defaults, as Upscale's does.
+    // Every press of Upscale starts at the defaults, as it was asked to.
     fresh: true,
   },
-  finalize: finalizeUpscale(POST_NODE),
-  finalizeCases: upscaleFinalizeCases,
+  finalize: (graph, values) => {
+    const seedvr2 = isSeedVR2(values);
+    if (seedvr2 && Number(values.shorter_side) > SEEDVR2_MAX_SIDE) {
+      throw new ParamError(
+        `SeedVR2 goes up to ${SEEDVR2_MAX_SIDE} px. Choose RTX Video for a larger size.`,
+        "shorter_side",
+      );
+    }
+    for (const node of seedvr2 ? VSR_NODES : SEEDVR2_NODES) delete graph[node];
+    graph[MANAGER_NODE].inputs.frames_per_batch = seedvr2
+      ? SEEDVR2_BATCH_FRAMES
+      : VSR_BATCH_FRAMES;
+    finalizeUpscale(seedvr2 ? SEEDVR2_POST : VSR_SIZE_NODE)(graph, values);
+  },
+  finalizeCases: [
+    ...upscaleFinalizeCases,
+    ...upscaleFinalizeCases.map(({ name, values }) => ({
+      name: `${name}, SeedVR2`,
+      values: { ...values, [UPSCALER_PARAM]: SEEDVR2_7B },
+    })),
+  ],
 };

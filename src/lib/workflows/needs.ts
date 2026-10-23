@@ -126,8 +126,10 @@ export function collect() {
         graph: modelSwapGraph(workflow.graph, workflow.modelSwap),
       });
     }
-    for (const { label: used, graph, optional = false } of graphs) {
-      for (const node of Object.values(graph)) {
+    for (const { label: used, graph, optional: optionalGraph = false } of graphs) {
+      for (const [id, node] of Object.entries(graph)) {
+        const optional =
+          optionalGraph || (workflow.optionalNodes?.includes(id) ?? false);
         const existing = classes.get(node.class_type);
         if (existing) {
           existing.workflows.add(used);

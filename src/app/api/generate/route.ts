@@ -165,7 +165,11 @@ export async function POST(request: Request) {
     // keeps its place in the clip on one of those instances (VHS's batch
     // manager). Freed between two of its passes, a run in progress loses it.
     // Best effort either way: a run short of RAM still says so itself.
-    if (workflow.freesMemory) {
+    const freesMemory =
+      typeof workflow.freesMemory === "function"
+        ? workflow.freesMemory(resolved)
+        : workflow.freesMemory;
+    if (freesMemory) {
       await getQueue()
         .then((queue) =>
           queue.queue_running.length + queue.queue_pending.length === 0
@@ -202,6 +206,9 @@ export async function POST(request: Request) {
           .map((patch) => patch.estimatedSeconds)
           .findLast((seconds) => seconds !== undefined) ??
           (turbo ? workflow.turbo?.estimatedSeconds : undefined) ??
+          (workflow.estimateBy
+            ? workflow.estimateBy.seconds[String(resolved[workflow.estimateBy.param])]
+            : undefined) ??
           workflow.estimatedSeconds ??
           null,
         localDirector !== undefined,
