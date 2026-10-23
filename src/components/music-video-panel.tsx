@@ -305,7 +305,7 @@ export function MusicVideoPanel({ video }: { video: MusicVideoController }) {
                                   : "text-fg-subtle enabled:hover:text-fg"
                               }`}
                           >
-                            {px} px
+                            {px === 2160 ? "4K" : `${px} px`}
                             <span className="ml-1.5 font-normal text-fg-subtle">
                               ~{upscaleTime(px)}
                             </span>

@@ -44,15 +44,17 @@ export interface MusicVideoProject {
 
 /**
  * The sizes a music video can be upscaled to, and roughly what each costs:
- * seconds of work per second of song on the 3090, from a 5-second clip to
- * 1080 px with RTX Video Super Resolution in 49-frame passes (about 15 s).
+ * seconds of work per second of song on the 3090 with RTX Video Super
+ * Resolution, the upscale and the join of the upscaled scenes together. From
+ * 5-second scenes: 1080 px about 15 s to upscale; 4K about 49 s, and a 4K
+ * join of two of them took under 30 s more (2026-10-23).
  *
- * 1080 only for now. Upscale itself goes to 4K, but a song's worth of 4K
- * scenes has not been through the join, which would be a file of a gigabyte
- * or more.
+ * The first is the default. A 4K song is a big file — about 5 MB a second, so
+ * nearly a gigabyte for three minutes.
  */
 export const MUSIC_VIDEO_UPSCALE_SIZES = [
-  { px: 1080, secondsPerSecond: 3 },
+  { px: 1080, secondsPerSecond: 4 },
+  { px: 2160, secondsPerSecond: 13 },
 ] as const;
 
 export interface ProjectScene extends SceneWindow {
