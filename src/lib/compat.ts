@@ -149,7 +149,7 @@ async function buildReport(): Promise<CompatReport> {
     add(need.workflows, {
       kind: "model",
       name: file,
-      fix: `Run pnpm models:download --workflows ${ids.join(",")} on the ComfyUI machine.`,
+      fix: `Run pnpm models:download --comfy <your ComfyUI folder> --workflows ${ids.join(",")} on the ComfyUI machine.`,
     });
   }
 

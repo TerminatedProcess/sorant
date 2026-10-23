@@ -36,11 +36,12 @@ import {
   mkdirSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   renameSync,
   statSync,
   statfsSync,
 } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { WORKFLOWS } from "../src/lib/workflows";
@@ -215,7 +216,26 @@ function isPresent(paths: SearchPath, file: string): boolean {
   const { folder, bytes } = MODEL_SOURCES[file];
   return (paths.get(folder) ?? []).some((dir) => {
     const target = join(dir, file);
-    return existsSync(target) && statSync(target).size === bytes;
+    return existsSync(target) && statSync(target).size === bytes && !mislinked(paths, target, file);
+  });
+}
+
+/**
+ * A copy that is really another source's file: hard-linked to it, as earlier
+ * versions of this script did when two sources shared a size (see
+ * sameSizeElsewhere). Right name, right size, wrong weights — so it counts as
+ * absent, and the download replaces the link without touching the other file.
+ */
+function mislinked(paths: SearchPath, target: string, file: string): boolean {
+  const { dev, ino } = statSync(target);
+  return Object.entries(MODEL_SOURCES).some(([name, s]) => {
+    if (name === file || s.bytes !== MODEL_SOURCES[file].bytes) return false;
+    return (paths.get(s.folder) ?? []).some((dir) => {
+      const other = join(dir, name);
+      if (!existsSync(other)) return false;
+      const stats = statSync(other);
+      return stats.dev === dev && stats.ino === ino;
+    });
   });
 }
 
@@ -269,17 +289,36 @@ function filesBySize(paths: SearchPath): Map<number, string[]> {
  * A file of exactly the expected size under another name. Byte-exact size is
  * a strong match for files of hundreds of megabytes to tens of gigabytes; a
  * name match is not required, because a renamed or moved copy is the point.
+ *
+ * Except where two sources share a size: H3's ref2va and fl2va checkpoints are
+ * the same shape with different weights, so each pair is byte-for-byte the
+ * same length. A renamed copy of either cannot be told apart by size, and
+ * linking one under the other's name runs the wrong model without a word —
+ * those are downloaded, never linked. A file named as another source is that
+ * source, whatever its size, so it is never a candidate either.
  */
 function sameSizeElsewhere(bySize: Map<number, string[]>, file: string): string | null {
-  return bySize.get(MODEL_SOURCES[file].bytes)?.[0] ?? null;
+  const { bytes } = MODEL_SOURCES[file];
+  const shared = Object.entries(MODEL_SOURCES).some(([name, s]) => name !== file && s.bytes === bytes);
+  if (shared) return null;
+  const candidates = (bySize.get(bytes) ?? []).filter((path) => {
+    const name = basename(path);
+    return name === file || !(name in MODEL_SOURCES);
+  });
+  return candidates[0] ?? null;
 }
 
-/** A hard link: the same data under a second name. Fails across drives. */
+/**
+ * A hard link: the same data under a second name. Fails across drives. Made to
+ * the real file, since a hard link to a relative symlink — common on Linux,
+ * where models are often linked in from a shared store — dangles once it sits
+ * in another folder.
+ */
 function linkInto(modelsDir: string, file: string, from: string): string | null {
   const target = pathFor(modelsDir, file);
   try {
     mkdirSync(join(modelsDir, MODEL_SOURCES[file].folder), { recursive: true });
-    linkSync(from, target);
+    linkSync(realpathSync(from), target);
     return null;
   } catch (error) {
     return error instanceof Error ? error.message : String(error);
@@ -335,8 +374,11 @@ async function download(modelsDir: string, file: string): Promise<void> {
     );
   }
   // Only reached for a conflicting file when --replace named it: theirs is
-  // kept beside the new one rather than overwritten.
-  if (existsSync(target)) renameSync(target, `${target}.old`);
+  // kept beside the new one rather than overwritten. A mislinked one is only
+  // a second name for another source, so it is simply replaced.
+  if (existsSync(target) && statSync(target).size !== source.bytes) {
+    renameSync(target, `${target}.old`);
+  }
   renameSync(partial, target);
 }
 
