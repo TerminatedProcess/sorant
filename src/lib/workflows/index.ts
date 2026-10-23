@@ -8,6 +8,7 @@ import { minimaxH3ReferenceVideo } from "./minimax-h3-ref2v";
 import { minimaxMusic3 } from "./minimax-music3";
 import { musicVideo } from "./music-video";
 import { musicVideoStitch } from "./music-video-stitch";
+import { rtxUpscale } from "./rtx-upscale";
 import { seedvr2Upscale } from "./seedvr2-upscale";
 import { toSummary, type WorkflowDef, type WorkflowSummary } from "./types";
 
@@ -30,7 +31,9 @@ export const WORKFLOWS: WorkflowDef[] = [
   // Plans a whole song and runs Reference to Video once per scene. After the
   // graph it runs, which it names by id.
   musicVideo,
-  // Not a generator: it only takes a finished clip, by the Upscale button.
+  // Not generators: each takes a finished clip, by the Upscale and Add detail
+  // buttons.
+  rtxUpscale,
   seedvr2Upscale,
   // Last, and the only one that is not H3 and not video: a different model
   // family that happens to fit the same shape of definition.

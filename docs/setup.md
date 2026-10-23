@@ -69,8 +69,9 @@ What helps on a smaller card:
   attached, or Remix at 4 steps, loads 118 GB of weights. That cannot sit in
   64 GB of RAM, so part of it streams from disk on any card. A fast NVMe drive
   matters there.
-- **Upscale's 3B model** needs less VRAM than the default 7B.
-- **Music, Upscale and the Edit button are much smaller** than the H3
+- **Add detail's 3B model** needs less VRAM than the default 7B. Upscale needs
+  under 2 GB.
+- **Music, both upscales and the Edit button are much smaller** than the H3
   workflows, and should be comfortable on 16 GB.
 
 Dynamic VRAM is NVIDIA-only and not available under WSL. AMD and Apple cards
@@ -79,13 +80,14 @@ larger than the card, and are untested with this app.
 
 ### Custom node packs
 
-Five packs. All but the first install from ComfyUI Manager by name.
+Six packs. All but the first install from ComfyUI Manager by name.
 
 | Pack | Needed by |
 | --- | --- |
 | [comfyui-vercel-ai-gateway](https://github.com/pwillia7/comfyui-vercel-ai-gateway) — Manager → **Install via Git URL** | every workflow that generates: all five video ones and Music |
 | [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes) | Remix, Extend, and the SageAttention switch |
-| [ComfyUI-VideoHelperSuite](https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite) | anything that reads a clip: Remix, Extend, a reference clip, Upscale |
+| [ComfyUI-VideoHelperSuite](https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite) | anything that reads a clip: Remix, Extend, a reference clip, Upscale, Add detail |
+| [ComfyUI_Nvidia_VFX_Nodes](https://github.com/Comfy-Org/ComfyUI_Nvidia_VFX_Nodes) — Manager: "ComfyUI Nvidia VFX Nodes" | Upscale |
 | [ComfyUI-MiniMax-H3-Turbo](https://github.com/Larryvrh/ComfyUI-MiniMax-H3-Turbo) — Manager: "MiniMax-H3 Turbo" | the Turbo switch, and any run at 4 steps |
 | [ComfyUI-Spectrum-MiniMax-H3](https://github.com/xmarre/ComfyUI-Spectrum-MiniMax-H3) | the Spectrum switch |
 
@@ -100,9 +102,14 @@ Restart ComfyUI after installing. Three things in that table are easy to miss:
   the node present and the run will still fail with the switch on.
 - **The turbo pack is needed at 4 steps even with Turbo off**, because the
   graphs swap its sampler in at that step count.
+- **Nvidia VFX needs an RTX card, a CUDA 13 PyTorch, and NVIDIA's package
+  index.** Its `nvidia-vfx` dependency is not really on PyPI, so if the Manager's
+  install leaves the node missing, run
+  `python -m pip install nvidia-vfx --extra-index-url https://pypi.nvidia.com`
+  with ComfyUI's Python. Without it, use Add detail instead of Upscale.
 
-Music needs only the gateway pack. Upscale needs only VideoHelperSuite. Edit
-needs none.
+Music needs only the gateway pack. Upscale needs VideoHelperSuite and Nvidia
+VFX; Add detail only VideoHelperSuite. Edit needs none.
 
 ### Where prompts are rewritten
 
@@ -195,9 +202,9 @@ are values inside the graphs rather than choices in the UI.
 | `minimax_music3_text_encoder_pruned_int8_convrot.safetensors` | `text_encoders/` | 9.2 GB | Music |
 | `minimax_music3_dav.safetensors` | `vae/` | 0.2 GB | Music |
 | | | | |
-| `seedvr2_7b_sharp_int8_convrot.safetensors` | `diffusion_models/` | 8.3 GB | Upscale |
-| `seedvr2_ema_vae_fp16.safetensors` | `vae/` | 0.5 GB | Upscale |
-| `rife_v4.26.safetensors` | `frame_interpolation/` | <0.1 GB | Upscale's **Frame rate: Double it** |
+| `seedvr2_7b_sharp_int8_convrot.safetensors` | `diffusion_models/` | 8.3 GB | Add detail |
+| `seedvr2_ema_vae_fp16.safetensors` | `vae/` | 0.5 GB | Add detail |
+| `rife_v4.26.safetensors` | `frame_interpolation/` | <0.1 GB | **Frame rate: Double it** on Upscale and Add detail |
 | | | | |
 | `flux1-kontext-dev.safetensors` | `diffusion_models/` | 23.8 GB | the Edit button |
 | `clip_l.safetensors` | `text_encoders/` | 0.2 GB | the Edit button |
@@ -209,8 +216,8 @@ Optional — nothing fails without these until you choose them:
 | File | Folder under `models/` | Size | For |
 | --- | --- | ---: | --- |
 | `gemma4_12b_uncensored_heretic_int8_convrot.safetensors` | `text_encoders/` | 12.1 GB | rewriting prompts on the ComfyUI machine |
-| `seedvr2_3b_int8_convrot.safetensors` | `diffusion_models/` | 3.5 GB | Upscale's lighter 3B model |
-| `film_net_fp16.safetensors` | `frame_interpolation/` | 0.1 GB | Upscale's FILM interpolation |
+| `seedvr2_3b_int8_convrot.safetensors` | `diffusion_models/` | 3.5 GB | Add detail's lighter 3B model |
+| `film_net_fp16.safetensors` | `frame_interpolation/` | 0.1 GB | FILM interpolation, on either upscale |
 | `vh5tape-comfyui.safetensors` | `loras/` | 0.1 GB | the **VHS tape** look ([source](https://huggingface.co/KennethFal/vh5tape-vhs-lora-minimax-h3)) |
 | `minimax_h3_fl2va_bf16.safetensors` | `diffusion_models/` | 66.3 GB | what VHS tape runs on (a LoRA cannot use the int8 base) |
 | `minimax_h3_fl2va_pruned_fp8_scaled.safetensors` | `diffusion_models/` | 21.0 GB | VHS tape on **Lighter base**, instead of the bf16 |

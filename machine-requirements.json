@@ -1,5 +1,5 @@
 {
-  "fingerprint": "550dd209d0ab60c3",
+  "fingerprint": "59f841cc697735fb",
   "classes": {
     "AudioConcatenate": {
       "inputs": [
@@ -209,7 +209,8 @@
       "inputs": [
         "expression",
         "values.a",
-        "values.b"
+        "values.b",
+        "values.c"
       ],
       "optional": false,
       "workflows": [
@@ -247,6 +248,7 @@
         "minimax-h3-ref2v (spectrum)",
         "minimax-h3-ref2v (style, vhs tape)",
         "minimax-h3-ref2v (turbo)",
+        "rtx-upscale",
         "seedvr2-upscale"
       ]
     },
@@ -399,6 +401,7 @@
       ],
       "optional": false,
       "workflows": [
+        "rtx-upscale",
         "seedvr2-upscale"
       ]
     },
@@ -408,6 +411,7 @@
       ],
       "optional": false,
       "workflows": [
+        "rtx-upscale",
         "seedvr2-upscale"
       ]
     },
@@ -469,6 +473,7 @@
       ],
       "optional": false,
       "workflows": [
+        "rtx-upscale",
         "seedvr2-upscale"
       ]
     },
@@ -493,6 +498,7 @@
         "minimax-h3-image (style, vhs tape)",
         "minimax-h3-image (style, vhs tape, lighter base)",
         "minimax-h3-image (turbo)",
+        "rtx-upscale",
         "seedvr2-upscale"
       ]
     },
@@ -1038,6 +1044,20 @@
         "music-video-stitch"
       ]
     },
+    "RTXVideoSuperResolution": {
+      "inputs": [
+        "image_encoding",
+        "images",
+        "quality",
+        "resize_type",
+        "resize_type.scale",
+        "strength"
+      ],
+      "optional": false,
+      "workflows": [
+        "rtx-upscale"
+      ]
+    },
     "RandomImageFromBatch": {
       "inputs": [
         "end_index",
@@ -1140,6 +1160,7 @@
       ],
       "optional": false,
       "workflows": [
+        "rtx-upscale",
         "seedvr2-upscale"
       ]
     },
@@ -1152,6 +1173,7 @@
       ],
       "optional": false,
       "workflows": [
+        "rtx-upscale",
         "seedvr2-upscale"
       ]
     },
@@ -1765,6 +1787,7 @@
       ],
       "optional": false,
       "workflows": [
+        "rtx-upscale",
         "seedvr2-upscale"
       ]
     },
@@ -1801,6 +1824,7 @@
         "minimax-h3-ref2v (spectrum)",
         "minimax-h3-ref2v (style, vhs tape)",
         "minimax-h3-ref2v (turbo)",
+        "rtx-upscale",
         "seedvr2-upscale"
       ]
     },
@@ -1845,6 +1869,7 @@
       ],
       "optional": false,
       "workflows": [
+        "rtx-upscale",
         "seedvr2-upscale"
       ]
     },
@@ -1854,6 +1879,7 @@
       ],
       "optional": false,
       "workflows": [
+        "rtx-upscale",
         "seedvr2-upscale"
       ]
     },
@@ -2215,6 +2241,7 @@
       "input": "model_name",
       "optional": false,
       "workflows": [
+        "rtx-upscale",
         "seedvr2-upscale"
       ]
     },

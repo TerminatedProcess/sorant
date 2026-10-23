@@ -448,6 +448,7 @@ export const CLIP_ACTIONS = [
   "remix",
   "extend",
   "upscale",
+  "detail",
   "illustrate",
   "musicvideo",
   "animate",

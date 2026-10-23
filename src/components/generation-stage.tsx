@@ -443,6 +443,22 @@ const CLIP_BUTTONS: Record<
       </svg>
     ),
   },
+  detail: {
+    label: "Add detail",
+    title: "Upscale with SeedVR2, which adds fine texture of its own — slow",
+    icon: (
+      // Four-point sparkle: detail added, not just enlarged.
+      <svg viewBox="0 0 16 16" className="size-3.5" fill="none" aria-hidden="true">
+        <path
+          d="M8 2.5c.4 2.6 1.4 3.6 4 4-2.6.4-3.6 1.4-4 4-.4-2.6-1.4-3.6-4-4 2.6-.4 3.6-1.4 4-4Z"
+          stroke="currentColor"
+          strokeWidth="1.3"
+          strokeLinejoin="round"
+        />
+        <path d="M12.5 11v3M11 12.5h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      </svg>
+    ),
+  },
   musicvideo: {
     label: "Music video",
     title: "Make a whole music video to this track, scene by scene",

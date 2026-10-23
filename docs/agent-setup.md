@@ -141,7 +141,8 @@ needs 0.38's `TextGenerate`. Ask before updating a working install.
 
 1. **Which workflows they want.** Text to Video, Image to Video and Extend share
    one 43 GB set; Reference to Video and Remix add 21 GB, and 118 GB more for a
-   song, voice or clip as a reference; Music 14 GB; Upscale 9 GB; the Edit button
+   song, voice or clip as a reference; Music 14 GB; Upscale nothing to speak of
+   (but an NVIDIA RTX card); Add detail 9 GB; the Edit button
    29 GB. Phase 3 checks these against what is already on disk. Recommend
    starting with Text to Video if disk or time is short: a narrower first pass
    that works beats a complete one that takes a day.
@@ -183,15 +184,27 @@ present; `git pull` updates one. Some packs have no `requirements.txt`.
 | --- | --- | --- |
 | Vercel AI Gateway | `https://github.com/pwillia7/comfyui-vercel-ai-gateway` | every generating workflow — the five video ones and Music |
 | KJNodes | `https://github.com/kijai/ComfyUI-KJNodes` | Remix, Extend, the SageAttention switch |
-| VideoHelperSuite | `https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite` | Remix, Extend, a reference clip, Upscale |
+| VideoHelperSuite | `https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite` | Remix, Extend, a reference clip, Upscale, Add detail |
+| Nvidia VFX Nodes | `https://github.com/Comfy-Org/ComfyUI_Nvidia_VFX_Nodes` | Upscale — **see below for its pip install** |
 | MiniMax-H3 Turbo | `https://github.com/Larryvrh/ComfyUI-MiniMax-H3-Turbo` | the Turbo switch, and any run at 4 steps |
 | Spectrum | `https://github.com/xmarre/ComfyUI-Spectrum-MiniMax-H3` | the Spectrum switch |
 | ComfyUI-Login | `https://github.com/liusida/ComfyUI-Login` | locking ComfyUI — **clone it, but read Phase 5 before restarting** |
 
-All six are required: Turbo, SageAttention and Spectrum all start switched on,
-so a video run fails without their packs, and ComfyUI-Login is the lock. A pack
-that genuinely will not install can be worked around by turning its switch off
-in the app's settings panel — say which.
+All but Nvidia VFX are required: Turbo, SageAttention and Spectrum all start
+switched on, so a video run fails without their packs, and ComfyUI-Login is the
+lock. A pack that genuinely will not install can be worked around by turning
+its switch off in the app's settings panel — say which.
+
+**Nvidia VFX Nodes is Upscale, and only Upscale.** It needs an NVIDIA RTX card
+(20 series or later) and a CUDA 13 PyTorch (`cu130` in `torch.__version__`).
+Its one dependency, `nvidia-vfx`, is published only on NVIDIA's own index —
+PyPI has a placeholder that fails with `BackendUnavailable` — so install its
+requirements with
+`<python> -m pip install -r requirements.txt --extra-index-url https://pypi.nvidia.com`.
+Wheels exist for Windows and Linux x86-64. Without an RTX card or with an older
+PyTorch, skip the pack and tell them: Upscale will not run, and Add detail
+(SeedVR2) does the same job, much more slowly. Do not upgrade PyTorch for it
+without asking.
 
 **SageAttention also needs the `sageattention` Python package** in ComfyUI's
 environment; the node patches in a kernel rather than shipping one. Install
@@ -296,8 +309,8 @@ it.
   limbs, no error), so the switch swaps to a non-rotated checkpoint while on:
   bf16 (66 GB) or the fp8 **Lighter base** (21 GB). One of the two, not both.
   Reference to Video and Remix use the `ref2va` bf16 file for it.
-- **`upscale-3b`**, **`film`** — Upscale's lighter model and its slower FILM
-  interpolation, picked in its controls.
+- **`upscale-3b`**, **`film`** — Add detail's lighter SeedVR2 model, and the
+  slower FILM interpolation either upscale can pick in its controls.
 
 Music 3 also has an `int8_convrot` DiT for short-VRAM cards; using it means
 changing `unet_name` in `minimax-music3.ts`.

@@ -66,6 +66,10 @@ const PACKS: { name: string; owns: (cls: string) => boolean }[] = [
     owns: (c) => c.startsWith("VercelAIGateway"),
   },
   {
+    name: "ComfyUI_Nvidia_VFX_Nodes",
+    owns: (c) => c.startsWith("RTXVideo"),
+  },
+  {
     name: "ComfyUI-KJNodes",
     owns: (c) =>
       c.endsWith("KJ") ||
