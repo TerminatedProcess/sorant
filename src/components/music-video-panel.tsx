@@ -130,6 +130,9 @@ export function MusicVideoPanel({ video }: { video: MusicVideoController }) {
           </Button>
         </div>
       ) : null}
+      {video.recoveryNote ? (
+        <p className="mb-4 text-[13px] leading-relaxed text-fg-subtle">{video.recoveryNote}</p>
+      ) : null}
 
       {step === "cutting" || step === "planning" ? (
         <p className="flex items-center gap-2 text-[13px] text-fg-muted">
@@ -252,8 +255,23 @@ export function MusicVideoPanel({ video }: { video: MusicVideoController }) {
           </ol>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
+            {video.lostCount > 0 ? (
+              <Button
+                variant="primary"
+                disabled={video.recovering}
+                onClick={() => void video.recover()}
+                title="This device lost contact with the ComfyUI machine while these scenes were queued, so they may have finished anyway. Looks for their clips on the machine before anything is rendered again."
+              >
+                {video.recovering
+                  ? "Looking…"
+                  : `Find ${video.lostCount === 1 ? "the lost scene" : `the ${video.lostCount} lost scenes`} on the machine`}
+              </Button>
+            ) : null}
             {unrendered > 0 ? (
-              <Button variant="primary" onClick={() => void video.renderAll()}>
+              <Button
+                variant={video.lostCount > 0 ? "secondary" : "primary"}
+                onClick={() => void video.renderAll()}
+              >
                 {finished > 0 || unrendered < scenes.length
                   ? `Render the ${unrendered} remaining`
                   : `Render ${scenes.length} scenes`}

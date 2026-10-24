@@ -9,10 +9,12 @@ import {
   isActive,
   isAudioOnly,
   isFavorite,
+  lostTrackOf,
   readJobs,
   sortJobs,
   writeJobs,
   type Job,
+  type JobOutput,
   type MusicVideoTag,
 } from "@/lib/jobs";
 import { notify } from "@/lib/notifications";
@@ -94,6 +96,11 @@ export interface JobsController {
    * existed, which the project still knows by id.
    */
   tagMusicVideo: (tags: Record<string, MusicVideoTag>) => void;
+  /**
+   * Finish runs this device lost track of with the files found for them on the
+   * box, by prompt id. See `lostTrackOf`.
+   */
+  recover: (found: Record<string, { outputs: JobOutput[]; completedAt: number }>) => void;
   cancel: (promptId: string) => Promise<void>;
   remove: (promptId: string) => void;
   /** Drop several at once, so a day's worth is one state write. */
@@ -241,6 +248,7 @@ export function useJobs(): JobsController {
                 phase: "error" as const,
                 queuePosition: null,
                 completedAt: Date.now(),
+                lostContact: true,
                 error:
                   `${detail} Gave up after ${MAX_POLL_FAILURES} failed status checks ` +
                   "and sent a cancel — if the machine is unreachable the cancel will " +
@@ -503,6 +511,28 @@ export function useJobs(): JobsController {
     });
   }, []);
 
+  const recover = useCallback(
+    (found: Record<string, { outputs: JobOutput[]; completedAt: number }>) => {
+      setJobs((previous) =>
+        previous.map((job) => {
+          const hit = found[job.promptId];
+          if (!hit || !lostTrackOf(job)) return job;
+          return {
+            ...job,
+            phase: "done" as const,
+            queuePosition: null,
+            outputs: hit.outputs,
+            completedAt: hit.completedAt,
+            error: undefined,
+            lostContact: undefined,
+            recovered: true,
+          };
+        }),
+      );
+    },
+    [],
+  );
+
   return {
     jobs,
     activeCount: jobs.filter(isActive).length,
@@ -512,6 +542,7 @@ export function useJobs(): JobsController {
     submitErrorField,
     submit,
     tagMusicVideo,
+    recover,
     cancel,
     remove,
     removeMany,

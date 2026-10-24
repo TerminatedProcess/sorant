@@ -5,6 +5,7 @@ import type { JobsController } from "@/hooks/use-jobs";
 import { api, ApiError, getToken } from "@/lib/client";
 import { isActive, type Job, type MusicVideoPart, type MusicVideoTag } from "@/lib/jobs";
 import { analyseSong } from "@/lib/music-video/beats";
+import { lostScenes, recoverScenes } from "@/lib/music-video/recover";
 import {
   composeLook,
   parsePlan,
@@ -92,6 +93,17 @@ export interface MusicVideoController {
   /** Use an earlier (or later) take of a scene instead of the one it has. */
   pickTake: (index: number, promptId: string) => void;
   stitch: () => Promise<void>;
+  /**
+   * How many scenes this device lost track of — abandoned when the server went
+   * quiet, or forgotten by a ComfyUI restart — and so may have clips on the box.
+   */
+  lostCount: number;
+  /** Whether `recover` is looking. */
+  recovering: boolean;
+  /** Look on the box for the lost scenes' clips. See `recoverScenes`. */
+  recover: () => Promise<void>;
+  /** What the last `recover` found, to say so. */
+  recoveryNote: string | null;
   clear: () => void;
   dismissError: () => void;
 }
@@ -625,9 +637,35 @@ export function useMusicVideo({
     });
   }, [project, allUpscaled, join, upscaleFor]);
 
+  const lostCount = project ? lostScenes(project, (id) => byId.get(id)).length : 0;
+  const [recovering, setRecovering] = useState(false);
+  const [recoveryNote, setRecoveryNote] = useState<string | null>(null);
+  const { recover: recoverJobs } = jobs;
+  const recover = useCallback(async () => {
+    if (!project) return;
+    setError(null);
+    setRecoveryNote(null);
+    setRecovering(true);
+    try {
+      const { found, lost } = await recoverScenes(project, jobs.jobs);
+      const count = Object.keys(found).length;
+      recoverJobs(found);
+      setRecoveryNote(
+        count === lost
+          ? `Found all ${lost} on the ComfyUI machine.`
+          : `Found ${count} of ${lost} on the ComfyUI machine. Render sends the rest again.`,
+      );
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not look for the lost scenes.");
+    } finally {
+      setRecovering(false);
+    }
+  }, [project, jobs.jobs, recoverJobs]);
+
   const clear = useCallback(() => {
     setProject(null);
     setError(null);
+    setRecoveryNote(null);
   }, []);
 
   return {
@@ -652,6 +690,10 @@ export function useMusicVideo({
     },
     upscaleAll,
     stitch,
+    lostCount,
+    recovering,
+    recover,
+    recoveryNote,
     clear,
     dismissError: useCallback(() => setError(null), []),
   };

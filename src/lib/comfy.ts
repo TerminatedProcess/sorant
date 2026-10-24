@@ -510,6 +510,29 @@ export async function viewFile(
 }
 
 /**
+ * Whether a file exists, and when it was written, without reading it: a HEAD on
+ * `/view`, whose Last-Modified is the file's own. Null when there is no such
+ * file.
+ */
+export async function statFile(
+  ref: ComfyFileRef,
+): Promise<{ modifiedAt: number } | null> {
+  const query = new URLSearchParams({
+    filename: ref.filename,
+    subfolder: ref.subfolder ?? "",
+    type: ref.type || "output",
+  });
+  try {
+    const response = await comfyFetch(`/view?${query}`, { method: "HEAD" });
+    const modified = Date.parse(response.headers.get("last-modified") ?? "");
+    return { modifiedAt: Number.isFinite(modified) ? modified : 0 };
+  } catch (error) {
+    if (error instanceof ComfyError && error.status === 404) return null;
+    throw error;
+  }
+}
+
+/**
  * ComfyUI groups outputs by an arbitrary key that depends on the save node:
  * `gifs` for VHS_VideoCombine, `videos` for SaveVideo/SaveWEBM, `images` for
  * still savers. Collect everything, then rank so real video lands first.

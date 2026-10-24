@@ -1,0 +1,86 @@
+import { unauthorized } from "@/lib/auth";
+import { statFile } from "@/lib/comfy";
+import { errorResponse } from "@/lib/errors";
+import { isUnsafePath, ParamError } from "@/lib/params";
+
+export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
+export interface OutputFile {
+  filename: string;
+  subfolder: string;
+  type: string;
+  url: string;
+  modifiedAt: number;
+}
+
+/**
+ * The files ComfyUI saved after a given one under the same name, oldest first.
+ *
+ * For runs this app lost track of: a connection that dropped mid-render, or a
+ * restart that emptied ComfyUI's history, leaves the clips on disk with nothing
+ * left that says which run wrote them. ComfyUI will not list a subfolder of
+ * its output, and the assets API that would is off by default, but a save node
+ * numbers its files — `MiniMax_H3_00929_.mp4`, then `_00930_` — so the ones
+ * after a known file can be found by asking for each name in turn. A HEAD on
+ * `/view` answers that without moving the file, with when it was written.
+ *
+ * Stops at the first few names in a row that are missing — a file deleted
+ * along the way is a gap to step over, the end of the run is a longer one —
+ * and at a ceiling, so a request cannot walk the counter for ever.
+ */
+const COUNTED = /^(.+)_(\d{5,})_\.([a-z0-9]+)$/i;
+const MISSES_TO_STOP = 3;
+const MAX_FILES = 120;
+const BATCH = 6;
+
+export async function GET(request: Request) {
+  const denied = unauthorized(request);
+  if (denied) return denied;
+
+  try {
+    const search = new URL(request.url).searchParams;
+    const after = search.get("after") ?? "";
+    const subfolder = search.get("subfolder") ?? "";
+    const match = COUNTED.exec(after);
+    if (!match) throw new ParamError("after must name a numbered output file.", "after");
+    if (isUnsafePath(after) || isUnsafePath(subfolder)) {
+      throw new ParamError("Invalid path.", "after");
+    }
+    const [, prefix, digits, extension] = match;
+    const start = Number(digits) + 1;
+    const nameFor = (counter: number) =>
+      `${prefix}_${String(counter).padStart(digits.length, "0")}_.${extension}`;
+
+    const files: OutputFile[] = [];
+    let misses = 0;
+    let counter = start;
+    while (misses < MISSES_TO_STOP && counter - start < MAX_FILES) {
+      const names = Array.from({ length: BATCH }, (_, i) => nameFor(counter + i));
+      counter += BATCH;
+      const stats = await Promise.all(
+        names.map((filename) => statFile({ filename, subfolder, type: "output" })),
+      );
+      for (let i = 0; i < names.length && misses < MISSES_TO_STOP; i += 1) {
+        const stat = stats[i];
+        if (!stat) {
+          misses += 1;
+          continue;
+        }
+        misses = 0;
+        const query = new URLSearchParams({ filename: names[i], subfolder, type: "output" });
+        files.push({
+          filename: names[i],
+          subfolder,
+          type: "output",
+          url: `/api/media?${query}`,
+          modifiedAt: stat.modifiedAt,
+        });
+      }
+    }
+
+    return Response.json({ files });
+  } catch (error) {
+    return errorResponse(error);
+  }
+}

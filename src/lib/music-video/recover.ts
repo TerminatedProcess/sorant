@@ -1,0 +1,163 @@
+import type { OutputFile } from "@/app/api/outputs/route";
+import { api, withToken } from "@/lib/client";
+import { lostTrackOf, type Job, type JobOutput } from "@/lib/jobs";
+import type { MusicVideoProject } from "./project";
+import { renderSeconds } from "./scenes";
+
+/**
+ * Finding the clips of scenes this device lost track of.
+ *
+ * A scene whose run was abandoned when the server went quiet, or forgotten by
+ * a ComfyUI restart, often finished anyway: the clip is on the box, and nothing
+ * left says which run wrote it. Three things tie a clip back to its scene
+ * without that record. The save node numbers its files, so the clips after the
+ * last one this device does know are the candidates. The queue runs in the
+ * order the scenes were sent, so their clips come in that order. And a scene's
+ * length is fixed before it renders, so a clip of another length belongs to
+ * something else — another run sharing the save name, sent while the video
+ * was rendering.
+ *
+ * A scene with no clip that fits is left as it was, for Render to send again.
+ */
+
+const COUNTED = /^(.+)_(\d{5,})_\.([a-z0-9]+)$/i;
+const VIDEO = /\.(mp4|webm|mov|mkv)$/i;
+
+/**
+ * How far the box's clock and this one may disagree. A clip is only a scene's
+ * if it was written after the scene was sent, and the two times come from
+ * different machines.
+ */
+const CLOCK_SLACK_MS = 5 * 60_000;
+
+/**
+ * How close a clip's length has to be to the scene's. H3 lengths come in steps
+ * of 17 frames, about 0.7 s, so this tells one step from the next while
+ * allowing for a container that rounds its duration, or a soundtrack a little
+ * longer than the picture.
+ */
+const LENGTH_TOLERANCE_S = 0.2;
+
+export interface RecoveryResult {
+  /** Outputs to finish each lost scene job with, by prompt id. */
+  found: Record<string, { outputs: JobOutput[]; completedAt: number }>;
+  /** How many scenes were lost before looking. */
+  lost: number;
+}
+
+/** The scenes of a project whose runs this device lost track of, in the order they were sent. */
+export function lostScenes(
+  project: MusicVideoProject,
+  jobFor: (promptId: string) => Job | undefined,
+): Job[] {
+  return project.scenes
+    .map((scene) => (scene.promptId ? jobFor(scene.promptId) : undefined))
+    .filter((job): job is Job => job !== undefined && lostTrackOf(job))
+    .sort((a, b) => a.submittedAt - b.submittedAt);
+}
+
+/** A clip's length, read by the browser from the file's own header. */
+function clipSeconds(url: string): Promise<number | null> {
+  return new Promise((resolve) => {
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.muted = true;
+    const timer = setTimeout(() => finish(null), 30_000);
+    function finish(seconds: number | null) {
+      clearTimeout(timer);
+      video.onloadedmetadata = null;
+      video.onerror = null;
+      video.removeAttribute("src");
+      video.load();
+      resolve(seconds);
+    }
+    video.onloadedmetadata = () =>
+      finish(Number.isFinite(video.duration) ? video.duration : null);
+    video.onerror = () => finish(null);
+    video.src = withToken(url);
+  });
+}
+
+export async function recoverScenes(
+  project: MusicVideoProject,
+  jobs: Job[],
+): Promise<RecoveryResult> {
+  const byId = new Map(jobs.map((job) => [job.promptId, job]));
+  const lost = lostScenes(project, (id) => byId.get(id));
+  if (lost.length === 0) return { found: {}, lost: 0 };
+
+  // The newest numbered clip this device knows of from the same workflow,
+  // sent no later than the first lost scene: the queue ran that one first, so
+  // everything the lost scenes wrote is numbered after it.
+  const first = lost[0];
+  let anchor: { output: JobOutput; counter: number } | undefined;
+  for (const job of jobs) {
+    if (job.phase !== "done" || job.workflowId !== first.workflowId) continue;
+    if (job.submittedAt > first.submittedAt) continue;
+    for (const output of job.outputs) {
+      if ((output.type || "output") !== "output" || !VIDEO.test(output.filename)) continue;
+      const match = COUNTED.exec(output.filename);
+      if (!match) continue;
+      const counter = Number(match[2]);
+      if (!anchor || counter > anchor.counter) anchor = { output, counter };
+    }
+  }
+  if (!anchor) {
+    throw new Error(
+      "There is no earlier finished clip from this workflow to search on from, so the lost scenes cannot be found.",
+    );
+  }
+
+  const query = new URLSearchParams({
+    after: anchor.output.filename,
+    subfolder: anchor.output.subfolder ?? "",
+  });
+  const { files } = await api<{ files: OutputFile[] }>(`/api/outputs?${query}`);
+
+  // A file some other run in the history already reported is that run's.
+  const claimed = new Set(
+    jobs.flatMap((job) => job.outputs.map((output) => `${output.subfolder}/${output.filename}`)),
+  );
+  const candidates = files.filter(
+    (file) =>
+      !claimed.has(`${file.subfolder}/${file.filename}`) &&
+      file.modifiedAt >= first.submittedAt - CLOCK_SLACK_MS,
+  );
+
+  const lengths = new Map<string, Promise<number | null>>();
+  const lengthOf = (file: OutputFile) => {
+    let length = lengths.get(file.url);
+    if (!length) {
+      length = clipSeconds(file.url);
+      lengths.set(file.url, length);
+    }
+    return length;
+  };
+  // Read ahead rather than one clip at a time: each is a round trip to the
+  // box, seconds apiece through a tunnel, and the browser queues the rest.
+  candidates.slice(0, lost.length + 8).forEach(lengthOf);
+
+  const found: RecoveryResult["found"] = {};
+  let next = 0;
+  for (const job of lost) {
+    const scene = project.scenes.find((s) => s.promptId === job.promptId);
+    if (!scene) continue;
+    const expected = renderSeconds(scene);
+    for (let index = next; index < candidates.length; index += 1) {
+      const file = candidates[index];
+      if (file.modifiedAt < job.submittedAt - CLOCK_SLACK_MS) continue;
+      const seconds = await lengthOf(file);
+      if (seconds === null || Math.abs(seconds - expected) > LENGTH_TOLERANCE_S) continue;
+      found[job.promptId] = {
+        outputs: [
+          { url: file.url, filename: file.filename, subfolder: file.subfolder, type: file.type },
+        ],
+        completedAt: file.modifiedAt,
+      };
+      next = index + 1;
+      break;
+    }
+  }
+
+  return { found, lost: lost.length };
+}

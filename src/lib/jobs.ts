@@ -127,6 +127,13 @@ export interface Job {
   queuePosition: number | null;
   outputs: JobOutput[];
   error?: string;
+  /**
+   * Given up on because the server stopped answering, not because the run
+   * failed — it may well have finished on the box. See `lostTrackOf`.
+   */
+  lostContact?: boolean;
+  /** Its output was found on the box after the fact rather than reported. */
+  recovered?: boolean;
   resolved: Record<string, ParamValue>;
   estimatedSeconds: number | null;
 }
@@ -211,6 +218,21 @@ export function isFavorite(job: Job): boolean {
  */
 export function isRetryable(job: Job): boolean {
   return job.phase === "error";
+}
+
+/**
+ * Whether this device stopped hearing about the run without ComfyUI ever
+ * saying it failed: abandoned when the server went quiet, or `unknown` because
+ * ComfyUI restarted and forgot it. Either may have finished and left a file.
+ *
+ * The error text covers runs abandoned before `lostContact` was recorded.
+ */
+export function lostTrackOf(job: Job): boolean {
+  return (
+    job.phase === "unknown" ||
+    (job.phase === "error" &&
+      (job.lostContact === true || /failed status checks/.test(job.error ?? "")))
+  );
 }
 
 /**
