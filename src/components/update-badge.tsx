@@ -15,9 +15,12 @@ export interface Updates {
 }
 
 /**
- * This deployment's version, and any newer release. Asked once per page load;
- * `check` asks again, live. Held by the page and handed to both the header
- * notice and the status panel, so a check from the panel updates the notice.
+ * This deployment's version, and any newer release. Asked live once per page
+ * load — the server lets a live check through at most once a minute and hands
+ * everyone else its cached answer, so opening the app is what finds a release
+ * the day it is out rather than up to six hours later. `check` asks again.
+ * Held by the page and handed to the header notice, the pill and the status
+ * panel, so a check from the panel updates all three.
  */
 export function useUpdates(): Updates {
   const [info, setInfo] = useState<UpdateInfo | null>(null);
@@ -26,9 +29,12 @@ export function useUpdates(): Updates {
 
   useEffect(() => {
     let cancelled = false;
-    api<UpdateInfo>("/api/updates")
+    api<UpdateInfo>("/api/updates?refresh=1")
       .then((next) => {
-        if (!cancelled) setInfo(next);
+        if (!cancelled) {
+          setInfo(next);
+          setCheckedAt(Date.now());
+        }
       })
       .catch(() => {
         // No notice is the right failure.
@@ -64,30 +70,38 @@ export function updateWhere(machineChanges: boolean | null): string {
 
 /**
  * A newer release, in the header — nothing at all while there is none. It
- * says which kind of update it is, because that is what decides where it can
- * be done: an app-only release can be deployed from any machine, one that
- * changes what the ComfyUI machine needs has to be run there first. The link
- * is the release notes, which carry the prompt to paste.
+ * opens the status panel, which says how to update step by step: most people
+ * running this have never updated an app by redeploying it, and a link to
+ * release notes on GitHub does not tell them how. The dot says which kind of
+ * update it is — an app-only release can be deployed from any machine, one
+ * that changes what the ComfyUI machine needs has to be run there first.
  */
-export function UpdateBadge({ info }: { info: UpdateInfo | null }) {
+export function UpdateBadge({
+  info,
+  onOpen,
+}: {
+  info: UpdateInfo | null;
+  onOpen: () => void;
+}) {
   const latest = info?.latest;
   if (!info || !latest) return null;
 
   return (
-    <a
-      href={latest.url}
-      target="_blank"
-      rel="noreferrer"
+    <button
+      type="button"
+      onClick={onOpen}
       title={`Soran’t ${latest.version} is out (this is ${info.current}). ${updateWhere(latest.machineChanges)}`}
-      className="inline-flex items-center gap-2 rounded-full border border-border-default
-        bg-surface px-2.5 py-1 text-[12px] text-fg-muted transition-colors duration-150
-        hover:border-border-strong hover:bg-surface-hover"
+      aria-label={`Soran’t ${latest.version} is out. How to update`}
+      // On a phone the header has no room for it: the dot on the status pill
+      // says the same, and opens the same panel.
+      className="hidden items-center gap-2 rounded-full border border-accent/40 sm:inline-flex
+        bg-accent-subtle px-2.5 py-1 text-[12px] text-fg-muted transition-colors duration-150
+        hover:border-accent"
     >
       <Dot tone={latest.machineChanges === false ? "accent" : "warning"} />
       <span className="font-medium text-fg">
-        <span className="hidden sm:inline">Update </span>
-        {latest.version}
+        Update {latest.version}
       </span>
-    </a>
+    </button>
   );
 }

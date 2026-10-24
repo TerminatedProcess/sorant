@@ -424,7 +424,15 @@ version.
 
 The notice reads the new release's `machine-requirements.json` from the tag, so
 it can say "app-only" or "needs your ComfyUI machine" without the notes. The
-notes are for the people and agents doing the update.
+notes are for the people and agents doing the update. From 0.3.0 the app's
+status panel walks people through updating; before it, the badge linked
+straight to the release page. So keep a short **How to update** section in the
+notes too, before the machine changes: the agent prompt from the README, and
+the steps by hand.
+
+Cut a release whenever a tested, user-visible change lands on `main`: a minor
+version for features or machine changes, a patch for fixes. Nobody else gets
+anything until there is one.
 
 ## Known limits
 

@@ -51,13 +51,18 @@ export function useHealth(): Health | null {
 /**
  * The header's one-word summary of the GPU box. A button: it opens the status
  * panel, which says the rest — the tooltip is kept for a quick look on desktop.
+ * With a newer release out it wears a dot in its corner, since the panel is
+ * also where updating is explained, and the pill is what people click.
  */
 export function ConnectionPill({
   health,
   onOpen,
+  update,
 }: {
   health: Health | null;
   onOpen: () => void;
+  /** The newer release's version, when there is one. */
+  update?: string | null;
 }) {
   const busy = (health?.queueRunning ?? 0) > 0;
   const unauthorized = health?.reachable === true && health.authorized === false;
@@ -93,9 +98,9 @@ export function ConnectionPill({
     <button
       type="button"
       onClick={onOpen}
-      title={title}
-      aria-label={`ComfyUI: ${label}. Open status`}
-      className="inline-flex items-center gap-2 rounded-full border border-border-default
+      title={update ? `${title}\nSoran’t ${update} is out — open to update` : title}
+      aria-label={`ComfyUI: ${label}.${update ? ` Soran’t ${update} is out.` : ""} Open status`}
+      className="relative inline-flex items-center gap-2 rounded-full border border-border-default
         bg-surface px-2.5 py-1 text-[12px] text-fg-muted transition-colors duration-150
         hover:border-border-strong hover:bg-surface-hover"
     >
@@ -140,6 +145,12 @@ export function ConnectionPill({
       ) : null}
       {health?.reachable && !unauthorized && (health.queuePending ?? 0) > 0 ? (
         <span className="font-mono tabular-nums">+{health.queuePending}</span>
+      ) : null}
+      {update ? (
+        <span
+          aria-hidden="true"
+          className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-accent ring-2 ring-bg"
+        />
       ) : null}
     </button>
   );

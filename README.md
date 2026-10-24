@@ -163,9 +163,14 @@ most failed setups skipped a step. In short:
 
 ## Updating
 
-When a new release is out, the app shows an **Update** notice in its header.
-Open your coding agent in your clone and paste this (in Claude Code, `/update`
-does the same):
+The app checks for a new release each time you open it. When there is one, an
+**Update** badge appears in the header and the status pill gets a blue dot;
+click either for step-by-step instructions. Updating means redeploying your
+copy of the app, and sometimes updating your ComfyUI machine first.
+
+**With a coding agent (easiest).** Open Claude Code, Codex, Cursor or another
+coding agent in the folder you cloned Soran’t into, and paste this (in Claude
+Code, `/update` does the same):
 
 ```text
 Update Soran't to the latest release by following the "Updating an existing
@@ -176,13 +181,23 @@ deploying.
 
 Most releases change only the app, and those can be deployed from any machine
 with a clone. Some also need something on the ComfyUI machine, such as a new
-node pack, a pack update or a model file. The agent tells the two apart from
-`machine-requirements.json` and won't deploy the app before your ComfyUI
-machine has what the new version needs. The notice says which kind an update
-is, and the workflow cards say if your ComfyUI is missing anything.
+node pack, a pack update or a model file. Run those on the ComfyUI machine. The
+agent tells the two apart from `machine-requirements.json` and won't deploy the
+app before your ComfyUI machine has what the new version needs. The notice says
+which kind an update is, and the workflow cards say if your ComfyUI is missing
+anything.
 
-By hand: `git pull`, `pnpm install`, then make any ComfyUI machine changes
-listed in the release notes, run `pnpm check:nodes`, and `vercel deploy --prod`.
+**By hand:**
+
+1. In your Soran’t folder: `git pull`, then `pnpm install`.
+2. If the release notes list **ComfyUI machine changes**, make them on that
+   machine: update ComfyUI, install or update the node packs they name, and
+   `pnpm models:download` for new models. Restart ComfyUI, then run
+   `pnpm check:nodes` until it reports nothing missing.
+3. Deploy. If Vercel builds from your GitHub fork, press **Sync fork** on the
+   fork's GitHub page and Vercel deploys it. Otherwise run
+   `vercel deploy --prod` in the folder.
+4. Reload the app. The notice goes away once the new version is live.
 
 ## When something goes wrong
 

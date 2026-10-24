@@ -1213,8 +1213,12 @@ function Workbench({
           </span>
 
           <div className="ml-auto flex shrink-0 items-center gap-2">
-            <UpdateBadge info={updates.info} />
-            <ConnectionPill health={health} onOpen={() => setStatusOpen(true)} />
+            <UpdateBadge info={updates.info} onOpen={() => setStatusOpen(true)} />
+            <ConnectionPill
+              health={health}
+              onOpen={() => setStatusOpen(true)}
+              update={updates.info?.latest?.version}
+            />
             <RewriteKeyButton
               tier={gatewayTier}
               onTierChange={onGatewayTierChange}

@@ -1,6 +1,7 @@
 "use client";
 
 import type { Health } from "@/components/connection-pill";
+import { useState } from "react";
 import { updateWhere, type Updates } from "@/components/update-badge";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
@@ -10,6 +11,10 @@ import type { WorkflowSummary } from "@/lib/workflows/types";
 
 const UPDATING =
   "https://github.com/pwillia7/sorant/blob/main/README.md#updating";
+
+/** The same prompt as the README's, for any coding agent. */
+const AGENT_PROMPT =
+  "Update Soran't to the latest release by following the \"Updating an existing install\" section of docs/agent-setup.md. Work out first whether it needs changes on my ComfyUI machine, and ask me before restarting ComfyUI or deploying.";
 
 /**
  * Everything the header pill knows, opened from it: the ComfyUI connection,
@@ -168,24 +173,133 @@ function VersionStatus({ updates }: { updates: Updates }) {
         </Button>
       </div>
       {latest ? (
-        <div className="mt-2 rounded-lg border border-border-default bg-bg-subtle p-3">
-          <Row tone={latest.machineChanges === false ? "accent" : "warning"}>
-            {latest.version} is out.
-          </Row>
-          <p className="mt-1 pl-4">{updateWhere(latest.machineChanges)}</p>
-          <p className="mt-1 pl-4">
-            <a href={latest.url} target="_blank" rel="noreferrer" className="text-accent underline underline-offset-2">
-              Release notes
-            </a>
-            {" · "}
-            <a href={UPDATING} target="_blank" rel="noreferrer" className="text-accent underline underline-offset-2">
-              How to update
-            </a>
-          </p>
-        </div>
+        <UpdateGuide
+          version={latest.version}
+          url={latest.url}
+          machineChanges={latest.machineChanges}
+        />
       ) : checkedAt ? (
         <p className="mt-2">You’re up to date.</p>
       ) : null}
     </>
+  );
+}
+
+/**
+ * How to update, spelled out. Updating this app means redeploying it, which
+ * nothing else people install asks of them, and having an agent do it is new
+ * to most — so the panel gives the prompt to paste and the steps by hand, in
+ * the order that keeps the app from getting ahead of the ComfyUI machine.
+ */
+function UpdateGuide({
+  version,
+  url,
+  machineChanges,
+}: {
+  version: string;
+  url: string;
+  machineChanges: boolean | null;
+}) {
+  const machineFirst = machineChanges !== false;
+  const link = "text-accent underline underline-offset-2";
+  const code = "rounded bg-surface px-1 font-mono text-[12px] text-fg";
+
+  return (
+    <div className="mt-2 flex flex-col gap-3 rounded-lg border border-accent/40 bg-accent-subtle/40 p-3">
+      <div>
+        <Row tone={machineChanges === false ? "accent" : "warning"}>{version} is out.</Row>
+        <p className="mt-1 pl-4">
+          {updateWhere(machineChanges)}{" "}
+          <a href={url} target="_blank" rel="noreferrer" className={link}>
+            What’s new
+          </a>
+        </p>
+      </div>
+
+      <div>
+        <p className="font-medium text-fg">Easiest: have a coding agent do it</p>
+        <p className="mt-1">
+          Open Claude Code, Codex, Cursor or another coding agent in the folder you
+          cloned Soran’t into
+          {machineFirst ? ", on your ComfyUI machine," : ""} and paste this. It
+          checks what the update needs, does it, and asks before restarting
+          anything or deploying. In Claude Code, <span className={code}>/update</span>{" "}
+          does the same.
+        </p>
+        <div className="mt-2 flex items-start gap-2">
+          <p className="min-w-0 flex-1 rounded-md border border-border-default bg-bg p-2 font-mono text-[12px] leading-relaxed text-fg">
+            {AGENT_PROMPT}
+          </p>
+          <CopyButton text={AGENT_PROMPT} />
+        </div>
+      </div>
+
+      <div>
+        <p className="font-medium text-fg">Or by hand</p>
+        <ol className="mt-1 flex list-decimal flex-col gap-1 pl-5">
+          {machineFirst ? (
+            <>
+              <li>
+                On your ComfyUI machine, in your Soran’t folder:{" "}
+                <span className={code}>git pull</span> then{" "}
+                <span className={code}>pnpm install</span>.
+              </li>
+              <li>
+                Make the changes under <span className="text-fg">ComfyUI machine changes</span>{" "}
+                in the{" "}
+                <a href={url} target="_blank" rel="noreferrer" className={link}>
+                  release notes
+                </a>
+                : a ComfyUI update, node packs to install or update, models to
+                download with <span className={code}>pnpm models:download</span>.
+              </li>
+              <li>
+                Restart ComfyUI, then run <span className={code}>pnpm check:nodes</span>.
+                Go on once it reports nothing missing.
+              </li>
+            </>
+          ) : (
+            <li>
+              In your Soran’t folder, on any computer:{" "}
+              <span className={code}>git pull</span> then{" "}
+              <span className={code}>pnpm install</span>.
+            </li>
+          )}
+          <li>
+            Deploy the app. If Vercel builds from your GitHub fork, open the fork on
+            GitHub and press <span className="text-fg">Sync fork</span>; Vercel deploys
+            it. Otherwise run <span className={code}>vercel deploy --prod</span> in that
+            folder.
+          </li>
+          <li>Reload this page. This notice goes away once the new version is live.</li>
+        </ol>
+        <p className="mt-2">
+          <a href={UPDATING} target="_blank" rel="noreferrer" className={link}>
+            The full guide
+          </a>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <Button
+      size="sm"
+      variant="secondary"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        } catch {
+          // No clipboard (an insecure context): the text is there to select.
+        }
+      }}
+    >
+      {copied ? "Copied" : "Copy"}
+    </Button>
   );
 }
