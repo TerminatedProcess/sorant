@@ -16,9 +16,8 @@ installing and downloading itself, and asks you only for passwords and keys.
   - [Model files](#model-files)
   - [On Windows, raise the GPU timeout first](#on-windows-raise-the-gpu-timeout-first)
 - [2. Make ComfyUI reachable](#2-make-comfyui-reachable)
-  - [Tailscale Funnel (recommended)](#tailscale-funnel-recommended)
-  - [Dynamic DNS and a port forward](#dynamic-dns-and-a-port-forward)
-  - [A static public IP](#a-static-public-ip)
+  - [HTTPS on your own connection (recommended)](#https-on-your-own-connection-recommended)
+  - [Tailscale Funnel (when you cannot forward a port)](#tailscale-funnel-when-you-cannot-forward-a-port)
 - [3. Run it locally](#3-run-it-locally)
   - [Environment variables](#environment-variables)
   - [Lock ComfyUI with ComfyUI-Login](#lock-comfyui-with-comfyui-login)
@@ -273,16 +272,98 @@ paging into a full card, a separate Windows failure, at no cost in speed.
 
 **Deploying to Vercel?** Then ComfyUI must be reachable *from Vercel's
 servers*, which are not on your network — `localhost` and `192.168.x.x` cannot
-work. This is the most common deployment failure. Three ways, best first.
+work. This is the most common deployment failure. Two ways, best first.
 
-### Tailscale Funnel (recommended)
+### HTTPS on your own connection (recommended)
 
-Real HTTPS, no open ports on your router, and it survives your home IP
-changing. Funnel terminates TLS on your own machine, so Tailscale relays traffic
-without being able to read it. On the ComfyUI machine:
+A free [DuckDNS](https://www.duckdns.org) name that follows your home IP,
+[Caddy](https://caddyserver.com) on the ComfyUI machine for HTTPS with a free
+Let's Encrypt certificate, and one router port forward. Nothing sits between
+Vercel and your machine, so a 500 MB 4K upscale downloads as fast as your
+upload allows — which is what rules Funnel out for music videos and upscales
+(see below). It needs a router you can forward a port on, and a real public
+IP: if the WAN address on your router's status page differs from what
+<https://ifconfig.me> shows, you are behind carrier-grade NAT and a forward
+cannot work — use Funnel.
 
 1. Note the port ComfyUI listens on **locally** — `8188` unless you changed it.
-   A port you reach it on from outside is a forward, not the one Funnel needs.
+2. At DuckDNS, sign in and add a name. The **current ip** it fills in is the
+   one your *browser* is on: change it to the ComfyUI machine's public IP, or
+   leave it to the updater in step 3. Keep the token private.
+3. Keep the name current from the ComfyUI machine — DuckDNS records the address
+   each update comes from. Run every five minutes and at startup (Task
+   Scheduler on Windows, cron elsewhere):
+
+   ```shell
+   curl "https://www.duckdns.org/update?domains=<your-name>&token=<token>&ip="
+   ```
+
+   It answers `OK`. Keep the token in a file only the machine's admins can
+   read, not in the task's command line.
+4. Install Caddy and give it this `Caddyfile`:
+
+   ```caddyfile
+   {
+   	auto_https disable_redirects
+   }
+
+   your-name.duckdns.org {
+   	tls {
+   		issuer acme {
+   			disable_http_challenge
+   		}
+   	}
+   	reverse_proxy 127.0.0.1:8188 {
+   		flush_interval -1
+   	}
+   }
+   ```
+
+   Only 443 is forwarded, so Caddy proves the name over 443 itself and never
+   needs port 80. If something else already listens on 443 on this machine —
+   Tailscale Serve holds it on the tailnet address — add
+   `bind <this machine's LAN IP>` inside the site block.
+5. Run Caddy as a service that starts with the machine, and let 443 through
+   the firewall. On Windows, from an admin PowerShell:
+
+   ```powershell
+   New-Service -Name caddy -StartupType Automatic `
+     -BinaryPathName '"C:\Program Files\Caddy\caddy.exe" run --config "C:\ProgramData\Caddy\Caddyfile" --adapter caddyfile'
+   New-NetFirewallRule -DisplayName Caddy -Direction Inbound -Action Allow `
+     -Protocol TCP -LocalPort 443 -Program 'C:\Program Files\Caddy\caddy.exe'
+   Start-Service caddy
+   ```
+
+   Not `sc.exe create`: Windows PowerShell breaks its quoting, and it fails
+   without saying so. On Linux, the distribution's `caddy` package runs it.
+6. On the router: forward **TCP 443** to the ComfyUI machine's LAN IP, port
+   443, and reserve that IP for it so it cannot change.
+7. `https://your-name.duckdns.org` is your `COMFY_URL`. It answers `401`
+   without the token — ComfyUI-Login — and `200` with it. Already deployed?
+   `vercel env rm COMFY_URL production`, `vercel env add COMFY_URL production`,
+   and redeploy.
+8. Close any other port forward pointing at ComfyUI, and leave ComfyUI without
+   `--listen`: Caddy reaches it on `127.0.0.1`.
+
+> **ComfyUI is now on the open internet**, behind HTTPS.
+> [ComfyUI-Login](#lock-comfyui-with-comfyui-login) is what keeps strangers off
+> your GPU, so it is mandatory. A static IP from your ISP changes nothing here:
+> a certificate needs a name, so point a DuckDNS name at it anyway.
+
+Do not forward straight to ComfyUI's port over plain HTTP: the token and your
+prompts would cross the internet unencrypted, and the app shows an open
+padlock for it.
+
+### Tailscale Funnel (when you cannot forward a port)
+
+Real HTTPS with no router changes — but **Funnel's bandwidth is capped**.
+Tailscale relays all Funnel traffic through its own servers, and in practice
+that is around 150–400 KB/s. Generated clips load, slowly; a joined music video
+or a 4K upscale (100–500 MB) cannot finish within the five minutes a Vercel
+function is allowed, and the player sits on a grey box for ever. On the
+ComfyUI machine:
+
+1. Note the port ComfyUI listens on **locally** — `8188` unless you changed it.
 2. Install [Tailscale](https://tailscale.com) and sign in.
 3. In the admin console → **DNS**, enable **MagicDNS** and **HTTPS
    Certificates**. Funnel issues no certificate without both.
@@ -302,41 +383,14 @@ without being able to read it. On the ComfyUI machine:
    ```
 
 6. `tailscale funnel status` prints the public address, something like
-   `https://your-box.your-tailnet.ts.net`. That is your `COMFY_URL`. Already
-   deployed? Swap it in with `vercel env rm COMFY_URL production` then
-   `vercel env add COMFY_URL production`, and redeploy.
-7. Check it took: `/api/health` should report `"secure": true`, and the pill no
-   longer shows an open padlock.
-8. Close any port forward you had pointing at ComfyUI. Nothing needs to be open
-   inbound any more.
+   `https://your-box.your-tailnet.ts.net`. That is your `COMFY_URL`.
+7. Check it took: `/api/health` should report `"secure": true`.
 
 To undo: `tailscale funnel --https=443 localhost:8188 off`.
 
 > **Funnel is public.** That is the point — Vercel is not on your tailnet — so
-> ComfyUI-Login (step 3) is what keeps strangers off your GPU. Tailscale
-> *Serve* is the private version, and Vercel cannot reach it.
-
-### Dynamic DNS and a port forward
-
-Use this if you would rather not use Tailscale. Home IP addresses change, so a
-DDNS hostname keeps pointing at whatever yours is today.
-
-1. Pick a provider — [DuckDNS](https://www.duckdns.org) (free, simple),
-   [No-IP](https://www.noip.com) or [Afraid.org](https://freedns.afraid.org).
-   Many routers have DDNS built in under their WAN settings.
-2. Register a hostname and set up its updater, on the router or on the ComfyUI
-   machine.
-3. Forward a port on your router to the ComfyUI machine's port `8188`.
-4. `COMFY_URL` is `http://your-host.duckdns.org:<forwarded-port>`.
-
-Two cautions. **A forwarded port is not encryption** — your ComfyUI token and
-prompts cross the internet in plain text, so rotate the token if it ever has.
-And **ComfyUI is now on the open internet**, so ComfyUI-Login is mandatory.
-
-### A static public IP
-
-Only if your ISP guarantees one. Same port forward; `COMFY_URL` is
-`http://<your-ip>:<port>`. It breaks the day the address changes.
+> ComfyUI-Login is what keeps strangers off your GPU. Tailscale *Serve* is the
+> private version, and Vercel cannot reach it.
 
 ---
 
@@ -515,6 +569,7 @@ README for the prompt to paste.
 | Large uploads fail when deployed | No Blob store — see [step 4](#4-deploy-to-vercel) |
 | The Windows machine restarts during step 1 | [The GPU timeout](#on-windows-raise-the-gpu-timeout-first). Display event 4101 in the System log confirms it |
 | A job shows as **Lost** | ComfyUI restarted and forgot its history |
+| A long video sits on a grey box and never plays, short clips load | `COMFY_URL` is a Tailscale Funnel, whose bandwidth cannot carry a file that size within a Vercel function's five minutes. [Use HTTPS on your own connection](#https-on-your-own-connection-recommended) |
 | "Contact was lost" | The connection dropped, not the workflow. Check the pill and resubmit — the run may have finished anyway |
 
 ---
@@ -524,8 +579,8 @@ README for the prompt to paste.
 - **`APP_ACCESS_TOKEN` protects this app; `COMFY_API_TOKEN` protects ComfyUI.**
   They are independent, and ComfyUI stays reachable directly whatever the app's
   token is.
-- **Plain HTTP exposes the ComfyUI token in transit.** Funnel fixes that. If the
-  token has ever crossed plain HTTP, rotate it.
+- **Plain HTTP exposes the ComfyUI token in transit.** Caddy or Funnel fixes
+  that. If the token has ever crossed plain HTTP, rotate it.
 - **The ComfyUI-Login token never expires.** Treat it as a long-lived secret.
 
 ## How auth failures surface

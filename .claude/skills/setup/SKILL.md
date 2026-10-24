@@ -33,8 +33,12 @@ What it asks of you, worth carrying in before you start:
 - **Offer the prompt rewrite on this machine** (no account) alongside an AI
   Gateway key, and tell the person their app password is in `.env.local` and
   can be changed.
+- **Reach ComfyUI through DuckDNS and Caddy**, HTTPS on the machine itself.
+  Tailscale Funnel is only for when no port can be forwarded: its relayed
+  bandwidth cannot carry a long music video or a 4K upscale.
 - **Keep a list of what went wrong**, and at the end ask whether to file it as
   a setup report on the project's GitHub.
 - **Ask before anything outward-facing or system-wide** — the registry,
-  restarting a ComfyUI that may be rendering, Tailscale Funnel, Vercel projects,
+  restarting a ComfyUI that may be rendering, a system service, a firewall
+  rule, a router port forward, Tailscale Funnel, Vercel projects,
   environment variables, deploying.

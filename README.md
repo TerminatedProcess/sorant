@@ -66,7 +66,7 @@ It is only a front end: no model weights, no database, nothing expensive.
 | **Disk** | **43 GB** for Text to Video alone; **234.5 GB** for every workflow; **337.4 GB** with every optional extra. See below. |
 | **ComfyUI** | A recent build — tested on 0.38 — plus five custom node packs. |
 | **OS** | Windows, Linux or macOS for ComfyUI; tested on Windows, which needs [one registry fix](docs/setup.md#on-windows-raise-the-gpu-timeout-first). |
-| **For the app** | Node 20.9+ and pnpm. A free Vercel account to deploy it. A Tailscale account to reach your ComfyUI from Vercel. An AI Gateway key is optional: the prompt rewrite can run on your own machine instead. |
+| **For the app** | Node 20.9+ and pnpm. A free Vercel account to deploy it. To reach your ComfyUI from Vercel, a free DuckDNS name and a router you can forward a port on (Tailscale Funnel works without the router, but is too slow for long videos). An AI Gateway key is optional: the prompt rewrite can run on your own machine instead. |
 
 Disk space by what you want to run — download only what you will use:
 
@@ -120,9 +120,10 @@ agent does that for you and checks each step as it goes.
    are deploying, then installs the node packs, downloads the models, applies
    the Windows GPU fixes, runs a test generation and fixes what fails, makes
    ComfyUI reachable and deploys. You only step in for what has to be yours:
-   choosing the ComfyUI password, signing in to Vercel and Tailscale (and
-   Hugging Face, for the Edit button), and choosing where prompts are
-   rewritten: on your own machine with no account, or with an AI Gateway key.
+   choosing the ComfyUI password, signing in to Vercel and DuckDNS (and
+   Hugging Face, for the Edit button), forwarding a port on your router, and
+   choosing where prompts are rewritten: on your own machine with no account,
+   or with an AI Gateway key.
    At the end it offers to send a setup report to the project if anything went
    wrong; that's up to you.
 
@@ -146,7 +147,8 @@ most failed setups skipped a step. In short:
    and a choice of where prompts are rewritten: on that machine, or with an AI
    Gateway key.
 2. **[Make ComfyUI reachable](docs/setup.md#2-make-comfyui-reachable)** — only
-   if you are deploying. Tailscale Funnel is the easy way.
+   if you are deploying. A DuckDNS name with Caddy for HTTPS; Tailscale Funnel
+   if you cannot forward a port.
 3. **[Run it locally](docs/setup.md#3-run-it-locally)**:
 
    ```bash

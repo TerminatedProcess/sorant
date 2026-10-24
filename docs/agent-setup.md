@@ -48,8 +48,8 @@ can be claimed by whoever finds it first.
 - **Ask before** anything that changes the machine beyond ComfyUI's own folder
   and this repo (installing system software, the registry, PATH), anything that
   restarts ComfyUI while it may be rendering, and anything outward-facing:
-  Tailscale Funnel, Vercel projects, environment variables, deploys, filing an
-  issue.
+  a system service, a firewall rule, a router port forward, Tailscale Funnel,
+  Vercel projects, environment variables, deploys, filing an issue.
 - **Never handle their secrets in chat.** The ComfyUI password, the AI Gateway
   key and the Hugging Face token are typed by the person — into a browser, the
   app, or their own shell. You may read the ComfyUI token from its file and
@@ -71,7 +71,8 @@ Setup progress:
 - [ ] 3 Models          gate: `pnpm models:download` exits 0 for the chosen set
 - [ ] 4 Windows         TDR values set, reboot done (Windows only)
 - [ ] 5 Password        gate: ComfyUI-Login on, password set, token in .env.local
-- [ ] 6 Reachability    (deploy only, ask first) Funnel on; gate checked in 8
+- [ ] 6 Reachability    (deploy only, ask first) gate: the public HTTPS
+                        address answers 401 bare, 200 with the token
 - [ ] 7 Local verify    gate: `pnpm check:nodes` exits 0, a prompt rewrite is
                         set up, `pnpm smoke` passes
 - [ ] 8 Deploy          (ask first) gate: `pnpm smoke --url <deployment>` passes
@@ -152,12 +153,13 @@ needs 0.38's `TextGenerate`. Ask before updating a working install.
 **Start the accounts now**, so they are ready by the time they are needed and
 the person can do them while downloads run. Tell them which apply:
 
-- **Deploying:** a Vercel account (<https://vercel.com/signup>), and a Tailscale
-  account (<https://login.tailscale.com/start>). In the Tailscale admin console
-  they turn on **DNS → MagicDNS** and **DNS → HTTPS Certificates**, and add to
-  **Access Controls**:
+- **Deploying:** a Vercel account (<https://vercel.com/signup>), a DuckDNS
+  name (<https://www.duckdns.org>, sign in and add one; the token stays with
+  them), and access to their router's port forwarding. Without router access,
+  or behind carrier-grade NAT (Phase 6), a Tailscale account instead
+  (<https://login.tailscale.com/start>) with **DNS → MagicDNS**, **DNS → HTTPS
+  Certificates**, and in **Access Controls**
   `"nodeAttrs": [{ "target": ["autogroup:member"], "attr": ["funnel"] }]`.
-  Installing Tailscale on this machine can wait for Phase 6.
 - **The Edit button:** a Hugging Face account, the FLUX Kontext licence accepted
   at <https://huggingface.co/black-forest-labs/FLUX.1-Kontext-dev>, and a read
   token from <https://huggingface.co/settings/tokens> (Phase 3).
@@ -238,7 +240,7 @@ what proves SageAttention actually works; `check:nodes` only sees the node.
 **Edit the launch line once, now, before the restart.** Add `--vram-headroom 3`
 (keeps Dynamic VRAM from paging into a full card on Windows,
 Comfy-Org/ComfyUI#15360, at no cost in speed) and `--max-upload-size 100` (the
-app's upload ceiling). Do not add `--listen`: Funnel connects to localhost, and
+app's upload ceiling). Do not add `--listen`: Caddy and Funnel connect to localhost, and
 `--listen` exposes ComfyUI to the whole network. Do not add
 `--enable-cors-header` with a specific origin (see troubleshooting). Keep the
 `--port` it has.
@@ -374,16 +376,103 @@ internet.
 `login/PASSWORD`, restart, and set a new one. The token changes with it, so
 update `.env.local` and Vercel.
 
-**Deploying?** Go to Phase 6 now, then come back to Phase 7. A new Funnel
-address takes a few minutes to reach public DNS, and Phase 7 covers the wait.
+**Deploying?** Go to Phase 6 now, then come back to Phase 7. A new public name
+or certificate can take a few minutes, and Phase 7 covers the wait.
 
 ## Phase 6 — Reachability (deploying only)
 
 A Vercel function is not on their network, so ComfyUI must be reachable from
 the internet. Ask before doing this, then do it without further questions.
 
-**Use Tailscale Funnel**: real HTTPS, no open router ports, and it survives a
-changing home IP.
+**Use DuckDNS and Caddy**: HTTPS terminated on this machine, one router port
+forward, and nothing between Vercel and ComfyUI. Tailscale Funnel is the
+fallback, not the default: its traffic is relayed at around 150–400 KB/s, so a
+joined music video or a 4K upscale (100–500 MB) cannot load through a Vercel
+function's five minutes, and the player shows a grey box for ever.
+
+**First, can a port be forwarded at all?** Compare the public IP
+(`curl -s https://ifconfig.me`) with the WAN address on the router's status
+page; the person reads the router. Different means carrier-grade NAT: go to
+the Funnel fallback below.
+
+1. **The DuckDNS name** from Phase 0. Its web page fills in the IP of the
+   browser that made it, which is often not this machine; the updater fixes
+   that on its first run.
+2. **The token** is the person's. Write a script that asks for it with
+   `Read-Host -AsSecureString` (or `read -s`), saves it to a file only admins
+   and SYSTEM (root) can read — on Windows `C:\ProgramData\Sorant\duckdns.token`,
+   `icacls <file> /inheritance:r /grant:r SYSTEM:F Administrators:F` — and
+   calls the update once, and have the person run it in **their own terminal**
+   (`ssh -t` when you work remotely: an agent's shell has no TTY to type into).
+   `https://www.duckdns.org/update?domains=<name>&token=<token>&ip=` answers
+   `OK`; an empty `ip=` means the address the request came from.
+3. **The updater:** a script reading that file and calling the same URL,
+   every five minutes and at startup — on Windows a scheduled task as SYSTEM
+   (`Register-ScheduledTask` with a `-RepetitionInterval` trigger and an
+   `-AtStartup` one), elsewhere cron or a systemd timer.
+4. **Caddy**, the release binary from
+   <https://github.com/caddyserver/caddy/releases> (on Windows into
+   `C:\Program Files\Caddy`), with this `Caddyfile`:
+
+   ```caddyfile
+   {
+   	auto_https disable_redirects
+   }
+
+   <name>.duckdns.org {
+   	bind <LAN IP>
+   	tls {
+   		issuer acme {
+   			disable_http_challenge
+   		}
+   	}
+   	reverse_proxy 127.0.0.1:<ComfyUI's port> {
+   		flush_interval -1
+   	}
+   }
+   ```
+
+   Only 443 is forwarded, so the certificate is proven over 443
+   (TLS-ALPN) and port 80 stays shut. `bind` is needed when something already
+   listens on 443 — check `Get-NetTCPConnection -State Listen -LocalPort 443`
+   (or `ss -ltnp`); tailscaled holds 443 on the tailnet address whenever
+   Tailscale Serve uses it. `caddy validate --config <file> --adapter
+   caddyfile` before installing.
+5. **The service and the firewall** (Windows, admin):
+
+   ```powershell
+   New-Service -Name caddy -DisplayName 'Caddy' -StartupType Automatic `
+     -BinaryPathName '"C:\Program Files\Caddy\caddy.exe" run --config "C:\ProgramData\Sorant\Caddyfile" --adapter caddyfile'
+   sc.exe failure caddy reset= 86400 actions= restart/5000/restart/5000/restart/5000
+   New-NetFirewallRule -DisplayName 'Caddy HTTPS' -Direction Inbound -Action Allow `
+     -Protocol TCP -LocalPort 443 -Program 'C:\Program Files\Caddy\caddy.exe'
+   Start-Service caddy
+   ```
+
+   Not `sc.exe create`: Windows PowerShell mangles the quotes in `binPath=`
+   and sc.exe then fails without saying so. In a script under
+   `$ErrorActionPreference = 'Stop'`, `caddy validate` logging to stderr is a
+   terminating `NativeCommandError` even when it passes — set `Continue`
+   around it and check `$LASTEXITCODE`. Linux: the distribution's `caddy`
+   package and its systemd unit.
+6. **The router**, by the person: forward TCP 443 to this machine's LAN IP,
+   port 443; reserve that IP for this machine (a `bind` breaks the day it
+   changes); delete any older forward to ComfyUI's own port.
+7. **Check it:** `curl -s -o /dev/null -w "%{http_code}\n"
+   https://<name>.duckdns.org/system_stats` gives `401`, and `200` with
+   `-H "Authorization: Bearer <token>"`. A TLS error in the first minute is
+   Caddy still getting its certificate; `Get-Service caddy` and Caddy's log
+   say why it is not. `https://<name>.duckdns.org` is the deployed `COMFY_URL`.
+
+If the agent's own permissions will not let it install a service or open a
+port, write the scripts, copy them over, and give the person the exact command
+to run in their own terminal — with forward slashes in Windows paths, since
+their shell eats a backslash before the remote side sees it.
+
+### Fallback: Tailscale Funnel
+
+Only when no port can be forwarded. Tell the person, before setting it up,
+that long joined videos and 4K upscales will not load through it.
 
 1. **Install Tailscale** if `tailscale version` fails — on Windows `winget
    install Tailscale.Tailscale` (needs admin; ask), on Linux
@@ -421,12 +510,8 @@ curl -s -o /dev/null -w "%{http_code}\n" --resolve <host>:<port>:<ingress ip> ht
 No `Answer` yet is normal for the first few minutes: go on with Phase 7 and
 check again before Phase 8. Phase 8's deployed check is the real gate.
 
-**If they will not use Tailscale:** a DDNS hostname (DuckDNS, No-IP, Afraid.org,
-or the router's own) plus a router port forward to ComfyUI's port; `COMFY_URL`
-is `http://<host>:<port>`. The person does the router side. Say plainly that a
-forwarded port is not encryption — the token and prompts cross the internet in
-cleartext, and the app will show a warning saying so — and that ComfyUI is now
-on the open internet.
+**Never** a port forward straight to ComfyUI over plain HTTP: the token and
+prompts would cross the internet in cleartext.
 
 ## Phase 7 — Configure and verify locally
 
@@ -559,8 +644,9 @@ curl -s https://<app>/api/health -H "x-app-token: <APP_ACCESS_TOKEN>"    # reach
 pnpm smoke --url https://<app> --director local                          # or gateway — the gate
 ```
 
-`reachable: false` usually means Funnel's public DNS is not there yet (Phase 6)
-or `COMFY_URL` is wrong. Then the person opens the deployment, enters the app
+`reachable: false` usually means Caddy has no certificate yet, the router
+forward is missing, Funnel's public DNS is not there yet (Phase 6), or
+`COMFY_URL` is wrong. Then the person opens the deployment, enters the app
 password, and — if they use the local rewrite — sets it to **This ComfyUI
 machine** in that browser too.
 
@@ -714,7 +800,8 @@ On the ComfyUI machine:
 | Pill reads **Offline** | `COMFY_URL`; ComfyUI running; port reachable from where the app runs |
 | Pill reads **Auth failed** | `COMFY_API_TOKEN`; the `$` escaping; whether the password was reset since |
 | Works locally, fails deployed | `COMFY_URL` still `localhost`, or `$` escaped in Vercel where it should not be |
-| Deployed health says `reachable: false` right after Phase 6 | Funnel's public DNS is not there yet; check with DNS-over-HTTPS (Phase 6) |
+| Deployed health says `reachable: false` right after Phase 6 | Caddy: the router forward, the `bind` address, or the certificate (its log). Funnel: public DNS is not there yet; check with DNS-over-HTTPS (Phase 6) |
+| A long video sits on a grey box, short clips load | `COMFY_URL` is a Funnel, whose relayed bandwidth cannot carry a file that size within a function's five minutes. Move to Caddy (Phase 6) |
 | Valid token still rejected | ComfyUI launched with `--enable-cors-header <specific-origin>`: ComfyUI-Login only checks the bearer token when that matches, and server-side calls send no Origin. Drop the flag or set it to `*` |
 | Every API call gets 401 or a redirect to `/login` | No password set yet, or no token sent — Phase 5 |
 | A pack fails to import at startup | Its requirements were installed into the wrong Python. Reinstall with ComfyUI's own |
