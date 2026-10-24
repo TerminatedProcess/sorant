@@ -98,7 +98,8 @@ export interface JobsController {
   tagMusicVideo: (tags: Record<string, MusicVideoTag>) => void;
   /**
    * Finish runs this device lost track of with the files found for them on the
-   * box, by prompt id. See `lostTrackOf`.
+   * box, by prompt id — or correct a run an earlier search finished. See
+   * `lostTrackOf` and `recoverScenes`.
    */
   recover: (found: Record<string, { outputs: JobOutput[]; completedAt: number }>) => void;
   cancel: (promptId: string) => Promise<void>;
@@ -516,7 +517,7 @@ export function useJobs(): JobsController {
       setJobs((previous) =>
         previous.map((job) => {
           const hit = found[job.promptId];
-          if (!hit || !lostTrackOf(job)) return job;
+          if (!hit || !(lostTrackOf(job) || job.recovered)) return job;
           return {
             ...job,
             phase: "done" as const,

@@ -647,11 +647,11 @@ export function useMusicVideo({
     setRecoveryNote(null);
     setRecovering(true);
     try {
-      const { found, lost } = await recoverScenes(project, jobs.jobs);
-      const count = Object.keys(found).length;
+      const { found, lost, stillMissing } = await recoverScenes(project, jobs.jobs);
       recoverJobs(found);
+      const count = lost - stillMissing;
       setRecoveryNote(
-        count === lost
+        stillMissing === 0
           ? `Found all ${lost} on the ComfyUI machine.`
           : `Found ${count} of ${lost} on the ComfyUI machine. Render sends the rest again.`,
       );

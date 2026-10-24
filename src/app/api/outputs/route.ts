@@ -1,6 +1,7 @@
 import { unauthorized } from "@/lib/auth";
-import { statFile } from "@/lib/comfy";
+import { readFileRange, statFile } from "@/lib/comfy";
 import { errorResponse } from "@/lib/errors";
+import { mp4Seconds } from "@/lib/mp4";
 import { isUnsafePath, ParamError } from "@/lib/params";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +13,8 @@ export interface OutputFile {
   type: string;
   url: string;
   modifiedAt: number;
+  /** How long it plays, read from its header; null when that could not be read. */
+  seconds: number | null;
 }
 
 /**
@@ -23,7 +26,10 @@ export interface OutputFile {
  * its output, and the assets API that would is off by default, but a save node
  * numbers its files — `MiniMax_H3_00929_.mp4`, then `_00930_` — so the ones
  * after a known file can be found by asking for each name in turn. A HEAD on
- * `/view` answers that without moving the file, with when it was written.
+ * `/view` answers that without moving the file, with when it was written, and
+ * the first few kilobytes of an MP4 say how long it is (see mp4.ts) — which
+ * the browser could only find out by loading each clip through this proxy and
+ * the tunnel behind it, a few seconds apiece and timing out in a crowd.
  *
  * Stops at the first few names in a row that are missing — a file deleted
  * along the way is a gap to step over, the end of the run is a longer one —
@@ -59,7 +65,15 @@ export async function GET(request: Request) {
       const names = Array.from({ length: BATCH }, (_, i) => nameFor(counter + i));
       counter += BATCH;
       const stats = await Promise.all(
-        names.map((filename) => statFile({ filename, subfolder, type: "output" })),
+        names.map(async (filename) => {
+          const ref = { filename, subfolder, type: "output" };
+          const stat = await statFile(ref);
+          if (!stat) return null;
+          const seconds = /\.(mp4|mov|m4v)$/i.test(filename)
+            ? await mp4Seconds((from, to) => readFileRange(ref, from, to)).catch(() => null)
+            : null;
+          return { ...stat, seconds };
+        }),
       );
       for (let i = 0; i < names.length && misses < MISSES_TO_STOP; i += 1) {
         const stat = stats[i];
@@ -75,6 +89,7 @@ export async function GET(request: Request) {
           type: "output",
           url: `/api/media?${query}`,
           modifiedAt: stat.modifiedAt,
+          seconds: stat.seconds,
         });
       }
     }

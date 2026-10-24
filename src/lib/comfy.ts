@@ -532,6 +532,20 @@ export async function statFile(
   }
 }
 
+/** Bytes `start` up to `end` exclusive of a file, or fewer at its end. */
+export async function readFileRange(
+  ref: ComfyFileRef,
+  start: number,
+  end: number,
+): Promise<Uint8Array> {
+  const response = await viewFile(ref, {
+    headers: { Range: `bytes=${start}-${end - 1}` },
+  });
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  // A server that ignores Range sends the whole file from the start.
+  return response.status === 206 ? bytes : bytes.subarray(start, end);
+}
+
 /**
  * ComfyUI groups outputs by an arbitrary key that depends on the save node:
  * `gifs` for VHS_VideoCombine, `videos` for SaveVideo/SaveWEBM, `images` for

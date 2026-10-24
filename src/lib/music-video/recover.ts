@@ -1,5 +1,5 @@
 import type { OutputFile } from "@/app/api/outputs/route";
-import { api, withToken } from "@/lib/client";
+import { api } from "@/lib/client";
 import { lostTrackOf, type Job, type JobOutput } from "@/lib/jobs";
 import type { MusicVideoProject } from "./project";
 import { renderSeconds } from "./scenes";
@@ -18,6 +18,12 @@ import { renderSeconds } from "./scenes";
  * was rendering.
  *
  * A scene with no clip that fits is left as it was, for Render to send again.
+ *
+ * Every search matches the scenes found by earlier ones over again, beside the
+ * ones still missing. The answer only holds for the whole sequence: a scene
+ * that once missed its own clip took the next one of its length, which was
+ * another scene's, and a later search that finds the missed clip has to be
+ * able to move both.
  */
 
 const COUNTED = /^(.+)_(\d{5,})_\.([a-z0-9]+)$/i;
@@ -43,6 +49,8 @@ export interface RecoveryResult {
   found: Record<string, { outputs: JobOutput[]; completedAt: number }>;
   /** How many scenes were lost before looking. */
   lost: number;
+  /** How many of those are lost still. */
+  stillMissing: number;
 }
 
 /** The scenes of a project whose runs this device lost track of, in the order they were sent. */
@@ -56,35 +64,17 @@ export function lostScenes(
     .sort((a, b) => a.submittedAt - b.submittedAt);
 }
 
-/** A clip's length, read by the browser from the file's own header. */
-function clipSeconds(url: string): Promise<number | null> {
-  return new Promise((resolve) => {
-    const video = document.createElement("video");
-    video.preload = "metadata";
-    video.muted = true;
-    const timer = setTimeout(() => finish(null), 30_000);
-    function finish(seconds: number | null) {
-      clearTimeout(timer);
-      video.onloadedmetadata = null;
-      video.onerror = null;
-      video.removeAttribute("src");
-      video.load();
-      resolve(seconds);
-    }
-    video.onloadedmetadata = () =>
-      finish(Number.isFinite(video.duration) ? video.duration : null);
-    video.onerror = () => finish(null);
-    video.src = withToken(url);
-  });
-}
-
 export async function recoverScenes(
   project: MusicVideoProject,
   jobs: Job[],
 ): Promise<RecoveryResult> {
   const byId = new Map(jobs.map((job) => [job.promptId, job]));
-  const lost = lostScenes(project, (id) => byId.get(id));
-  if (lost.length === 0) return { found: {}, lost: 0 };
+  const missing = lostScenes(project, (id) => byId.get(id));
+  if (missing.length === 0) return { found: {}, lost: 0, stillMissing: 0 };
+  const lost = project.scenes
+    .map((scene) => (scene.promptId ? byId.get(scene.promptId) : undefined))
+    .filter((job): job is Job => job !== undefined && (lostTrackOf(job) || job.recovered === true))
+    .sort((a, b) => a.submittedAt - b.submittedAt);
 
   // The newest numbered clip this device knows of from the same workflow,
   // sent no later than the first lost scene: the queue ran that one first, so
@@ -92,7 +82,9 @@ export async function recoverScenes(
   const first = lost[0];
   let anchor: { output: JobOutput; counter: number } | undefined;
   for (const job of jobs) {
-    if (job.phase !== "done" || job.workflowId !== first.workflowId) continue;
+    // Not one an earlier search found: that is a guess, and one of the scenes
+    // being matched again.
+    if (job.phase !== "done" || job.recovered || job.workflowId !== first.workflowId) continue;
     if (job.submittedAt > first.submittedAt) continue;
     for (const output of job.outputs) {
       if ((output.type || "output") !== "output" || !VIDEO.test(output.filename)) continue;
@@ -114,28 +106,18 @@ export async function recoverScenes(
   });
   const { files } = await api<{ files: OutputFile[] }>(`/api/outputs?${query}`);
 
-  // A file some other run in the history already reported is that run's.
+  // A file some other run in the history already reported is that run's. One
+  // only found by an earlier search is up for matching again.
   const claimed = new Set(
-    jobs.flatMap((job) => job.outputs.map((output) => `${output.subfolder}/${output.filename}`)),
+    jobs
+      .filter((job) => !job.recovered)
+      .flatMap((job) => job.outputs.map((output) => `${output.subfolder}/${output.filename}`)),
   );
   const candidates = files.filter(
     (file) =>
       !claimed.has(`${file.subfolder}/${file.filename}`) &&
       file.modifiedAt >= first.submittedAt - CLOCK_SLACK_MS,
   );
-
-  const lengths = new Map<string, Promise<number | null>>();
-  const lengthOf = (file: OutputFile) => {
-    let length = lengths.get(file.url);
-    if (!length) {
-      length = clipSeconds(file.url);
-      lengths.set(file.url, length);
-    }
-    return length;
-  };
-  // Read ahead rather than one clip at a time: each is a round trip to the
-  // box, seconds apiece through a tunnel, and the browser queues the rest.
-  candidates.slice(0, lost.length + 8).forEach(lengthOf);
 
   const found: RecoveryResult["found"] = {};
   let next = 0;
@@ -146,8 +128,9 @@ export async function recoverScenes(
     for (let index = next; index < candidates.length; index += 1) {
       const file = candidates[index];
       if (file.modifiedAt < job.submittedAt - CLOCK_SLACK_MS) continue;
-      const seconds = await lengthOf(file);
-      if (seconds === null || Math.abs(seconds - expected) > LENGTH_TOLERANCE_S) continue;
+      if (file.seconds === null || Math.abs(file.seconds - expected) > LENGTH_TOLERANCE_S) {
+        continue;
+      }
       found[job.promptId] = {
         outputs: [
           { url: file.url, filename: file.filename, subfolder: file.subfolder, type: file.type },
@@ -159,5 +142,9 @@ export async function recoverScenes(
     }
   }
 
-  return { found, lost: lost.length };
+  return {
+    found,
+    lost: missing.length,
+    stillMissing: missing.filter((job) => !found[job.promptId]).length,
+  };
 }
