@@ -9,7 +9,7 @@ import { lostScenes, recoverScenes } from "@/lib/music-video/recover";
 import {
   composeLook,
   parsePlan,
-  planRequest,
+  sceneList,
   sceneValues,
   type MusicVideoProject,
   type ProjectScene,
@@ -368,7 +368,11 @@ export function useMusicVideo({
 
       const promptId = await jobs.submit(
         workflow,
-        { ...values, prompt: planRequest(String(values.prompt ?? ""), windows) },
+        {
+          ...values,
+          prompt: String(values.prompt ?? "").trim() || "A performance video for this song.",
+          scene_list: sceneList(windows),
+        },
         { localDirector: modes.localDirector, musicVideo: tagFor(next, "plan") },
       );
       if (!promptId) return;

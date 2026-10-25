@@ -50,13 +50,15 @@ export function ParamForm({
 
   // Preserve declaration order of both groups and params within them.
   //
-  // A `measured` or `carried` param is dropped here rather than rendered as
+  // A `measured`, `carried` or `written` param is dropped here rather than rendered as
   // nothing: it has no control, and leaving it in would let a group that holds
   // only those draw an empty heading.
   const groups = useMemo(() => {
     const ordered = new Map<string, ClientParam[]>();
     for (const param of params) {
-      if (param.type === "measured" || param.type === "carried") continue;
+      if (param.type === "measured" || param.type === "carried" || param.type === "written") {
+        continue;
+      }
       const key = param.group ?? DEFAULT_GROUP;
       const existing = ordered.get(key);
       if (existing) existing.push(param);
@@ -472,6 +474,7 @@ export function Control({
     // param. Nothing to draw.
     case "measured":
     case "carried":
+    case "written":
       return null;
 
     case "seed": {

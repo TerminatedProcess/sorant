@@ -178,6 +178,22 @@ function coerce(
       return value;
     }
 
+    // Written by the page rather than typed, but checked like typed text all
+    // the same: it arrives over the same wire.
+    case "written": {
+      if (raw == null) return param.default;
+      if (typeof raw !== "string") {
+        throw new ParamError(`${param.label} must be text.`, param.id);
+      }
+      if (raw.length > param.maxLength) {
+        throw new ParamError(
+          `${param.label} is limited to ${param.maxLength} characters.`,
+          param.id,
+        );
+      }
+      return raw;
+    }
+
     // Filled in by a clip hand-off, never typed, but it arrives over the same
     // wire and names a file the same way a video does.
     case "carried": {

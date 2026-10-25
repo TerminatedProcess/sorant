@@ -63,23 +63,37 @@ You cannot hear the song. Each scene will be generated separately by a video mod
 
 Return ONLY a JSON object, with no markdown fence and nothing before or after it:
 
-{"look":"...","scenes":[{"shot":"..."},{"shot":"..."}]}
+{"concept":"...","look":"...","scenes":[{"shot":"..."},{"shot":"..."}]}
 
-Exactly one scene entry per scene you were given, in the same order. Each "shot" is two to four sentences: where the scene is, what the subject does and how, and how the camera sees it. Write it as a direction to a filmmaker, in plain present-tense English.
+"concept" comes first and is for you: three to five sentences on the video as a whole — what it is about, the handful of places it moves through and in what order, and what the chorus scenes become. Write it before any scene, then hold every scene to it.
+
+Exactly one scene entry per scene you were given, in the same order. Each "shot" is three to five sentences, written as a direction to a filmmaker in plain present-tense English, and covers four things:
+
+- The place, made specific: what kind of place it is, the time of day, the light and where it comes from, and two or three concrete things in it.
+- What the subject does: one clear action with a physical detail — what their hands are doing, what they hold, what they look at, how they move.
+- The camera: the framing (close-up, mid, wide), the angle, and at most one move.
+- One image that makes this scene unlike the others: a prop, a colour, weather, a crowd, something happening behind the subject.
+
+Each scene is read on its own by a model that sees nothing else of the plan, so every shot names its place in full. Never write "the same room", "again" or "continues".
+
+A weak shot: "The singer performs in front of a brick wall. The camera is still."
+A strong one: "A narrow alley behind a laundromat at dusk, steam drifting from a vent under a buzzing orange sodium lamp. The singer leans back against the wet brick, singing up toward the light, a paper cup of red soda sweating in one hand. A low wide shot pushes slowly toward him as a stray cat pads past in the foreground."
 
 WHAT MAKES A GOOD PLAN
 
 One video, not a collection of clips. Decide on a concept that fits the user's idea and the lyrics — a story, a journey, a performance in a place, a contrast between two worlds — and let every scene be a moment of it, in order. The first scenes establish it and the last ones resolve it.
 
+Use what the user gave you. Every concrete thing in the idea — each place, prop, colour, activity, period detail and supporting character — should appear somewhere in the plan, spread across the scenes rather than piled into one. When the idea describes how the footage looks (film stock, lenses, a decade), use those camera choices in the shots. When the idea is mostly about the sound of the song, invent the places and the story from its mood and its words.
+
 Follow the song's shape. The loudness of each scene is the one thing you know about the music: quiet scenes are intimate, still or atmospheric; loud ones are big, moving, performed. A run of loud scenes in the middle is a chorus — make it the video's peak, and when a chorus comes back, let it echo the first one in a new way.
 
-Vary the coverage. Close-ups, mid shots and wide shots; a moving camera and a still one; performance to camera and moments where the subject is doing something else. Two scenes in a row should not look alike. A location may carry several scenes, but not every one of them.
+Vary the coverage. Close-ups, mid shots and wide shots; a moving camera and a still one; performance to camera and moments where the subject is doing something else. Two scenes in a row should not look alike, and no two shots should open with the same words. Unless the idea keeps to one place, use at least four different places across the video, and do not spend more than three scenes in a row in one of them. When it does keep to one, move around it: different corners, different light, different things in it.
 
 Keep the subject consistent. The references define who they are and what they wear, and every scene receives the same pictures, so do not describe their face, hair or clothes in a shot, and do not change them from one shot to the next. Refer to the subject plainly — "the singer", "the woman", "the dog" — never by a picture label.
 
-Performance. When the subject is a singer and the scene is one where they would be singing, say they sing — to camera, to someone, to themselves — and how. When they are not singing, give them something to do. Never write lyrics or dialogue into a shot.
+Performance. When the subject is a singer and the scene is one where they would be singing, say they sing or rap — to camera, to someone, to themselves — and how, with a specific gesture or movement. When they are not singing, give them something to do in the place. Never write lyrics or dialogue into a shot.
 
-Each scene is short — the length you are given, usually four to nine seconds. One clear action or image per scene, and at most one camera move. Scenes are separated by hard cuts, so a scene does not need to begin where the last one ended.
+Each scene is short — the length you are given, usually four to nine seconds. One clear action per scene, and at most one camera move. Scenes are separated by hard cuts, so a scene does not need to begin where the last one ended.
 
 No captions, titles, credits or on-screen text, and no other recognisable people, unless the user asks for them.
 
@@ -150,17 +164,26 @@ ${lyrics}`;
 
 const LYRICS_PARAM = "song_lyrics";
 
+/** The scene list the browser wrote from cutting the song. See `sceneList`. */
+const SCENES_PARAM = "scene_list";
+
+/** Last, after the lyrics: it is what the reply has to match one for one. */
+const scenesBlock = (values: Record<string, ParamValue>) => String(values[SCENES_PARAM] ?? "");
+
 const graph: ComfyGraph = {
   [PROMPT_NODE]: {
     class_type: "PrimitiveStringMultiline",
     inputs: { value: "" },
-    _meta: { title: "Input Text (Idea and scenes)" },
+    _meta: { title: "Input Text (Idea)" },
   },
   [DIRECTOR_NODE]: rewriteNode({
     prompt: [PROMPT_NODE, 0],
     system: MUSIC_VIDEO_PLANNER,
     images: [BATCH_NODE, 0],
     title: `AI Gateway - ${PLAN_BRIEF}`,
+    // Every scene of a long song in one reply: forty shots of a hundred-odd
+    // tokens is more than the usual brief's ceiling.
+    maxTokens: 12288,
   }),
   [CAST_PROMPT_NODE]: {
     class_type: "PrimitiveStringMultiline",
@@ -198,7 +221,7 @@ const graph: ComfyGraph = {
 const director = directorTarget(
   ids,
   MUSIC_VIDEO_PLANNER,
-  [referenceFacets(REF_NODES.length), lookBlock, lyricsBlock],
+  [referenceFacets(REF_NODES.length), lookBlock, lyricsBlock, scenesBlock],
   // No length block: the planner is not writing one clip of a known length,
   // and each scene's own length is in the scene list.
   () => "",
@@ -252,6 +275,15 @@ const params: ParamDef[] = [
     help: "One idea for the whole video. A director turns it into a scene for every cut in the song, which you can edit before anything renders.",
     group: "Video",
     targets: [{ node: PROMPT_NODE, input: "value" }],
+  },
+  {
+    id: SCENES_PARAM,
+    label: "Scene list",
+    type: "written",
+    default: "",
+    // About sixty characters a scene; this is several hundred scenes.
+    maxLength: 20000,
+    targets: [director],
   },
   ...REF_NODES.flatMap((node, position) =>
     referenceSlot({
@@ -378,13 +410,14 @@ export const musicVideo: WorkflowDef = {
   finalizeCases: [
     {
       name: "a song and no pictures",
-      values: { reference_audio: "song.mp3", prompt: `x\n\n${SCENES_HEADING}\n1.` },
+      values: { reference_audio: "song.mp3", prompt: "x", scene_list: `${SCENES_HEADING}\n1.` },
     },
     {
       name: "a song and two pictures",
       values: {
         reference_audio: "song.mp3",
-        prompt: `x\n\n${SCENES_HEADING}\n1.`,
+        prompt: "x",
+        scene_list: `${SCENES_HEADING}\n1.`,
         reference_image_1: "a.png",
         reference_image_2: "b.png",
       },
@@ -406,7 +439,7 @@ export const musicVideo: WorkflowDef = {
       delete graph[CAST_NODE];
       delete graph[CAST_PROMPT_NODE];
     }
-    if (!String(values.prompt ?? "").includes(SCENES_HEADING)) {
+    if (!String(values[SCENES_PARAM] ?? "").includes(SCENES_HEADING)) {
       throw new ParamError(
         "The song has not been cut into scenes yet. Load it again and wait for the scene list.",
         "reference_audio",

@@ -221,7 +221,8 @@ export function applyLocalRewrite(graph: ComfyGraph, file: string): void {
     node.inputs = {
       clip: [loader, 0],
       prompt: node.inputs.prompt,
-      max_length: MAX_LENGTH,
+      // A director given more room on the gateway keeps it here.
+      max_length: Math.max(MAX_LENGTH, Number(node.inputs.max_tokens) || 0),
       // Gemma's own recommended sampling.
       sampling_mode: "on",
       "sampling_mode.temperature": 1,

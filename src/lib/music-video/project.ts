@@ -86,21 +86,19 @@ export interface ProjectScene extends SceneWindow {
 }
 
 /**
- * The planner's input: the user's idea, then the scenes it has to fill.
+ * The scenes the planner has to fill, with each one's place in the song and
+ * how loud it is.
  *
- * Written into the prompt rather than a param of its own, because it is the
- * prompt — the thing the planner reads — and building it here keeps the one
- * piece of the brief that depends on the song's analysis in the one place
- * that has the analysis.
+ * Its own param on the plan graph rather than written under the idea: a song
+ * of forty scenes is two thousand characters of list, and appended to the idea
+ * it counted against the idea's limit, so an idea well under it was refused.
  */
-export function planRequest(idea: string, scenes: SceneWindow[]): string {
+export function sceneList(scenes: SceneWindow[]): string {
   const lines = scenes.map((scene, index) => {
     const seconds = (scene.end - scene.start).toFixed(1);
     return `${index + 1}. ${clock(scene.start)}–${clock(scene.end)} (${seconds} s), loudness ${describeEnergy(scene.energy)}`;
   });
-  return `${idea.trim() || "A performance video for this song."}
-
-${SCENES_HEADING}
+  return `${SCENES_HEADING}
 
 The song is cut into ${scenes.length} scenes:
 

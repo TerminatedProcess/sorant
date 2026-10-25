@@ -453,11 +453,14 @@ export function rewriteNode({
   system,
   images,
   title,
+  maxTokens = MAX_TOKENS,
 }: {
   prompt: Link;
   system: string;
   images?: Link;
   title: string;
+  /** For a director whose one reply covers more than one clip. */
+  maxTokens?: number;
 }) {
   const common = {
     // The default follows the class the node is about to be: a text-only model
@@ -466,7 +469,7 @@ export function rewriteNode({
     model: defaultRewriteModel(Boolean(images)),
     prompt,
     system_prompt: system,
-    max_tokens: MAX_TOKENS,
+    max_tokens: maxTokens,
     temperature: 1,
     seed: 0,
     strip_thinking: true,

@@ -426,6 +426,20 @@ export interface CarriedParam extends ParamBase {
   default: "";
 }
 
+/**
+ * Text the page writes for a run and the person never types — the music
+ * video's scene list, which comes out of cutting the song. Its own param
+ * rather than appended to one the person does type, so that one's limit stays
+ * the limit on what they wrote.
+ *
+ * It renders no control, like a measured param.
+ */
+export interface WrittenParam extends ParamBase {
+  type: "written";
+  default: "";
+  maxLength: number;
+}
+
 export type ParamDef =
   | TextParam
   | NumberParam
@@ -436,7 +450,8 @@ export type ParamDef =
   | VideoParam
   | AudioParam
   | MeasuredParam
-  | CarriedParam;
+  | CarriedParam
+  | WrittenParam;
 
 export type ParamValue = string | number | boolean;
 
