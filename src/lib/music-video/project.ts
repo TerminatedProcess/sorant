@@ -117,7 +117,10 @@ function describeEnergy(energy: number): string {
  *
  * Forgiving about everything but the count: a fence around the JSON, a
  * sentence before it, a trailing comma — all things a model does — are got
- * past. A reply with the wrong number of scenes is padded or cut rather than
+ * past. So is JSON broken partway: the local director once wrote a stray quote
+ * after one shot of twenty-seven (`.","},{"shot":`), and one bad scene threw
+ * away the other twenty-six. When the whole will not parse, each shot is read
+ * out of the reply on its own. A reply with the wrong number of scenes is padded or cut rather than
  * refused, since every scene is editable before anything renders and an empty
  * one says plainly what is missing.
  */
@@ -141,7 +144,11 @@ export function parsePlan(
       );
       look = typeof parsed.look === "string" ? parsed.look.trim() : "";
     } catch {
-      shots = [];
+      shots = [...body.matchAll(/"shot"\s*:\s*"((?:[^"\\]|\\.)*)"/g)].map((match) =>
+        unescapeJson(match[1]),
+      );
+      const found = body.match(/"look"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+      look = found ? unescapeJson(found[1]).trim() : "";
     }
   }
   if (shots.length === 0) {
@@ -234,6 +241,15 @@ export function composeLook(
     if (keep === "identity" || keep === "costume") releases = true;
   }
   return [cast?.trim(), releases ? planned.trim() : ""].filter(Boolean).join("\n\n");
+}
+
+/** A JSON string's contents, as written between its quotes. */
+function unescapeJson(raw: string): string {
+  try {
+    return JSON.parse(`"${raw}"`) as string;
+  } catch {
+    return raw;
+  }
 }
 
 /** Whether a scene is still to be (re)submitted. */

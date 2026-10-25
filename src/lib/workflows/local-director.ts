@@ -181,9 +181,9 @@ const MAX_LENGTH = 4096;
  * wired. Where `finalize` left nothing to show, there is simply no image input
  * — `TextGenerate`'s is optional, where `DescribeImage`'s is not.
  *
- * Seed 0, as on the gateway node: ComfyUI caches a node whose inputs have not
- * changed, so re-queueing the same prompt reuses the brief rather than spending
- * another twenty seconds on a new one.
+ * The gateway node's seed, which is 0 bar the music video's plan: ComfyUI
+ * caches a node whose inputs have not changed, so re-queueing the same prompt
+ * reuses the brief rather than spending another twenty seconds on a new one.
  */
 export function applyLocalRewrite(graph: ComfyGraph, file: string): void {
   const roots = terminals(graph);
@@ -230,7 +230,9 @@ export function applyLocalRewrite(graph: ComfyGraph, file: string): void {
       "sampling_mode.top_p": 0.95,
       "sampling_mode.min_p": 0.05,
       "sampling_mode.repetition_penalty": 1.05,
-      "sampling_mode.seed": 0,
+      // The gateway node's own, which is 0 bar a director that asks for a
+      // fresh reply every run — the music video's plan.
+      "sampling_mode.seed": Number(node.inputs.seed) || 0,
       // Thinking would double the slowest part of the run for a brief that is
       // already structured by the instruction.
       thinking: false,

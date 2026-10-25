@@ -379,7 +379,10 @@ const params: ParamDef[] = [
     group: "Output",
     advanced: true,
     scope: "scenes",
-    targets: [],
+    // The plan's too: at a fixed seed every director gives the same reply to
+    // the same request, and ComfyUI hands back the cached one, so planning
+    // again after an unreadable plan would only bring the same plan back.
+    targets: [{ node: DIRECTOR_NODE, input: "seed" }],
   },
   {
     ...rewriteModelParam(graph, [DIRECTOR_NODE, CAST_NODE]),

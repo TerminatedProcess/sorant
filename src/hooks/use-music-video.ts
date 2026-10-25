@@ -280,6 +280,14 @@ export function useMusicVideo({
       const plan = parsePlan(reply, project.scenes.length);
       const look = composeLook(briefs[CAST_BRIEF], plan.look, project.values, MUSIC_VIDEO_PICTURES);
       const shots = plan.shots;
+      // Finished but unreadable would otherwise read as still planning, for
+      // ever: the step waits for a scene with a shot.
+      if (!shots.some((shot) => shot.trim())) {
+        setError("The plan came back in a form that could not be read. Plan it again.");
+        setProject({ ...project, planPromptId: undefined });
+        jobs.remove(planJob.promptId);
+        return;
+      }
       setProject({
         ...project,
         look,
