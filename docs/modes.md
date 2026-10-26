@@ -83,7 +83,8 @@ rather than finishing a run that looks subtly wrong.
 ### The patches
 
 Under the Turbo switch are three more. **All five video workflows offer the first
-two, and both start on:**
+two. SageAttention starts on; Spectrum starts off, because its forecast steps
+leave visible faults in too many takes:**
 
 - **SageAttention** splices KJNodes' `PathchSageAttentionKJ`, running attention
   on quantised kernels instead of the default. The class name's misspelling is

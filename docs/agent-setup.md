@@ -192,8 +192,9 @@ present; `git pull` updates one. Some packs have no `requirements.txt`.
 | Spectrum | `https://github.com/xmarre/ComfyUI-Spectrum-MiniMax-H3` | the Spectrum switch |
 | ComfyUI-Login | `https://github.com/liusida/ComfyUI-Login` | locking ComfyUI — **clone it, but read Phase 5 before restarting** |
 
-All but Nvidia VFX are required: Turbo, SageAttention and Spectrum all start
-switched on, so a video run fails without their packs, and ComfyUI-Login is the
+All but Nvidia VFX are required: Turbo and SageAttention start switched on, so
+a video run fails without their packs; Spectrum starts off but `check:nodes`
+still asks for its pack, since the switch is offered; and ComfyUI-Login is the
 lock. A pack that genuinely will not install can be worked around by turning
 its switch off in the app's settings panel — say which.
 
@@ -575,7 +576,7 @@ Phase 2. **2**: it could not ask at all — ComfyUI not running, wrong
 `COMFY_URL`, or the token rejected (check the `\$` escaping first).
 
 `pnpm smoke` queues a five-second Text to Video through the app with the
-switches a new user gets (Turbo, SageAttention, Spectrum), waits, and prints
+switches a new user gets (Turbo, SageAttention), waits, and prints
 ComfyUI's own error if it fails. **It is the gate.** On failure, fix the cause
 from the error and the troubleshooting table, and run it again; the first run
 on a new machine is where SageAttention's headers (Phase 2) and the GPU timeout

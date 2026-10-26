@@ -601,10 +601,10 @@ export function h3StepSampler({
  * there is no `requiresModel` equivalent to check and no step range to retune.
  * The same two nodes, with the same settings, on all five.
  *
- * **Both need something the base graphs do not**, and both start on — so on an
- * install missing either pack, every workflow dies several minutes in on a class
- * or a kernel nobody recognises, and turning the switch off is the way back to a
- * graph that runs. `pnpm check:nodes` checks the patched form of each graph too,
+ * **Both need something the base graphs do not**, and SageAttention starts on —
+ * so on an install missing its pack, every workflow dies several minutes in on a
+ * class or a kernel nobody recognises, and turning the switch off is the way back
+ * to a graph that runs. Spectrum starts off: see h3Spectrum. `pnpm check:nodes` checks the patched form of each graph too,
  * and reports the owning package off the install itself, so it names what is
  * missing rather than leaving you to guess.
  */
@@ -897,9 +897,10 @@ function h3Spectrum(): PatchDef {
     // the history learns that from the first finished run in the combination.
     // A number invented here would only be wrong until then.
     //
-    // Both start on, for the same reason turbo does: they are how these graphs
-    // are meant to be run here, and the switch is there to take one back out.
-    defaultOn: true,
+    // Off unless someone turns it on. Its forecast steps leave visible faults in
+    // enough takes that the time it saves is not worth being the default; the
+    // switch is there for a draft where speed matters more than the take.
+    defaultOn: false,
     help: "Forecasts sampler steps from the ones already taken instead of computing every one in full. Needs the Spectrum node pack.",
   };
 }

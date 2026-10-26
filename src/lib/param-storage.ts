@@ -35,7 +35,7 @@ const STORAGE_KEY = "sorant-params";
  * Only the switches. Params keep their key, because they are what someone
  * actually typed.
  */
-const DEFAULTS_VERSION = 2;
+const DEFAULTS_VERSION = 3;
 /**
  * Which workflows are in each run mode, kept apart from the values rather than
  * as pseudo-params: none of it is something the graph reads, and mixing it in

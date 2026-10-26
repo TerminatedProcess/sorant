@@ -92,9 +92,10 @@ Six packs. All but the first install from ComfyUI Manager by name.
 
 Restart ComfyUI after installing. Three things in that table are easy to miss:
 
-- **Turbo, SageAttention and Spectrum all start switched on.** That is how the
-  graphs are meant to run, but it means a first video run needs all five packs.
-  If one is genuinely unavailable, turn its switch off in the settings panel.
+- **Turbo and SageAttention start switched on.** That is how the graphs are
+  meant to run, but it means a first video run needs their packs. If one is
+  genuinely unavailable, turn its switch off in the settings panel. Spectrum
+  starts off, so its pack only matters once you turn that switch on.
 - **SageAttention also needs a Python package.** The node patches in a kernel
   rather than shipping one, so install `sageattention` into ComfyUI's own Python
   environment. This is the one requirement the checker cannot see: it will call

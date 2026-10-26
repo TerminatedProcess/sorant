@@ -48,8 +48,8 @@ A few things make it more than a form over a graph:
 - **Your prompt is rewritten for the model.** A language model turns one line
   into the detailed format MiniMax H3 was trained on. You pick which model does
   it — some are free — or switch the rewrite off.
-- **Fast by default.** Turbo, SageAttention and Spectrum all start on, cutting a
-  run to a few minutes on a 24 GB card.
+- **Fast by default.** Turbo and SageAttention start on, cutting a run to a few
+  minutes on a 24 GB card. Spectrum is there too, off by default.
 - **Runs queue and keep going.** Queue several and walk away: they finish on
   your machine even if you close the tab, and the history picks them back up.
   Every result can be replayed, downloaded, rerun, or handed straight to Remix,

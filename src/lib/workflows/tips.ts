@@ -425,6 +425,7 @@ const PATCHES: Record<string, TipSection> = {
     heading: "Spectrum is on",
     items: [
       "The sampler runs through the Spectrum node, which forecasts steps from the ones already taken rather than computing every one in full. As with the others, the prompt director, the length maths and the frame you start from are all unchanged.",
+      "It starts off. Its forecast steps leave visible faults in enough takes that it is not worth being the default — compare a take with it off before keeping one made with it on.",
       "It stacks with Turbo. The two do different things — Turbo changes how many steps are needed, Spectrum changes how a step is arrived at — and with both on the forecaster sits in front of the distilled model.",
       "It is offered on every workflow, Remix included. Remix skips Turbo because it already samples at 8 steps, which is no argument here.",
       "Like Turbo, this needs a node pack the base workflows do not. If every run fails with the switch on and succeeds with it off, that is what to check — `pnpm check:nodes` names the pack.",

@@ -10,7 +10,7 @@
  *
  * Needs the app running at --url, and APP_ACCESS_TOKEN (from .env.local or the
  * environment) when the app has one. It submits with the switches a new user
- * gets — Turbo, SageAttention, Spectrum — because those are what fail on a
+ * gets — Turbo and SageAttention — because those are what fail on a
  * fresh machine, and prints ComfyUI's own error if the run fails, so whoever
  * runs it can fix it from the output instead of from a screenshot.
  *
